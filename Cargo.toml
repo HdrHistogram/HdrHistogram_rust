@@ -1,0 +1,7 @@
+[package]
+name = "hdrsample"
+version = "0.1.0"
+authors = ["Jon Gjengset <jon@thesquareplanet.com>"]
+
+[dependencies]
+num = "0.1"
