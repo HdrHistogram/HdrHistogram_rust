@@ -613,8 +613,12 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
         } else {
             false
         };
-        if !success && !self.handleRecordException(count, value) {
-            return Err(());
+
+        if !success {
+            if !self.autoResize {
+                return Err(());
+            }
+            self.handleRecordException(count, value);
         }
 
         self.updateMinAndMax(value);
@@ -622,11 +626,7 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
         Ok(())
     }
 
-    fn handleRecordException(&mut self, count: T, value: i64) -> bool {
-        if !self.autoResize {
-            return false;
-        }
-
+    fn handleRecordException(&mut self, count: T, value: i64) {
         self.resize(value);
         {
             let v = self.mut_at(value).expect("value should fit after resize");
@@ -635,7 +635,6 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
 
         self.highestTrackableValue =
             self.highest_equivalent(self.value_from_index(self.lastIndex()));
-        true
     }
 
     fn recordCountWithInterval(&mut self,
