@@ -32,7 +32,7 @@ impl<'a, T: 'a + num::Num + Copy> Iter<'a, T> {
 
 impl<'a, T: 'a + num::Num + Copy> PickyIterator<T> for Iter<'a, T> {
     fn pick(&mut self, index: usize, _: i64) -> bool {
-        let val = self.hist.valueFromIndex(index);
+        let val = self.hist.value_from_index(index);
         if val >= self.currentStepLowestValueReportingLevel || index == self.hist.lastIndex() {
             self.nextValueReportingLevel *= self.logBase;
             self.currentStepHighestValueReportingLevel = self.nextValueReportingLevel as i64 - 1;
@@ -50,6 +50,6 @@ impl<'a, T: 'a + num::Num + Copy> PickyIterator<T> for Iter<'a, T> {
         // no longer on a value that has a count, rather than util we first reach the last value
         // that has a count. The difference is subtle but important)...
         self.hist.lowest_equivalent(self.nextValueReportingLevel as i64) <
-        self.hist.valueFromIndex(self.hist.len())
+        self.hist.value_from_index(self.hist.len())
     }
 }

@@ -35,7 +35,7 @@ impl<'a, T: num::Num + Copy, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
 
     // (value, percentile, count-for-value, count-for-step)
     fn current(&self) -> (i64, f64, T, i64) {
-        let value = self.hist.highest_equivalent(self.hist.valueFromIndex(self.currentIndex));
+        let value = self.hist.highest_equivalent(self.hist.value_from_index(self.currentIndex));
         let perc = self.totalCountToIndex as f64 / self.hist.total() as f64;
         let count = self.hist[self.currentIndex];
         (value, perc, count, self.totalCountToIndex - self.prevTotalCount)

@@ -7,6 +7,7 @@ extern crate num;
 use std::ops::Index;
 use std::ops::IndexMut;
 use std::ops::AddAssign;
+use std::borrow::Borrow;
 
 pub struct Histogram<T: num::Num> {
     autoResize: bool,
@@ -160,7 +161,7 @@ impl<T: num::Num + num::ToPrimitive + Copy> Clone for Histogram<T> {
     }
 }
 
-impl<'a, T: num::Num + num::ToPrimitive + Copy> AddAssign<&'a Histogram<T>> for Histogram<T> {
+impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// Add the contents of another histogram to this one.
     ///
     /// As part of adding the contents, the start/end timestamp range of this histogram will be
@@ -169,13 +170,15 @@ impl<'a, T: num::Num + num::ToPrimitive + Copy> AddAssign<&'a Histogram<T>> for 
     /// May panic if values in the other histogram are higher than `highestTrackableValue`, and
     /// auto-resize is disabled.
     ///
-    fn add_assign(&mut self, source: &'a Histogram<T>) {
+    pub fn add<B: Borrow<Histogram<T>>>(&mut self, source: B) -> Result<(), &'static str> {
+        let source = source.borrow();
+
         // make sure we can take the values in source
-        let top = self.highest_equivalent(self.valueFromIndex(self.lastIndex()));
+        let top = self.highest_equivalent(self.value_from_index(self.lastIndex()));
         if top < source.max() {
             if !self.autoResize {
-                panic!("The other histogram includes values that do not fit in this histogram's \
-                        range.");
+                return Err("The other histogram includes values that do not fit in this \
+                            histogram's range.");
             }
             self.resize(source.max());
         }
@@ -210,13 +213,13 @@ impl<'a, T: num::Num + num::ToPrimitive + Copy> AddAssign<&'a Histogram<T>> for 
             // Do max value first, to avoid max value updates on each iteration:
             let otherMaxIndex = source.indexOf(source.max()) as usize;
             let otherCount = source[otherMaxIndex];
-            self.recordCountAtValue(otherCount, source.valueFromIndex(otherMaxIndex)).unwrap();
+            self.recordCountAtValue(otherCount, source.value_from_index(otherMaxIndex)).unwrap();
 
             // Record the remaining values, up to but not including the max value:
             for i in 0..otherMaxIndex {
                 let otherCount = source[i];
                 if otherCount != T::zero() {
-                    self.recordCountAtValue(otherCount, source.valueFromIndex(i)).unwrap();
+                    self.recordCountAtValue(otherCount, source.value_from_index(i)).unwrap();
                 }
             }
         }
@@ -228,8 +231,16 @@ impl<'a, T: num::Num + num::ToPrimitive + Copy> AddAssign<&'a Histogram<T>> for 
         // if source.endTime > self.endTime {
         //     self.endTime = source.endTime;
         // }
+        Ok(())
     }
 }
+
+impl<'a, T: num::Num + num::ToPrimitive + Copy> AddAssign<&'a Histogram<T>> for Histogram<T> {
+    fn add_assign(&mut self, source: &'a Histogram<T>) {
+        self.add(source).unwrap();
+    }
+}
+
 
 impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /**
@@ -622,7 +633,8 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
             *v = *v + count;
         }
 
-        self.highestTrackableValue = self.highest_equivalent(self.valueFromIndex(self.lastIndex()));
+        self.highestTrackableValue =
+            self.highest_equivalent(self.value_from_index(self.lastIndex()));
         true
     }
 
@@ -796,7 +808,7 @@ impl<T: num::Num> Histogram<T> {
      * are counted in a common total count.
      */
     pub fn median_equivalent(&self, value: i64) -> i64 {
-        self.lowest_equivalent(value) + (self.sizeOfEquivalentValueRange(value) >> 1)
+        self.lowest_equivalent(value) + (self.equivalent_range_len(value) >> 1)
     }
 
     /**
@@ -805,7 +817,7 @@ impl<T: num::Num> Histogram<T> {
      * values are counted in a common total count.
      */
     pub fn next_non_equivalent(&self, value: i64) -> i64 {
-        self.lowest_equivalent(value) + self.sizeOfEquivalentValueRange(value)
+        self.lowest_equivalent(value) + self.equivalent_range_len(value)
     }
 
     /**
@@ -923,7 +935,7 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
         for i in 0..self.len() {
             totalToCurrentIndex += self[i].to_i64().unwrap();
             if totalToCurrentIndex >= countAtPercentile {
-                let valueAtIndex = self.valueFromIndex(i);
+                let valueAtIndex = self.value_from_index(i);
                 return if percentile == 0.0 {
                     self.lowest_equivalent(valueAtIndex)
                 } else {
@@ -1021,7 +1033,7 @@ impl<T: num::Num> Histogram<T> {
         (subBucketIndex as i64) << (bucketIndex + self.unitMagnitude)
     }
 
-    fn valueFromIndex(&self, index: usize) -> i64 {
+    pub fn value_from_index(&self, index: usize) -> i64 {
         let mut bucketIndex = (index >> self.subBucketHalfCountMagnitude) as isize - 1;
         let mut subBucketIndex =
             ((index & (self.subBucketHalfCount - 1)) + self.subBucketHalfCount) as isize;
@@ -1037,7 +1049,7 @@ impl<T: num::Num> Histogram<T> {
      * within the histogram's resolution. Where "equivalent" means that value samples recorded for
      * any two equivalent values are counted in a common total count.
      */
-    fn sizeOfEquivalentValueRange(&self, value: i64) -> i64 {
+    pub fn equivalent_range_len(&self, value: i64) -> i64 {
         let bucketIndex = self.bucketIndexOf(value);
         let subBucketIndex = self.subBucketIndexOf(value, bucketIndex);
         // calculate distance to next value
