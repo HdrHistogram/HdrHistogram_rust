@@ -44,12 +44,12 @@ impl<'a, T: 'a + num::Num + Copy> PickyIterator<T> for Iter<'a, T> {
         }
     }
 
-    fn last(&mut self) -> bool {
+    fn more(&mut self, next_index: usize) -> bool {
         // If the next iterate will not move to the next sub bucket index (which is empty if if we
         // reached this point), then we are not yet done iterating (we want to iterate until we are
         // no longer on a value that has a count, rather than util we first reach the last value
         // that has a count. The difference is subtle but important)...
         self.hist.lowest_equivalent(self.nextValueReportingLevel as i64) <
-        self.hist.value_from_index(self.hist.len())
+        self.hist.value_from_index(next_index)
     }
 }
