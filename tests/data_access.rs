@@ -72,7 +72,7 @@ fn load_histograms() -> Loaded {
 }
 
 #[test]
-fn test_scaling_equivalence() {
+fn scaling_equivalence() {
     let Loaded { hist, scaled_hist, post, scaled_post, .. } = load_histograms();
 
     assert_near!(hist.mean() * SCALEF as f64, scaled_hist.mean(), 0.000001);
@@ -110,7 +110,7 @@ fn test_scaling_equivalence() {
 }
 
 #[test]
-fn test_total_count() {
+fn total_count() {
     let Loaded { hist, raw, .. } = load_histograms();
 
     assert_eq!(raw.total(), 10001);
@@ -118,21 +118,21 @@ fn test_total_count() {
 }
 
 #[test]
-fn test_get_max_value() {
+fn get_max_value() {
     let Loaded { hist, .. } = load_histograms();
 
     assert!(hist.equivalent(hist.max(), 100000000));
 }
 
 #[test]
-fn test_get_min_value() {
+fn get_min_value() {
     let Loaded { hist, .. } = load_histograms();
 
     assert!(hist.equivalent(hist.min(), 1000));
 }
 
 #[test]
-fn test_get_mean() {
+fn get_mean() {
     let Loaded { hist, raw, .. } = load_histograms();
 
     // direct avg. of raw results
@@ -146,7 +146,7 @@ fn test_get_mean() {
 }
 
 #[test]
-fn test_get_stdev() {
+fn get_stdev() {
     let Loaded { hist, raw, .. } = load_histograms();
 
     // direct avg. of raw results
@@ -173,7 +173,7 @@ fn test_get_stdev() {
 }
 
 #[test]
-fn test_percentiles() {
+fn percentiles() {
     let Loaded { hist, raw, .. } = load_histograms();
 
     assert_near!(raw.value_at_percentile(30.0), 1000.0, 0.001);
@@ -192,7 +192,7 @@ fn test_percentiles() {
 }
 
 #[test]
-fn test_large_percentile() {
+fn large_percentile() {
     let largestValue = 1000000000000i64;
     let mut h = Histogram::<u64>::new_with_max(largestValue, 5).unwrap();
     h += largestValue;
@@ -200,7 +200,7 @@ fn test_large_percentile() {
 }
 
 #[test]
-fn test_percentile_atorbelow() {
+fn percentile_atorbelow() {
     let Loaded { hist, raw, .. } = load_histograms();
     assert_near!(99.99, raw.percentile_below(5000), 0.0001);
     assert_near!(50.0, hist.percentile_below(5000), 0.0001);
@@ -208,7 +208,7 @@ fn test_percentile_atorbelow() {
 }
 
 #[test]
-fn test_count_between() {
+fn count_between() {
     let Loaded { hist, raw, .. } = load_histograms();
     assert_eq!(raw.count_between(1000, 1000), Ok(10000));
     assert_eq!(raw.count_between(5000, 150000000), Ok(1));
@@ -216,7 +216,7 @@ fn test_count_between() {
 }
 
 #[test]
-fn test_count_at() {
+fn count_at() {
     let Loaded { hist, raw, .. } = load_histograms();
     assert_eq!(raw.count_between(10000, 10010), Ok(0));
     assert_eq!(hist.count_between(10000, 10010), Ok(1));
@@ -225,7 +225,7 @@ fn test_count_at() {
 }
 
 #[test]
-fn test_perc_iter() {
+fn perc_iter() {
     let Loaded { hist, .. } = load_histograms();
     for (v, p, _, _) in hist.iter_percentiles(5 /* ticks per half */) {
         assert_eq!(v, hist.highest_equivalent(hist.value_at_percentile(p)));
@@ -233,7 +233,7 @@ fn test_perc_iter() {
 }
 
 #[test]
-fn test_linear_iter() {
+fn linear_iter() {
     let Loaded { hist, raw, .. } = load_histograms();
 
     // Note that using linear buckets should work "as expected" as long as the number of linear
@@ -308,7 +308,7 @@ fn test_linear_iter() {
 }
 
 #[test]
-fn test_iter_log() {
+fn iter_log() {
     let Loaded { hist, raw, .. } = load_histograms();
 
     // Iterate raw data using logarithmic buckets starting at 10 msec.
@@ -341,7 +341,7 @@ fn test_iter_log() {
 }
 
 #[test]
-fn test_iter_recorded() {
+fn iter_recorded() {
     let Loaded { hist, raw, .. } = load_histograms();
 
     // Iterate raw data by stepping through every value that has a count recorded:
@@ -377,7 +377,7 @@ fn test_iter_recorded() {
 }
 
 #[test]
-fn test_iter_all() {
+fn iter_all() {
     let Loaded { hist, raw, .. } = load_histograms();
 
     // Iterate raw data by stepping through every value that has a count recorded:
@@ -417,7 +417,7 @@ fn test_iter_all() {
 }
 
 #[test]
-fn test_linear_iter_steps() {
+fn linear_iter_steps() {
     let mut histogram = Histogram::<isize>::new(2).unwrap();
     histogram += 193;
     histogram += 0;
@@ -430,7 +430,7 @@ fn test_linear_iter_steps() {
 
 
 #[test]
-fn test_value_duplication() {
+fn value_duplication() {
     let Loaded { hist, .. } = load_histograms();
     let histogram1 = hist.clone();
 

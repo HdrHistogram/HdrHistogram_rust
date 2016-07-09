@@ -8,7 +8,7 @@ use hdrsample::Histogram;
 
 #[test]
 #[ignore]
-fn test_histogram_autosizing_edges() {
+fn histogram_autosizing_edges() {
     let mut histogram = Histogram::<u64>::new(3).unwrap();
     histogram += (1i64 << 62) - 1;
     assert_eq!(histogram.bucketCount(), 52);
@@ -20,7 +20,7 @@ fn test_histogram_autosizing_edges() {
 
 #[test]
 #[ignore]
-fn test_histogram_autosizing() {
+fn histogram_autosizing() {
     let mut histogram = Histogram::<u64>::new(3).unwrap();
     for i in 0..63 {
         histogram += 1i64 << i;
@@ -30,7 +30,7 @@ fn test_histogram_autosizing() {
 }
 
 #[test]
-fn test_autosizing_add() {
+fn autosizing_add() {
     let mut histogram1 = Histogram::<u64>::new(2).unwrap();
     let mut histogram2 = Histogram::<u64>::new(2).unwrap();
 
@@ -42,7 +42,7 @@ fn test_autosizing_add() {
 }
 
 #[test]
-fn test_autosizing_across_continuous_range() {
+fn autosizing_across_continuous_range() {
     let mut histogram = Histogram::<u64>::new(2).unwrap();
 
     for i in 0..10000000i64 {

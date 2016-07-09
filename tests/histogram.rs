@@ -39,13 +39,13 @@ const SIGFIG: u32 = 3;
 const TEST_VALUE_LEVEL: i64 = 4;
 
 #[test]
-fn test_construction_arg_ranges() {
+fn construction_arg_ranges() {
     assert!(Histogram::<u64>::new_with_max(1, SIGFIG).is_err());
     assert!(Histogram::<u64>::new_with_max(TRACKABLE_MAX, 6).is_err());
 }
 
 #[test]
-fn test_empty_histogram() {
+fn empty_histogram() {
     let h = Histogram::<u64>::new(SIGFIG).unwrap();
     assert_eq!(h.min(), 0);
     assert_eq!(h.max(), 0);
@@ -56,7 +56,7 @@ fn test_empty_histogram() {
 }
 
 #[test]
-fn test_construction_arg_gets() {
+fn construction_arg_gets() {
     let h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     assert_eq!(h.getLowestDiscernibleValue(), 1);
     assert_eq!(h.getHighestTrackableValue(), TRACKABLE_MAX);
@@ -67,7 +67,7 @@ fn test_construction_arg_gets() {
 }
 
 #[test]
-fn test_record() {
+fn record() {
     let mut h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     h += TEST_VALUE_LEVEL;
     assert_eq!(h.count_at(TEST_VALUE_LEVEL), Ok(1));
@@ -76,13 +76,13 @@ fn test_record() {
 }
 
 #[test]
-fn test_record_overflow() {
+fn record_overflow() {
     let mut h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     assert!(h.record(3 * TRACKABLE_MAX).is_err());
 }
 
 #[test]
-fn test_create_with_large_values() {
+fn create_with_large_values() {
     let mut h = Histogram::<u64>::new_with_bounds(20000000, 100000000, 5).unwrap();
 
     h += 100000000;
@@ -96,7 +96,7 @@ fn test_create_with_large_values() {
 }
 
 #[test]
-fn test_record_in_interval() {
+fn record_in_interval() {
     let mut h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     h.recordInInterval(TEST_VALUE_LEVEL, TEST_VALUE_LEVEL / 4).unwrap();
     let mut r = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
@@ -119,7 +119,7 @@ fn test_record_in_interval() {
 }
 
 #[test]
-fn test_reset() {
+fn reset() {
     let mut h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     h += TEST_VALUE_LEVEL;
     h.reset();
@@ -130,7 +130,7 @@ fn test_reset() {
 }
 
 #[test]
-fn test_add() {
+fn add() {
     let mut h1 = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     let mut h2 = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
 
@@ -165,7 +165,7 @@ fn test_add() {
 }
 
 #[test]
-fn test_equivalent_range_len() {
+fn equivalent_range_len() {
     let h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     assert_eq!(h.equivalent_range_len(1), 1);
     assert_eq!(h.equivalent_range_len(2500), 2);
@@ -175,7 +175,7 @@ fn test_equivalent_range_len() {
 }
 
 #[test]
-fn test_scaled_equivalent_range_len() {
+fn scaled_equivalent_range_len() {
     let h = Histogram::<u64>::new_with_bounds(1024, TRACKABLE_MAX, SIGFIG).unwrap();
     assert_eq!(h.equivalent_range_len(1 * 1024), 1 * 1024);
     assert_eq!(h.equivalent_range_len(2500 * 1024), 2 * 1024);
@@ -185,7 +185,7 @@ fn test_scaled_equivalent_range_len() {
 }
 
 #[test]
-fn test_lowest_equivalent() {
+fn lowest_equivalent() {
     let h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     assert_eq!(h.lowest_equivalent(10007), 10000);
     assert_eq!(h.lowest_equivalent(10009), 10008);
@@ -193,14 +193,14 @@ fn test_lowest_equivalent() {
 
 
 #[test]
-fn test_scaled_lowest_equivalent() {
+fn scaled_lowest_equivalent() {
     let h = Histogram::<u64>::new_with_bounds(1024, TRACKABLE_MAX, SIGFIG).unwrap();
     assert_eq!(h.lowest_equivalent(10007 * 1024), 10000 * 1024);
     assert_eq!(h.lowest_equivalent(10009 * 1024), 10008 * 1024);
 }
 
 #[test]
-fn test_highest_equivalent() {
+fn highest_equivalent() {
     let h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     assert_eq!(h.highest_equivalent(8180), 8183);
     assert_eq!(h.highest_equivalent(8191), 8191);
@@ -211,7 +211,7 @@ fn test_highest_equivalent() {
 }
 
 #[test]
-fn test_scaled_highest_equivalent() {
+fn scaled_highest_equivalent() {
     let h = Histogram::<u64>::new_with_bounds(1024, TRACKABLE_MAX, SIGFIG).unwrap();
     assert_eq!(h.highest_equivalent(8180 * 1024), 8183 * 1024 + 1023);
     assert_eq!(h.highest_equivalent(8191 * 1024), 8191 * 1024 + 1023);
@@ -223,7 +223,7 @@ fn test_scaled_highest_equivalent() {
 
 
 #[test]
-fn test_median_equivalent() {
+fn median_equivalent() {
     let h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     assert_eq!(h.median_equivalent(4), 4);
     assert_eq!(h.median_equivalent(5), 5);
@@ -233,7 +233,7 @@ fn test_median_equivalent() {
 }
 
 #[test]
-fn test_scaled_median_equivalent() {
+fn scaled_median_equivalent() {
     let h = Histogram::<u64>::new_with_bounds(1024, TRACKABLE_MAX, SIGFIG).unwrap();
     assert_eq!(h.median_equivalent(1024 * 4), 1024 * 4 + 512);
     assert_eq!(h.median_equivalent(1024 * 5), 1024 * 5 + 512);
@@ -244,7 +244,7 @@ fn test_scaled_median_equivalent() {
 
 #[test]
 #[should_panic]
-fn test_overflow() {
+fn overflow() {
     let mut h = Histogram::<i16>::new_with_max(TRACKABLE_MAX, 2).unwrap();
     h += TEST_VALUE_LEVEL;
     h += 10 * TEST_VALUE_LEVEL;
@@ -272,7 +272,7 @@ fn are_equal<T, B1, B2>(actual: B1, expected: B2)
 }
 
 #[test]
-fn test_clone() {
+fn clone() {
     let mut h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     h += TEST_VALUE_LEVEL;
     h += 10 * TEST_VALUE_LEVEL;
@@ -284,7 +284,7 @@ fn test_clone() {
 }
 
 #[test]
-fn test_scaled_clone() {
+fn scaled_clone() {
     let mut h = Histogram::<u64>::new_with_bounds(1000, TRACKABLE_MAX, SIGFIG).unwrap();
     h += TEST_VALUE_LEVEL;
     h += 10 * TEST_VALUE_LEVEL;
