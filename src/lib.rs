@@ -807,7 +807,10 @@ impl<T: num::Num> Histogram<T> {
      * are counted in a common total count.
      */
     pub fn median_equivalent(&self, value: i64) -> i64 {
-        self.lowest_equivalent(value) + (self.equivalent_range_len(value) >> 1)
+        match self.lowest_equivalent(value).overflowing_add(self.equivalent_range_len(value) >> 1) {
+            (_, of) if of => i64::max_value(),
+            (v, _) => v,
+        }
     }
 
     /**
@@ -816,7 +819,10 @@ impl<T: num::Num> Histogram<T> {
      * values are counted in a common total count.
      */
     pub fn next_non_equivalent(&self, value: i64) -> i64 {
-        self.lowest_equivalent(value) + self.equivalent_range_len(value)
+        match self.lowest_equivalent(value).overflowing_add(self.equivalent_range_len(value)) {
+            (_, of) if of => i64::max_value(),
+            (v, _) => v,
+        }
     }
 
     /**

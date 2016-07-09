@@ -7,7 +7,6 @@ extern crate hdrsample;
 use hdrsample::Histogram;
 
 #[test]
-#[ignore]
 fn histogram_autosizing_edges() {
     let mut histogram = Histogram::<u64>::new(3).unwrap();
     histogram += (1i64 << 62) - 1;
@@ -19,7 +18,6 @@ fn histogram_autosizing_edges() {
 }
 
 #[test]
-#[ignore]
 fn histogram_autosizing() {
     let mut histogram = Histogram::<u64>::new(3).unwrap();
     for i in 0..63 {
