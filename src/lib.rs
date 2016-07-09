@@ -1032,6 +1032,10 @@ impl<T: num::Num> Histogram<T> {
         (subBucketIndex as i64) << (bucketIndex + self.unitMagnitude)
     }
 
+    pub fn bucketCount(&self) -> usize {
+        self.bucketCount
+    }
+
     pub fn value_from_index(&self, index: usize) -> i64 {
         let mut bucketIndex = (index >> self.subBucketHalfCountMagnitude) as isize - 1;
         let mut subBucketIndex =
