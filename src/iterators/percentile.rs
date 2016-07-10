@@ -2,6 +2,7 @@ use num;
 use Histogram;
 use iterators::{HistogramIterator, PickyIterator};
 
+/// An iterator that will yield at percentile steps through the histogram's value range.
 pub struct Iter<'a, T: 'a + num::Num> {
     hist: &'a Histogram<T>,
 
@@ -11,6 +12,7 @@ pub struct Iter<'a, T: 'a + num::Num> {
 }
 
 impl<'a, T: 'a + num::Num + Copy> Iter<'a, T> {
+    /// Construct a new percentile iterator. See `Histogram::iter_percentiles` for details.
     pub fn new(hist: &'a Histogram<T>,
                percentileTicksPerHalfDistance: isize)
                -> HistogramIterator<'a, T, Iter<'a, T>> {
@@ -31,7 +33,7 @@ impl<'a, T: 'a + Copy + num::Num> PickyIterator<T> for Iter<'a, T> {
             return false;
         }
 
-        let currentPercentile = (100 * running_total) as f64 / self.hist.total() as f64;
+        let currentPercentile = (100 * running_total) as f64 / self.hist.count() as f64;
         if currentPercentile < self.percentileLevelToIterateTo {
             return false;
         }
@@ -58,7 +60,7 @@ impl<'a, T: 'a + Copy + num::Num> PickyIterator<T> for Iter<'a, T> {
 
     fn more(&mut self, _: usize) -> bool {
         // We want one additional last step to 100%
-        if !self.reachedLastRecordedValue && self.hist.total() > 0 {
+        if !self.reachedLastRecordedValue && self.hist.count() > 0 {
             self.percentileLevelToIterateTo = 100.0;
             self.reachedLastRecordedValue = true;
             true

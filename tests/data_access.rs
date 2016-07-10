@@ -46,20 +46,20 @@ fn load_histograms() -> Loaded {
     // of 10 msec:
     for _ in 0..10000 {
         let v = 1000; // 1ms
-        hist.recordInInterval(v, EINTERVAL).unwrap();
-        scaled_hist.recordInInterval(v * SCALEF, EINTERVAL * SCALEF).unwrap();
+        hist.record_correct(v, EINTERVAL).unwrap();
+        scaled_hist.record_correct(v * SCALEF, EINTERVAL * SCALEF).unwrap();
         raw += v;
         scaled_raw += v * SCALEF;
     }
 
     let v = 100000000;
-    hist.recordInInterval(v, EINTERVAL).unwrap();
-    scaled_hist.recordInInterval(v * SCALEF, EINTERVAL * SCALEF).unwrap();
+    hist.record_correct(v, EINTERVAL).unwrap();
+    scaled_hist.record_correct(v * SCALEF, EINTERVAL * SCALEF).unwrap();
     raw += v;
     scaled_raw += v * SCALEF;
 
-    let post = raw.correctedClone(EINTERVAL);
-    let scaled_post = scaled_raw.correctedClone(EINTERVAL * SCALEF);
+    let post = raw.clone_correct(EINTERVAL);
+    let scaled_post = scaled_raw.clone_correct(EINTERVAL * SCALEF);
 
     Loaded {
         hist: hist,
@@ -76,7 +76,7 @@ fn scaling_equivalence() {
     let Loaded { hist, scaled_hist, post, scaled_post, .. } = load_histograms();
 
     assert_near!(hist.mean() * SCALEF as f64, scaled_hist.mean(), 0.000001);
-    assert_eq!(hist.total(), scaled_hist.total());
+    assert_eq!(hist.count(), scaled_hist.count());
 
     let expected_99th = hist.value_at_percentile(99.0) * 512;
     let scaled_99th = scaled_hist.value_at_percentile(99.0);
@@ -87,7 +87,7 @@ fn scaling_equivalence() {
     // averages should be equivalent
     assert_near!(hist.mean() * SCALEF as f64, scaled_hist.mean(), 0.000001);
     // total count should be the same
-    assert_eq!(hist.total(), scaled_hist.total());
+    assert_eq!(hist.count(), scaled_hist.count());
     // 99%'iles should be equivalent
     assert_eq!(scaled_hist.highest_equivalent(hist.value_at_percentile(99.0) * 512),
                scaled_hist.highest_equivalent(scaled_hist.value_at_percentile(99.0)));
@@ -100,7 +100,7 @@ fn scaling_equivalence() {
     // averages should be equivalent
     assert_near!(post.mean() * SCALEF as f64, scaled_post.mean(), 0.000001);
     // total count should be the same
-    assert_eq!(post.total(), scaled_post.total());
+    assert_eq!(post.count(), scaled_post.count());
     // 99%'iles should be equivalent
     assert_eq!(post.lowest_equivalent(post.value_at_percentile(99.0)) * SCALEF,
                scaled_post.lowest_equivalent(scaled_post.value_at_percentile(99.0)));
@@ -113,8 +113,8 @@ fn scaling_equivalence() {
 fn total_count() {
     let Loaded { hist, raw, .. } = load_histograms();
 
-    assert_eq!(raw.total(), 10001);
-    assert_eq!(hist.total(), 20000);
+    assert_eq!(raw.count(), 10001);
+    assert_eq!(hist.count(), 20000);
 }
 
 #[test]
@@ -409,7 +409,7 @@ fn iter_all() {
         assert_eq!(c as i64, sc);
         totalAddedCounts += sc;
         // valueFromIndex(index) should be equal to getValueIteratedTo()
-        assert!(hist.equivalent(hist.value_from_index(i), v));
+        assert!(hist.equivalent(hist.value_for(i), v));
         num += 1;
     }
     assert_eq!(num, hist.len());

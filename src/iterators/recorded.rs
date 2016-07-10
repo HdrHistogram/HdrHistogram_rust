@@ -2,12 +2,14 @@ use num;
 use Histogram;
 use iterators::{HistogramIterator, PickyIterator};
 
+/// An iterator that will yield only bins with at least one sample.
 pub struct Iter<'a, T: 'a + num::Num> {
     hist: &'a Histogram<T>,
     visited: Option<usize>,
 }
 
 impl<'a, T: 'a + num::Num + Copy> Iter<'a, T> {
+    /// Construct a new sampled iterator. See `Histogram::iter_recorded` for details.
     pub fn new(hist: &'a Histogram<T>) -> HistogramIterator<'a, T, Iter<'a, T>> {
         HistogramIterator::new(hist,
                                Iter {

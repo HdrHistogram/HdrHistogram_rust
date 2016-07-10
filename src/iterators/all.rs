@@ -2,9 +2,11 @@ use num;
 use Histogram;
 use iterators::{HistogramIterator, PickyIterator};
 
+/// An iterator that will yield every bin.
 pub struct Iter(Option<usize>);
 
 impl Iter {
+    /// Construct a new full iterator. See `Histogram::iter_all` for details.
     pub fn new<'a, T: num::Num + Copy>(hist: &'a Histogram<T>) -> HistogramIterator<'a, T, Iter> {
         HistogramIterator::new(hist, Iter(None))
     }

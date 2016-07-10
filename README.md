@@ -85,7 +85,7 @@ hist += 54321;
 // if the code that generates the values is subject to Coordinated Omission,
 // the self-correcting record method should be used instead.
 // for example, if the expected sampling interval is 10 msec:
-hist.recordInInterval(54321, 10).expect("value 54321 should be in range");
+hist.record_correct(54321, 10).expect("value 54321 should be in range");
 ```
 
 Note the `u64` annotation. This type can be changed to reduce the storage overhead for all the
@@ -101,7 +101,7 @@ as the total number of recorded samples, or the value at a given percentile:
 use hdrsample::Histogram;
 let hist = Histogram::<u64>::new(2).unwrap();
 // ...
-println!("# of samples: {}", hist.total());
+println!("# of samples: {}", hist.count());
 println!("99.9'th percentile: {}", hist.value_at_percentile(99.9));
 ```
 
@@ -151,7 +151,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-hdrsample = "0.1"
+hdrsample = "1.0"
 ```
 
 and this to your crate root:

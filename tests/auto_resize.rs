@@ -10,10 +10,10 @@ use hdrsample::Histogram;
 fn histogram_autosizing_edges() {
     let mut histogram = Histogram::<u64>::new(3).unwrap();
     histogram += (1i64 << 62) - 1;
-    assert_eq!(histogram.bucketCount(), 52);
+    assert_eq!(histogram.buckets(), 52);
     assert_eq!(histogram.len(), 54272);
     histogram += i64::max_value();
-    assert_eq!(histogram.bucketCount(), 53);
+    assert_eq!(histogram.buckets(), 53);
     assert_eq!(histogram.len(), 55296);
 }
 
@@ -23,7 +23,7 @@ fn histogram_autosizing() {
     for i in 0..63 {
         histogram += 1i64 << i;
     }
-    assert_eq!(histogram.bucketCount(), 53);
+    assert_eq!(histogram.buckets(), 53);
     assert_eq!(histogram.len(), 55296);
 }
 

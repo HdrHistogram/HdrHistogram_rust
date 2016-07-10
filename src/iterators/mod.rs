@@ -1,12 +1,22 @@
 use num;
 use Histogram;
 
+/// An iterator that iterates over histogram percentiles.
 pub mod percentile;
+
+/// An iterator that iterates linearly over histogram values.
 pub mod linear;
+
+/// An iterator that iterates logarithmically over histogram values.
 pub mod log;
+
+/// An iterator that iterates over recorded histogram values.
 pub mod recorded;
+
+/// An iterator that iterates over histogram values.
 pub mod all;
 
+/// A trait for designing an subset iterator over values in a `Histogram`.
 pub trait PickyIterator<T: num::Num> {
     /// should an item be yielded for the given index?
     fn pick(&mut self, usize, i64) -> bool;
@@ -14,6 +24,19 @@ pub trait PickyIterator<T: num::Num> {
     fn more(&mut self, usize) -> bool;
 }
 
+/// `HistogramIterator` provides a base iterator for a `Histogram`.
+///
+/// It will iterate over all discrete values until there are no more recorded values (i.e., *not*
+/// necessarily until all bins have been exhausted). To facilitate the development of more
+/// sophisticated iterators, a *picker* is also provided, which is allowed to only select some bins
+/// that should be yielded. The picker may also extend the iteration to include a suffix of empty
+/// bins.
+///
+/// One peculiarity of this iterator is that, if the picker does choose to yield a particular bin,
+/// that bin *is re-visited* before moving on to later bins. It is not clear why this is, but it is
+/// how the iterators were implemented in the original HdrHistogram, so we preserve the behavior
+/// here. This is the reason why iterators such as all and recorded need to keep track of which
+/// indices they have already visited.
 pub struct HistogramIterator<'a, T: 'a + num::Num, P: PickyIterator<T>> {
     hist: &'a Histogram<T>,
     totalCountToIndex: i64,
@@ -25,7 +48,7 @@ pub struct HistogramIterator<'a, T: 'a + num::Num, P: PickyIterator<T>> {
 }
 
 impl<'a, T: num::Num + Copy, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
-    pub fn new(h: &'a Histogram<T>, picker: P) -> HistogramIterator<'a, T, P> {
+    fn new(h: &'a Histogram<T>, picker: P) -> HistogramIterator<'a, T, P> {
         HistogramIterator {
             hist: h,
             totalCountToIndex: 0,
@@ -39,8 +62,8 @@ impl<'a, T: num::Num + Copy, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
 
     // (value, percentile, count-for-value, count-for-step)
     fn current(&self) -> (i64, f64, T, i64) {
-        let value = self.hist.highest_equivalent(self.hist.value_from_index(self.currentIndex));
-        let perc = 100.0 * self.totalCountToIndex as f64 / self.hist.total() as f64;
+        let value = self.hist.highest_equivalent(self.hist.value_for(self.currentIndex));
+        let perc = 100.0 * self.totalCountToIndex as f64 / self.hist.count() as f64;
         let count = self.hist[self.currentIndex];
         (value, perc, count, self.totalCountToIndex - self.prevTotalCount)
     }
@@ -70,7 +93,7 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
             }
 
             // have we yielded all non-zeros in the histogram?
-            let total = self.hist.total();
+            let total = self.hist.count();
             if self.prevTotalCount == total {
                 // is the picker done?
                 if !self.picker.more(self.currentIndex) {

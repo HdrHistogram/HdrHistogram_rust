@@ -12,7 +12,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-hdrsample = "0.1"
+hdrsample = "1.0"
 ```
 
 and this to your crate root:
