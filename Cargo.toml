@@ -24,6 +24,7 @@ num = "0.1"
 criterion = { git = "https://github.com/japaric/criterion.rs.git", optional = true }
 
 [lib]
+path = "src/lib.rs"
 
 [[bin]]
 name = "perf"
