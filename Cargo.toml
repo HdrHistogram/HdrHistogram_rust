@@ -17,6 +17,7 @@ license = "MIT/Apache-2.0"
 
 [features]
 benchmark = ["criterion"]
+#benchmark = [] # for crates.io publication
 
 [dependencies]
 num = "0.1"
