@@ -15,5 +15,22 @@ keywords = ["sampling", "statistics", "analytics"]
 
 license = "MIT/Apache-2.0"
 
+[features]
+benchmark = ["criterion"]
+
 [dependencies]
 num = "0.1"
+criterion = { git = "https://github.com/japaric/criterion.rs.git", optional = true }
+
+[lib]
+
+[[bin]]
+name = "perf"
+path = "benchmarks/all.rs"
+
+[[bin]]
+name = "busy"
+path = "benchmarks/busy.rs"
+
+[profile.release]
+debug=true

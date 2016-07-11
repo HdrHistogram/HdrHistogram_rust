@@ -34,8 +34,7 @@
 //! regardless of the number of data value samples recorded, and depends solely on the dynamic
 //! range and precision chosen. The amount of work involved in recording a sample is constant, and
 //! directly computes storage index locations such that no iteration or searching is ever involved
-//! in recording data values. **Author's note: I have not verified this to be the case for the
-//! Rust port. Benchmarks welcome!**
+//! in recording data values.
 //!
 //! # Interacting with the library
 //!
