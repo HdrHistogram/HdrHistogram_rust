@@ -13,7 +13,7 @@ pub struct Iter<'a, T: 'a + num::Num> {
     currentStepHighestValueReportingLevel: i64,
 }
 
-impl<'a, T: 'a + num::Num + Copy> Iter<'a, T> {
+impl<'a, T: 'a + num::Num + num::ToPrimitive + Copy> Iter<'a, T> {
     /// Construct a new logarithmic iterator. See `Histogram::iter_log` for details.
     pub fn new(hist: &'a Histogram<T>,
                valueUnitsInFirstBucket: i64,
@@ -32,7 +32,7 @@ impl<'a, T: 'a + num::Num + Copy> Iter<'a, T> {
     }
 }
 
-impl<'a, T: 'a + num::Num + Copy> PickyIterator<T> for Iter<'a, T> {
+impl<'a, T: 'a + num::Num + num::ToPrimitive + Copy> PickyIterator<T> for Iter<'a, T> {
     fn pick(&mut self, index: usize, _: i64) -> bool {
         let val = self.hist.value_for(index);
         if val >= self.currentStepLowestValueReportingLevel || index == self.hist.last() {

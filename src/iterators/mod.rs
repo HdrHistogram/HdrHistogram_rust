@@ -47,7 +47,7 @@ pub struct HistogramIterator<'a, T: 'a + num::Num, P: PickyIterator<T>> {
     picker: P,
 }
 
-impl<'a, T: num::Num + Copy, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
+impl<'a, T: num::Num + num::ToPrimitive + Copy, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
     fn new(h: &'a Histogram<T>, picker: P) -> HistogramIterator<'a, T, P> {
         HistogramIterator {
             hist: h,

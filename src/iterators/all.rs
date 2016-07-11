@@ -7,12 +7,13 @@ pub struct Iter(Option<usize>);
 
 impl Iter {
     /// Construct a new full iterator. See `Histogram::iter_all` for details.
-    pub fn new<'a, T: num::Num + Copy>(hist: &'a Histogram<T>) -> HistogramIterator<'a, T, Iter> {
+    pub fn new<'a, T: num::Num + num::ToPrimitive + Copy>(hist: &'a Histogram<T>)
+                                                          -> HistogramIterator<'a, T, Iter> {
         HistogramIterator::new(hist, Iter(None))
     }
 }
 
-impl<T: num::Num + Copy> PickyIterator<T> for Iter {
+impl<T: num::Num + num::ToPrimitive + Copy> PickyIterator<T> for Iter {
     fn pick(&mut self, index: usize, _: i64) -> bool {
         // have we visited before?
         if self.0.is_none() || self.0.unwrap() != index {

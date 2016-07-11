@@ -165,6 +165,71 @@ fn add() {
 }
 
 #[test]
+fn subtract() {
+    let mut h1 = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
+    let mut h2 = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
+
+    h1 += TEST_VALUE_LEVEL;
+    h1 += 1000 * TEST_VALUE_LEVEL;
+    h2 += TEST_VALUE_LEVEL;
+    h2 += 1000 * TEST_VALUE_LEVEL;
+
+    h1.add(&h2).unwrap();
+    assert_eq!(h1.count_at(TEST_VALUE_LEVEL), Ok(2));
+    assert_eq!(h1.count_at(1000 * TEST_VALUE_LEVEL), Ok(2));
+    assert_eq!(h1.count(), 4);
+
+    h1 += &h2;
+    assert_eq!(h1.count_at(TEST_VALUE_LEVEL), Ok(3));
+    assert_eq!(h1.count_at(1000 * TEST_VALUE_LEVEL), Ok(3));
+    assert_eq!(h1.count(), 6);
+
+    h1.subtract(&h2).unwrap();
+    assert_eq!(h1.count_at(TEST_VALUE_LEVEL), Ok(2));
+    assert_eq!(h1.count_at(1000 * TEST_VALUE_LEVEL), Ok(2));
+    assert_eq!(h1.count(), 4);
+
+    // Subtracting down to zero counts should work:
+    let x = h1.clone();
+    h1 -= &x;
+    assert_eq!(h1.count_at(TEST_VALUE_LEVEL), Ok(0));
+    assert_eq!(h1.count_at(1000 * TEST_VALUE_LEVEL), Ok(0));
+    assert_eq!(h1.count(), 0);
+
+    // But subtracting down to negative counts should not:
+    assert!(h1.subtract(&h2).is_err());
+
+    let mut big = Histogram::<u64>::new_with_max(2 * TRACKABLE_MAX, SIGFIG).unwrap();
+    big += TEST_VALUE_LEVEL;
+    big += 1000 * TEST_VALUE_LEVEL;
+    big += 2 * TRACKABLE_MAX;
+
+    let big2 = big.clone();
+    big += &big2;
+    let big2 = big.clone();
+    big += &big2;
+
+    assert_eq!(big.count_at(TEST_VALUE_LEVEL), Ok(4));
+    assert_eq!(big.count_at(1000 * TEST_VALUE_LEVEL), Ok(4));
+    assert_eq!(big.count_at(2 * TRACKABLE_MAX), Ok(4)); // overflow smaller hist...
+    assert_eq!(big.count(), 12);
+
+    // Subtracting the smaller histogram from the bigger one should work:
+    big -= &h2;
+    assert_eq!(big.count_at(TEST_VALUE_LEVEL), Ok(3));
+    assert_eq!(big.count_at(1000 * TEST_VALUE_LEVEL), Ok(3));
+    assert_eq!(big.count_at(2 * TRACKABLE_MAX), Ok(4)); // overflow smaller hist...
+    assert_eq!(big.count(), 10);
+
+    // But trying to subtract a larger histogram into a smaller one should throw an AIOOB:
+    assert!(h1.add(&big).is_err());
+
+    assert!(verify_max(h1));
+    assert!(verify_max(h2));
+    assert!(verify_max(big));
+}
+
+#[test]
 fn equivalent_range() {
     let h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     assert_eq!(h.equivalent_range(1), 1);

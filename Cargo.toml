@@ -1,6 +1,6 @@
 [package]
 name = "hdrsample"
-version = "1.0.0"
+version = "1.1.0"
 
 description = "A port of HdrHistogram to Rust"
 readme = "README.md"

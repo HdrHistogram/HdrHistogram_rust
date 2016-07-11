@@ -124,7 +124,6 @@
 //!  - `DoubleHistogram`. You can use `f64` as the counter type, but none of the "special"
 //!    `DoubleHistogram` features are supported.
 //!  - The `Recorder` feature of HdrHistogram.
-//!  - Histogram subtraction.
 //!  - Value shifting ("normalization").
 //!  - Histogram serialization and encoding/decoding.
 //!  - Timestamps and tags.
@@ -147,6 +146,7 @@ extern crate num;
 use std::ops::Index;
 use std::ops::IndexMut;
 use std::ops::AddAssign;
+use std::ops::SubAssign;
 use std::borrow::Borrow;
 
 /// `Histogram` is the core data structure in HdrSample. It records values, and performs analytics.
@@ -257,7 +257,7 @@ impl<T: num::Num> Histogram<T> {
 
 // Methods for looking up the count for a given value/index
 
-impl<T: num::Num + Copy> Histogram<T> {
+impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// Find the bucket the given value should be placed in.
     ///
     /// May panic if the given value falls outside the current range of the histogram.
@@ -328,16 +328,12 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     }
 }
 
-// Add mechanism for adding two histograms together
-// TODO: Also implement Sub
+// Add and subtract methods for, well, adding or subtracting two histograms
 
 impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// Add the contents of another histogram to this one.
     ///
-    /// As part of adding the contents, the start/end timestamp range of this histogram will be
-    /// extended to include the start/end timestamp range of the other histogram.
-    ///
-    /// May panic if values in the other histogram are higher than `.high()`, and auto-resize is
+    /// May fail if values in the other histogram are higher than `.high()`, and auto-resize is
     /// disabled.
     pub fn add<B: Borrow<Histogram<T>>>(&mut self, source: B) -> Result<(), &'static str> {
         let source = source.borrow();
@@ -402,11 +398,53 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
         // }
         Ok(())
     }
+
+    /// Subtract the contents of another histogram from this one.
+    ///
+    /// May fail if values in the other histogram are higher than `.high()`, and auto-resize is
+    /// disabled. Or, if the count for a given value in the other histogram is higher than that of
+    /// this histogram. In the latter case, some of the counts may still have been updated, which
+    /// may cause data corruption.
+    pub fn subtract<B: Borrow<Histogram<T>>>(&mut self, other: B) -> Result<(), &'static str> {
+        let other = other.borrow();
+
+        // make sure we can take the values in source
+        let top = self.highest_equivalent(self.value_for(self.last()));
+        if top < other.max() {
+            if !self.autoResize {
+                return Err("The other histogram includes values that do not fit in this \
+                            histogram's range.");
+            }
+            self.resize(other.max());
+        }
+
+        for i in 0..other.len() {
+            let otherCount = other[i];
+            if otherCount != T::zero() {
+                let otherValue = other.value_for(i);
+                if self.count_at(otherValue).unwrap().to_i64().unwrap() <
+                   otherCount.to_i64().unwrap() {
+                    return Err("The other histogram includes counts that are higher than the \
+                                current count for that value.");
+                }
+                self.alter_n(otherValue, otherCount, false).expect("value should fit by now");
+            }
+        }
+
+        // With subtraction, the max and minNonZero values could have changed:
+        if self.count_at(self.max()).unwrap() == T::zero() ||
+           self.count_at(self.min_nz()).unwrap() == T::zero() {
+            let l = self.len();
+            self.restat(l);
+        }
+
+        Ok(())
+    }
 }
 
 // Setters and resetters.
 
-impl<T: num::Num> Histogram<T> {
+impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// Clear the contents of this histogram while preserving its statistics and configuration.
     pub fn clear(&mut self) {
         for c in self.counts.iter_mut() {
@@ -419,8 +457,8 @@ impl<T: num::Num> Histogram<T> {
     pub fn reset(&mut self) {
         self.clear();
 
-        self.maxValue = 0;
-        self.minNonZeroValue = i64::max_value();
+        self.reset_max(0);
+        self.reset_min(i64::max_value());
         // self.normalizingIndexOffset = 0;
         // self.startTime = time::Instant::now();
         // self.endTime = time::Instant::now();
@@ -436,7 +474,7 @@ impl<T: num::Num> Histogram<T> {
 
 // Construction.
 
-impl<T: num::Num + Copy> Histogram<T> {
+impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// Construct an auto-resizing `Histogram` with a lowest discernible value of 1 and an
     /// auto-adjusting highest trackable value. Can auto-resize up to track values up to
     /// `(i64::max_value() / 2)`.
@@ -590,8 +628,16 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// `count` is the number of occurrences of this value to record. Returns an error if `value`
     /// exceeds the highest trackable value and auto-resize is disabled.
     pub fn record_n(&mut self, value: i64, count: T) -> Result<(), ()> {
+        self.alter_n(value, count, true)
+    }
+
+    fn alter_n(&mut self, value: i64, count: T, add: bool) -> Result<(), ()> {
         let success = if let Ok(c) = self.mut_at(value) {
-            *c = *c + count;
+            if add {
+                *c = *c + count;
+            } else {
+                *c = *c - count;
+            }
             true
         } else {
             false
@@ -606,15 +652,22 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
 
             {
                 let c = self.mut_at(value).expect("value should fit after resize");
-                *c = *c + count;
+                if add {
+                    *c = *c + count;
+                } else {
+                    *c = *c - count;
+                }
             }
 
             self.highestTrackableValue = self.highest_equivalent(self.value_for(self.last()));
-
         }
 
         self.update_min_max(value);
-        self.totalCount += count.to_i64().unwrap();
+        if add {
+            self.totalCount += count.to_i64().unwrap();
+        } else {
+            self.totalCount -= count.to_i64().unwrap();
+        }
         Ok(())
     }
 
@@ -658,7 +711,7 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
 /// Module containing the implementations of all `Histogram` iterators.
 pub mod iterators;
 
-impl<T: num::Num + Copy> Histogram<T> {
+impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// Iterate through histogram values by percentile levels.
     ///
     /// The iteration mechanic for this iterator may appear somewhat confusing, but it yields
@@ -996,7 +1049,7 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
 
 // Public helpers
 
-impl<T: num::Num + Copy> Histogram<T> {
+impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// Computes the matching histogram value for the given histogram bin.
     pub fn value_for(&self, index: usize) -> i64 {
         let mut bucketIndex = (index >> self.subBucketHalfCountMagnitude) as isize - 1;
@@ -1074,7 +1127,7 @@ impl<T: num::Num + Copy> Histogram<T> {
 
 // Internal helpers
 
-impl<T: num::Num + Copy> Histogram<T> {
+impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// Compute the lowest (and therefore highest precision) bucket index that can represent the
     /// value.
     #[inline]
@@ -1195,6 +1248,49 @@ impl<T: num::Num + Copy> Histogram<T> {
             self.update_min(value);
         }
     }
+
+    fn reset_max(&mut self, max: i64) {
+        self.maxValue = max | self.unitMagnitudeMask; // Max unit-equivalent value
+    }
+
+    fn reset_min(&mut self, min: i64) {
+        let internalValue = min & !self.unitMagnitudeMask; // Min unit-equivalent value
+        self.minNonZeroValue = if min == i64::max_value() {
+            min
+        } else {
+            internalValue
+        };
+    }
+
+    fn restat(&mut self, until: usize) {
+        self.reset_max(0);
+        self.reset_min(i64::max_value());
+
+        let mut max_i = None;
+        let mut min_i = None;
+        let mut totalCount = 0;
+        for i in 0..until {
+            let count = self[i];
+            if count != T::zero() {
+                totalCount += count.to_i64().unwrap();
+                max_i = Some(i);
+                if min_i.is_none() && i != 0 {
+                    min_i = Some(i);
+                }
+            }
+        }
+
+        if let Some(max_i) = max_i {
+            let max = self.highest_equivalent(self.value_for(max_i));
+            self.update_max(max);
+        }
+        if let Some(min_i) = min_i {
+            let min = self.value_for(min_i);
+            self.update_min(min);
+        }
+
+        self.totalCount = totalCount;
+    }
 }
 
 // Traits
@@ -1220,10 +1316,16 @@ impl<T: num::Num + num::ToPrimitive + Copy> Clone for Histogram<T> {
     }
 }
 
-// make it more ergonomic to add histograms
+// make it more ergonomic to add and subtract histograms
 impl<'a, T: num::Num + num::ToPrimitive + Copy> AddAssign<&'a Histogram<T>> for Histogram<T> {
     fn add_assign(&mut self, source: &'a Histogram<T>) {
         self.add(source).unwrap();
+    }
+}
+
+impl<'a, T: num::Num + num::ToPrimitive + Copy> SubAssign<&'a Histogram<T>> for Histogram<T> {
+    fn sub_assign(&mut self, other: &'a Histogram<T>) {
+        self.subtract(other).unwrap();
     }
 }
 
@@ -1264,7 +1366,6 @@ impl<T: num::Num + num::ToPrimitive + Copy, F: num::Num + num::ToPrimitive + Cop
 // public boolean supportsAutoResize() { return true; }
 
 // TODO: copy methods
-// TODO: subtract
 // TODO: shift
 // TODO: hash
 // TODO: serialization

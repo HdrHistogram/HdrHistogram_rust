@@ -130,7 +130,6 @@ not (yet) been implemented:
  - `DoubleHistogram`. You can use `f64` as the counter type, but none of the "special"
    `DoubleHistogram` features are supported.
  - The `Recorder` feature of HdrHistogram.
- - Histogram subtraction.
  - Value shifting ("normalization").
  - Histogram serialization and encoding/decoding.
  - Timestamps and tags.

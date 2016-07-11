@@ -8,7 +8,7 @@ pub struct Iter<'a, T: 'a + num::Num> {
     visited: Option<usize>,
 }
 
-impl<'a, T: 'a + num::Num + Copy> Iter<'a, T> {
+impl<'a, T: 'a + num::Num + num::ToPrimitive + Copy> Iter<'a, T> {
     /// Construct a new sampled iterator. See `Histogram::iter_recorded` for details.
     pub fn new(hist: &'a Histogram<T>) -> HistogramIterator<'a, T, Iter<'a, T>> {
         HistogramIterator::new(hist,
@@ -19,7 +19,7 @@ impl<'a, T: 'a + num::Num + Copy> Iter<'a, T> {
     }
 }
 
-impl<'a, T: 'a + num::Num + Copy> PickyIterator<T> for Iter<'a, T> {
+impl<'a, T: 'a + num::Num + num::ToPrimitive + Copy> PickyIterator<T> for Iter<'a, T> {
     fn pick(&mut self, index: usize, _: i64) -> bool {
         // is the count non-zero?
         if self.hist[index] != T::zero() {

@@ -11,7 +11,7 @@ pub struct Iter<'a, T: 'a + num::Num> {
     reachedLastRecordedValue: bool,
 }
 
-impl<'a, T: 'a + num::Num + Copy> Iter<'a, T> {
+impl<'a, T: 'a + num::Num + num::ToPrimitive + Copy> Iter<'a, T> {
     /// Construct a new percentile iterator. See `Histogram::iter_percentiles` for details.
     pub fn new(hist: &'a Histogram<T>,
                percentileTicksPerHalfDistance: isize)
@@ -26,7 +26,7 @@ impl<'a, T: 'a + num::Num + Copy> Iter<'a, T> {
     }
 }
 
-impl<'a, T: 'a + Copy + num::Num> PickyIterator<T> for Iter<'a, T> {
+impl<'a, T: 'a + Copy + num::ToPrimitive + num::Num> PickyIterator<T> for Iter<'a, T> {
     fn pick(&mut self, index: usize, running_total: i64) -> bool {
         let count = &self.hist[index];
         if *count == T::zero() {
