@@ -191,10 +191,10 @@ pub struct Histogram<T: num::Num> {
     bucketCount: usize,
     subBucketCount: usize,
 
-    leadingZeroCountBase: isize,
-    subBucketHalfCountMagnitude: isize,
+    leadingZeroCountBase: u32,
+    subBucketHalfCountMagnitude: usize,
 
-    unitMagnitude: isize,
+    unitMagnitude: usize,
     subBucketHalfCount: usize,
 
     subBucketMask: i64,
@@ -268,8 +268,8 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
         let bucketIndex = self.bucket_for(value);
         let subBucketIndex = self.sub_bucket_for(value, bucketIndex);
 
-        assert!(subBucketIndex < self.subBucketCount as isize);
-        assert!(bucketIndex == 0 || (subBucketIndex >= self.subBucketHalfCount as isize));
+        debug_assert!(subBucketIndex < self.subBucketCount);
+        debug_assert!(bucketIndex == 0 || (subBucketIndex >= self.subBucketHalfCount));
 
         // Calculate the index for the first entry that will be used in the bucket (halfway through
         // subBucketCount). For bucketIndex 0, all subBucketCount entries may be used, but
@@ -280,21 +280,21 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
         // all buckets except the 0th bucket (since a value in that bucket may be less than half
         // the bucket's 0 to subBucketCount range). However, this works out since we give bucket 0
         // twice as much space.
-        let offsetInBucket = subBucketIndex - self.subBucketHalfCount as isize;
+        let offsetInBucket = subBucketIndex as isize - self.subBucketHalfCount as isize;
 
         // The following is the equivalent of
         // ((subBucketIndex  - subBucketHalfCount) + bucketBaseIndex;
-        (bucketBaseIndex + offsetInBucket) as isize
+        (bucketBaseIndex as isize + offsetInBucket)
     }
 
     /// Get a mutable reference to the count bucket for the given value, if it is in range.
-    fn mut_at(&mut self, value: i64) -> Result<&mut T, ()> {
+    fn mut_at(&mut self, value: i64) -> Option<&mut T> {
         let i = self.index_for(value);
-        if i < 0 || i >= self.len() as isize {
-            Err(())
-        } else {
-            Ok(&mut self.counts[i as usize])
+        if i < 0 {
+            return None;
         }
+
+        self.counts.get_mut(i as usize)
     }
 }
 
@@ -534,14 +534,14 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
         // largest value with single unit resolution
         let largest = 2 * 10i64.pow(sigfig);
 
-        let unitMagnitude = ((low as f64).log2() / 2f64.log2()).floor() as isize;
+        let unitMagnitude = ((low as f64).log2() / 2f64.log2()).floor() as usize;
         let unitMagnitudeMask = (1 << unitMagnitude) - 1;
 
         // We need to maintain power-of-two subBucketCount (for clean direct indexing) that is
         // large enough to provide unit resolution to at least
         // largestValueWithSingleUnitResolution. So figure out
         // largestValueWithSingleUnitResolution's nearest power-of-two (rounded up), and use that:
-        let subBucketCountMagnitude = ((largest as f64).log2() / 2f64.log2()).ceil() as isize;
+        let subBucketCountMagnitude = ((largest as f64).log2() / 2f64.log2()).ceil() as usize;
         let subBucketHalfCountMagnitude = if subBucketCountMagnitude > 1 {
             subBucketCountMagnitude
         } else {
@@ -583,7 +583,7 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
 
         // Establish leadingZeroCountBase, used in bucketIndexOf() fast path:
         // subtract the bits that would be used by the largest value in bucket 0.
-        h.leadingZeroCountBase = 64 - h.unitMagnitude - h.subBucketHalfCountMagnitude - 1;
+        h.leadingZeroCountBase = (64 - h.unitMagnitude - h.subBucketHalfCountMagnitude - 1) as u32;
 
         h.alloc(len);
         Ok(h)
@@ -631,7 +631,7 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     }
 
     fn alter_n(&mut self, value: i64, count: T, add: bool) -> Result<(), ()> {
-        let success = if let Ok(c) = self.mut_at(value) {
+        let success = if let Some(c) = self.mut_at(value) {
             if add {
                 *c = *c + count;
             } else {
@@ -1058,7 +1058,7 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
             subBucketIndex -= self.subBucketHalfCount as isize;
             bucketIndex = 0;
         }
-        self.value_from_loc(bucketIndex, subBucketIndex)
+        self.value_from_loc(bucketIndex as usize, subBucketIndex as usize)
     }
 
     /// Get the lowest value that is equivalent to the given value within the histogram's
@@ -1116,7 +1116,7 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
         // calculate distance to next value
         1i64 <<
         (self.unitMagnitude +
-         if subBucketIndex >= self.subBucketCount as isize {
+         if subBucketIndex >= self.subBucketCount {
             bucketIndex + 1
         } else {
             bucketIndex
@@ -1130,16 +1130,16 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// Compute the lowest (and therefore highest precision) bucket index that can represent the
     /// value.
     #[inline]
-    fn bucket_for(&self, value: i64) -> isize {
+    fn bucket_for(&self, value: i64) -> usize {
         // Calculates the number of powers of two by which the value is greater than the biggest
         // value that fits in bucket 0. This is the bucket index since each successive bucket can
         // hold a value 2x greater. The mask maps small values to bucket 0.
-        self.leadingZeroCountBase - (value | self.subBucketMask).leading_zeros() as isize
+        (self.leadingZeroCountBase - (value | self.subBucketMask).leading_zeros()) as usize
     }
 
     #[inline]
     /// Compute the position inside a bucket at which the given value should be recorded.
-    fn sub_bucket_for(&self, value: i64, bucketIndex: isize) -> isize {
+    fn sub_bucket_for(&self, value: i64, bucketIndex: usize) -> usize {
         // For bucketIndex 0, this is just value, so it may be anywhere in 0 to subBucketCount. For
         // other bucketIndex, this will always end up in the top half of subBucketCount: assume
         // that for some bucket k > 0, this calculation will yield a value in the bottom half of 0
@@ -1148,11 +1148,11 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
         // we would then shift it one fewer bits here, it would be twice as big, and therefore in
         // the top half of subBucketCount.
         // TODO: >>> ?
-        (value >> (bucketIndex + self.unitMagnitude)) as isize
+        (value >> (bucketIndex + self.unitMagnitude)) as usize
     }
 
     #[inline]
-    fn value_from_loc(&self, bucketIndex: isize, subBucketIndex: isize) -> i64 {
+    fn value_from_loc(&self, bucketIndex: usize, subBucketIndex: usize) -> i64 {
         (subBucketIndex as i64) << (bucketIndex + self.unitMagnitude)
     }
 
