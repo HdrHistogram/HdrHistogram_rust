@@ -370,12 +370,12 @@ fn set_to() {
     let max = h1.high();
     h1.record_correct(max - 1, 31000).unwrap();
 
-    h2.set_to(&h1);
+    h2.set_to(&h1).unwrap();
     are_equal(&h1, &h2);
 
     h1 += 20 * TEST_VALUE_LEVEL;
 
-    h2.set_to(&h1);
+    h2.set_to(&h1).unwrap();
     are_equal(&h1, &h2);
 }
 
@@ -389,11 +389,11 @@ fn scaled_set_to() {
     let max = h1.high();
     h1.record_correct(max - 1, 31000).unwrap();
 
-    h2.set_to(&h1);
+    h2.set_to(&h1).unwrap();
     are_equal(&h1, &h2);
 
     h1 += 20 * TEST_VALUE_LEVEL;
 
-    h2.set_to(&h1);
+    h2.set_to(&h1).unwrap();
     are_equal(&h1, &h2);
 }

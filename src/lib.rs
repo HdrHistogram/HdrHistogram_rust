@@ -332,17 +332,20 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
 
     /// Overwrite this histogram with the given histogram. All data and statistics in this
     /// histogram will be overwritten.
-    pub fn set_to<B: Borrow<Histogram<T>>>(&mut self, source: B) {
+    pub fn set_to<B: Borrow<Histogram<T>>>(&mut self, source: B) -> Result<(), &'static str> {
         self.reset();
-        self.add(source.borrow());
+        self.add(source.borrow())
     }
 
     /// Overwrite this histogram with the given histogram while correcting for coordinated
     /// omission. All data and statistics in this histogram will be overwritten. See
     /// `clone_correct` for more detailed explanation about how correction is applied
-    pub fn set_to_corrected<B: Borrow<Histogram<T>>>(&mut self, source: B, interval: i64) {
+    pub fn set_to_corrected<B: Borrow<Histogram<T>>>(&mut self,
+                                                     source: B,
+                                                     interval: i64)
+                                                     -> Result<(), ()> {
         self.reset();
-        self.add_correct(source, interval);
+        self.add_correct(source, interval)
     }
 
     // ********************************************************************************************
