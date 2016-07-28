@@ -17,7 +17,7 @@ pub mod recorded;
 pub mod all;
 
 /// A trait for designing an subset iterator over values in a `Histogram`.
-pub trait PickyIterator<T: num::Num> {
+pub trait PickyIterator<T: num::Num + num::ToPrimitive + Copy> {
     /// should an item be yielded for the given index?
     fn pick(&mut self, usize, i64) -> bool;
     /// should we keep iterating even though all future indices are zeros?
@@ -37,7 +37,7 @@ pub trait PickyIterator<T: num::Num> {
 /// how the iterators were implemented in the original HdrHistogram, so we preserve the behavior
 /// here. This is the reason why iterators such as all and recorded need to keep track of which
 /// indices they have already visited.
-pub struct HistogramIterator<'a, T: 'a + num::Num, P: PickyIterator<T>> {
+pub struct HistogramIterator<'a, T: 'a + num::Num + num::ToPrimitive + Copy, P: PickyIterator<T>> {
     hist: &'a Histogram<T>,
     totalCountToIndex: i64,
     prevTotalCount: i64,

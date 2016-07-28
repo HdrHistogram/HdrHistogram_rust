@@ -3,7 +3,7 @@ use Histogram;
 use iterators::{HistogramIterator, PickyIterator};
 
 /// An iterator that will yield at fixed-size steps through the histogram's value range.
-pub struct Iter<'a, T: 'a + num::Num> {
+pub struct Iter<'a, T: 'a + num::Num + num::ToPrimitive + Copy> {
     hist: &'a Histogram<T>,
 
     valueUnitsPerBucket: i64,

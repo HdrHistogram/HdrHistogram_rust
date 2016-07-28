@@ -181,7 +181,7 @@ use std::borrow::Borrow;
 /// = 2048 * 2^(k-1)`, which is the k-1'th bucket's end. So, we would use the previous bucket
 /// for those lower values as it has better precision.
 ///
-pub struct Histogram<T: num::Num> {
+pub struct Histogram<T: num::Num + num::ToPrimitive + Copy> {
     autoResize: bool,
 
     highestTrackableValue: i64,
@@ -210,9 +210,14 @@ pub struct Histogram<T: num::Num> {
     counts: Vec<T>,
 }
 
-// Histogram administrative read-outs
+/// Module containing the implementations of all `Histogram` iterators.
+pub mod iterators;
 
-impl<T: num::Num> Histogram<T> {
+impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
+    // ********************************************************************************************
+    // Histogram administrative read-outs
+    // ********************************************************************************************
+
     /// Get the current number of distinct counted values in the histogram.
     pub fn len(&self) -> usize {
         self.counts.len()
@@ -252,11 +257,11 @@ impl<T: num::Num> Histogram<T> {
     pub fn buckets(&self) -> usize {
         self.bucketCount
     }
-}
 
-// Methods for looking up the count for a given value/index
+    // ********************************************************************************************
+    // Methods for looking up the count for a given value/index
+    // ********************************************************************************************
 
-impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// Find the bucket the given value should be placed in.
     ///
     /// May panic if the given value falls outside the current range of the histogram.
@@ -296,11 +301,11 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
 
         self.counts.get_mut(i as usize)
     }
-}
 
-// Histograms should be cloneable.
+    // ********************************************************************************************
+    // Histograms should be cloneable.
+    // ********************************************************************************************
 
-impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// Get a copy of this histogram, corrected for coordinated omission.
     ///
     /// To compensate for the loss of sampled values when a recorded value is larger than the
@@ -325,11 +330,11 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
         }
         h
     }
-}
 
-// Add and subtract methods for, well, adding or subtracting two histograms
+    // ********************************************************************************************
+    // Add and subtract methods for, well, adding or subtracting two histograms
+    // ********************************************************************************************
 
-impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// Add the contents of another histogram to this one.
     ///
     /// May fail if values in the other histogram are higher than `.high()`, and auto-resize is
@@ -439,11 +444,11 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
 
         Ok(())
     }
-}
 
-// Setters and resetters.
+    // ********************************************************************************************
+    // Setters and resetters.
+    // ********************************************************************************************
 
-impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// Clear the contents of this histogram while preserving its statistics and configuration.
     pub fn clear(&mut self) {
         for c in self.counts.iter_mut() {
@@ -469,11 +474,11 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     pub fn auto(&mut self, enabled: bool) {
         self.autoResize = enabled;
     }
-}
 
-// Construction.
+    // ********************************************************************************************
+    // Construction.
+    // ********************************************************************************************
 
-impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// Construct an auto-resizing `Histogram` with a lowest discernible value of 1 and an
     /// auto-adjusting highest trackable value. Can auto-resize up to track values up to
     /// `(i64::max_value() / 2)`.
@@ -591,7 +596,7 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
 
     /// Construct a `Histogram` with the same range settings as a given source histogram,
     /// duplicating the source's start/end timestamps (but NOT its contents).
-    pub fn new_from<F: num::Num>(source: &Histogram<F>) -> Histogram<T> {
+    pub fn new_from<F: num::Num + num::ToPrimitive + Copy>(source: &Histogram<F>) -> Histogram<T> {
         let mut h = Self::new_with_bounds(source.lowestDiscernibleValue,
                                           source.highestTrackableValue,
                                           source.significantValueDigits)
@@ -609,11 +614,11 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
         use std::iter;
         self.counts = iter::repeat(T::zero()).take(len).collect();
     }
-}
 
-// Recording samples.
+    // ********************************************************************************************
+    // Recording samples.
+    // ********************************************************************************************
 
-impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// Record `value` in the histogram.
     ///
     /// Returns an error if `value` exceeds the highest trackable value and auto-resize is
@@ -703,14 +708,11 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
         }
         Ok(())
     }
-}
 
-// Iterators
+    // ********************************************************************************************
+    // Iterators
+    // ********************************************************************************************
 
-/// Module containing the implementations of all `Histogram` iterators.
-pub mod iterators;
-
-impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// Iterate through histogram values by percentile levels.
     ///
     /// The iteration mechanic for this iterator may appear somewhat confusing, but it yields
@@ -887,12 +889,11 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     pub fn iter_all<'a>(&'a self) -> iterators::HistogramIterator<'a, T, iterators::all::Iter> {
         iterators::all::Iter::new(self)
     }
-}
 
+    // ********************************************************************************************
+    // Data statistics
+    // ********************************************************************************************
 
-// Data statistics
-
-impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// Get the lowest recorded value level in the histogram.
     /// If the histogram has no recorded values, the value returned will be 0.
     pub fn min(&self) -> i64 {
@@ -1044,11 +1045,11 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
         use std::cmp;
         Ok(self[cmp::min(cmp::max(0, self.index_for(value)), self.last() as isize) as usize])
     }
-}
 
-// Public helpers
+    // ********************************************************************************************
+    // Public helpers
+    // ********************************************************************************************
 
-impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// Computes the matching histogram value for the given histogram bin.
     pub fn value_for(&self, index: usize) -> i64 {
         let mut bucketIndex = (index >> self.subBucketHalfCountMagnitude) as isize - 1;
@@ -1122,11 +1123,11 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
             bucketIndex
         })
     }
-}
 
-// Internal helpers
+    // ********************************************************************************************
+    // Internal helpers
+    // ********************************************************************************************
 
-impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// Compute the lowest (and therefore highest precision) bucket index that can represent the
     /// value.
     #[inline]
@@ -1292,16 +1293,18 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     }
 }
 
-// Traits
+// ********************************************************************************************
+// Trait implementations
+// ********************************************************************************************
 
-impl<T: num::Num> Index<usize> for Histogram<T> {
+impl<T: num::Num + num::ToPrimitive + Copy> Index<usize> for Histogram<T> {
     type Output = T;
     fn index(&self, index: usize) -> &Self::Output {
         &self.counts[index]
     }
 }
 
-impl<T: num::Num> IndexMut<usize> for Histogram<T> {
+impl<T: num::Num + num::ToPrimitive + Copy> IndexMut<usize> for Histogram<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.counts[index]
     }

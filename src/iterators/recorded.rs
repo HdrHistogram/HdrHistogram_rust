@@ -3,7 +3,7 @@ use Histogram;
 use iterators::{HistogramIterator, PickyIterator};
 
 /// An iterator that will yield only bins with at least one sample.
-pub struct Iter<'a, T: 'a + num::Num> {
+pub struct Iter<'a, T: 'a + num::Num + num::ToPrimitive + Copy> {
     hist: &'a Histogram<T>,
     visited: Option<usize>,
 }
