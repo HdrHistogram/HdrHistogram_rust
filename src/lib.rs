@@ -118,7 +118,6 @@
 //! HdrHistogram implementations may not be available in this port. A number of features have also
 //! not (yet) been implemented:
 //!
-//!  - `CopyInto`-like methods.
 //!  - Concurrency support (`AtomicHistogram`, `ConcurrentHistogram`, …).
 //!  - `DoubleHistogram`. You can use `f64` as the counter type, but none of the "special"
 //!    `DoubleHistogram` features are supported.
@@ -331,6 +330,21 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
         h
     }
 
+    /// Overwrite this histogram with the given histogram. All data and statistics in this
+    /// histogram will be overwritten.
+    pub fn set_to<B: Borrow<Histogram<T>>>(&mut self, source: B) {
+        self.reset();
+        self.add(source.borrow());
+    }
+
+    /// Overwrite this histogram with the given histogram while correcting for coordinated
+    /// omission. All data and statistics in this histogram will be overwritten. See
+    /// `clone_correct` for more detailed explanation about how correction is applied
+    pub fn set_to_corrected<B: Borrow<Histogram<T>>>(&mut self, source: B, interval: i64) {
+        self.reset();
+        self.add_correct(source, interval);
+    }
+
     // ********************************************************************************************
     // Add and subtract methods for, well, adding or subtracting two histograms
     // ********************************************************************************************
@@ -400,6 +414,36 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
         // if source.endTime > self.endTime {
         //     self.endTime = source.endTime;
         // }
+        Ok(())
+    }
+
+    /// Add the contents of another histogram to this one, while correcting for coordinated
+    /// omission.
+    ///
+    /// To compensate for the loss of sampled values when a recorded value is larger than the
+    /// expected interval between value samples, the values added will include an auto-generated
+    /// additional series of decreasingly-smaller (down to the given `interval`) value records for
+    /// each count found in the current histogram that is larger than `interval`.
+    ///
+    /// Note: This is a post-recording correction method, as opposed to the at-recording correction
+    /// method provided by `record_correct`. The two methods are mutually exclusive, and only one
+    /// of the two should be be used on a given data set to correct for the same coordinated
+    /// omission issue.
+    ///
+    /// See notes in the description of the `Histogram` calls for an illustration of why this
+    /// corrective behavior is important.
+    ///
+    /// May fail if values in the other histogram are higher than `.high()`, and auto-resize is
+    /// disabled.
+    pub fn add_correct<B: Borrow<Histogram<T>>>(&mut self,
+                                                source: B,
+                                                interval: i64)
+                                                -> Result<(), ()> {
+        let source = source.borrow();
+
+        for (value, _, count, _) in source.iter_recorded() {
+            try!(self.record_n_correct(value, count, interval));
+        }
         Ok(())
     }
 
@@ -1367,7 +1411,6 @@ impl<T: num::Num + num::ToPrimitive + Copy, F: num::Num + num::ToPrimitive + Cop
 //  */
 // public boolean supportsAutoResize() { return true; }
 
-// TODO: copy methods
 // TODO: shift
 // TODO: hash
 // TODO: serialization

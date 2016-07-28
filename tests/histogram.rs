@@ -359,3 +359,41 @@ fn scaled_clone() {
 
     are_equal(h.clone(), h);
 }
+
+#[test]
+fn set_to() {
+    let mut h1 = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
+    let mut h2 = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
+    h1 += TEST_VALUE_LEVEL;
+    h1 += 10 * TEST_VALUE_LEVEL;
+
+    let max = h1.high();
+    h1.record_correct(max - 1, 31000).unwrap();
+
+    h2.set_to(&h1);
+    are_equal(&h1, &h2);
+
+    h1 += 20 * TEST_VALUE_LEVEL;
+
+    h2.set_to(&h1);
+    are_equal(&h1, &h2);
+}
+
+#[test]
+fn scaled_set_to() {
+    let mut h1 = Histogram::<u64>::new_with_bounds(1000, TRACKABLE_MAX, SIGFIG).unwrap();
+    let mut h2 = Histogram::<u64>::new_with_bounds(1000, TRACKABLE_MAX, SIGFIG).unwrap();
+    h1 += TEST_VALUE_LEVEL;
+    h1 += 10 * TEST_VALUE_LEVEL;
+
+    let max = h1.high();
+    h1.record_correct(max - 1, 31000).unwrap();
+
+    h2.set_to(&h1);
+    are_equal(&h1, &h2);
+
+    h1 += 20 * TEST_VALUE_LEVEL;
+
+    h2.set_to(&h1);
+    are_equal(&h1, &h2);
+}

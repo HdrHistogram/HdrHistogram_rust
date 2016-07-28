@@ -124,7 +124,6 @@ As with all the other HdrHistogram ports, the latest features and bug fixes from
 HdrHistogram implementations may not be available in this port. A number of features have also
 not (yet) been implemented:
 
- - `CopyInto`-like methods.
  - Concurrency support (`AtomicHistogram`, `ConcurrentHistogram`, …).
  - `DoubleHistogram`. You can use `f64` as the counter type, but none of the "special"
    `DoubleHistogram` features are supported.
