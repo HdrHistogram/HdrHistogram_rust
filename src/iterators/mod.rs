@@ -1,4 +1,4 @@
-use num;
+use Counter;
 use Histogram;
 
 /// An iterator that iterates over histogram percentiles.
@@ -17,9 +17,9 @@ pub mod recorded;
 pub mod all;
 
 /// A trait for designing an subset iterator over values in a `Histogram`.
-pub trait PickyIterator<T: num::Num + num::ToPrimitive + Copy> {
+pub trait PickyIterator<T: Counter> {
     /// should an item be yielded for the given index?
-    fn pick(&mut self, usize, i64) -> bool;
+    fn pick(&mut self, usize, T) -> bool;
     /// should we keep iterating even though all future indices are zeros?
     fn more(&mut self, usize) -> bool;
 }
@@ -37,22 +37,22 @@ pub trait PickyIterator<T: num::Num + num::ToPrimitive + Copy> {
 /// how the iterators were implemented in the original HdrHistogram, so we preserve the behavior
 /// here. This is the reason why iterators such as all and recorded need to keep track of which
 /// indices they have already visited.
-pub struct HistogramIterator<'a, T: 'a + num::Num + num::ToPrimitive + Copy, P: PickyIterator<T>> {
+pub struct HistogramIterator<'a, T: 'a + Counter, P: PickyIterator<T>> {
     hist: &'a Histogram<T>,
-    totalCountToIndex: i64,
-    prevTotalCount: i64,
+    totalCountToIndex: T,
+    prevTotalCount: T,
     currentIndex: usize,
     fresh: bool,
     ended: bool,
     picker: P,
 }
 
-impl<'a, T: num::Num + num::ToPrimitive + Copy, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
+impl<'a, T: Counter, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
     fn new(h: &'a Histogram<T>, picker: P) -> HistogramIterator<'a, T, P> {
         HistogramIterator {
             hist: h,
-            totalCountToIndex: 0,
-            prevTotalCount: 0,
+            totalCountToIndex: T::zero(),
+            prevTotalCount: T::zero(),
             currentIndex: 0,
             picker: picker,
             fresh: true,
@@ -61,19 +61,20 @@ impl<'a, T: num::Num + num::ToPrimitive + Copy, P: PickyIterator<T>> HistogramIt
     }
 
     // (value, percentile, count-for-value, count-for-step)
-    fn current(&self) -> (i64, f64, T, i64) {
+    fn current(&self) -> (i64, f64, T, T) {
         let value = self.hist.highest_equivalent(self.hist.value_for(self.currentIndex));
-        let perc = 100.0 * self.totalCountToIndex as f64 / self.hist.count() as f64;
+        let perc = 100.0 * self.totalCountToIndex.to_f64().unwrap() /
+                   self.hist.count().to_f64().unwrap();
         let count = self.hist[self.currentIndex];
         (value, perc, count, self.totalCountToIndex - self.prevTotalCount)
     }
 }
 
 impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
-    where T: num::Num + num::ToPrimitive + Copy,
+    where T: Counter,
           P: PickyIterator<T>
 {
-    type Item = (i64, f64, T, i64);
+    type Item = (i64, f64, T, T);
     fn next(&mut self) -> Option<Self::Item> {
         // here's the deal: we are iterating over all the indices in the histogram's .count array.
         // however, most of those values (especially towards the end) will be zeros, which the
@@ -107,15 +108,15 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
                 assert!(self.prevTotalCount < total);
 
                 if self.fresh {
-                    let count = self.hist[self.currentIndex].to_i64().unwrap();
+                    let count = self.hist[self.currentIndex];
 
                     // if we've seen all counts, no other counts should be non-zero
                     if self.totalCountToIndex == total {
-                        assert_eq!(count, 0);
+                        assert!(count == T::zero());
                     }
 
                     // maintain total count so we can yield percentiles
-                    self.totalCountToIndex += count;
+                    self.totalCountToIndex = self.totalCountToIndex + count;
 
                     // make sure we don't add this index again
                     self.fresh = false;

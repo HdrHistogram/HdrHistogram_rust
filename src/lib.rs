@@ -147,6 +147,21 @@ use std::ops::AddAssign;
 use std::ops::SubAssign;
 use std::borrow::Borrow;
 
+/// This auto-implemented marker trait represents the operations a histogram must be able to
+/// perform on the underlying counter type. The `ToPrimitive` trait is needed to perform floating
+/// point operations on the counts (usually for percentiles). The `FromPrimitive` to convert back
+/// into an integer count. Partial ordering is used for threshholding, also usually in the context
+/// of percentiles.
+pub trait Counter
+    : num::Num + num::ToPrimitive + num::FromPrimitive + Copy + PartialOrd<Self> {
+}
+
+// auto-implement marker trait
+impl<T> Counter for T
+    where T: num::Num + num::ToPrimitive + num::FromPrimitive + Copy + PartialOrd<T>
+{
+}
+
 /// `Histogram` is the core data structure in HdrSample. It records values, and performs analytics.
 ///
 /// At its heart, it keeps the count for recorded samples in "buckets" of values. The resolution
@@ -180,7 +195,7 @@ use std::borrow::Borrow;
 /// = 2048 * 2^(k-1)`, which is the k-1'th bucket's end. So, we would use the previous bucket
 /// for those lower values as it has better precision.
 ///
-pub struct Histogram<T: num::Num + num::ToPrimitive + Copy> {
+pub struct Histogram<T: Counter> {
     autoResize: bool,
 
     highestTrackableValue: i64,
@@ -200,19 +215,17 @@ pub struct Histogram<T: num::Num + num::ToPrimitive + Copy> {
 
     unitMagnitudeMask: i64,
 
-    // TODO: use options for these?
     maxValue: i64, // 0
     minNonZeroValue: i64, // MAX
 
-    // atomics for maxValue/minNonZeroValue ?
-    totalCount: i64,
+    totalCount: T,
     counts: Vec<T>,
 }
 
 /// Module containing the implementations of all `Histogram` iterators.
 pub mod iterators;
 
-impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
+impl<T: Counter> Histogram<T> {
     // ********************************************************************************************
     // Histogram administrative read-outs
     // ********************************************************************************************
@@ -238,7 +251,7 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     }
 
     /// Get the total number of samples recorded.
-    pub fn count(&self) -> i64 {
+    pub fn count(&self) -> T {
         self.totalCount
     }
 
@@ -373,16 +386,16 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
            self.unitMagnitude == source.unitMagnitude {
             // Counts arrays are of the same length and meaning,
             // so we can just iterate and add directly:
-            let mut observedOtherTotalCount = 0i64;
+            let mut observedOtherTotalCount = T::zero();
             for i in 0..source.len() {
                 let otherCount = source[i];
                 if otherCount != T::zero() {
                     self[i] = self[i] + otherCount;
-                    observedOtherTotalCount += otherCount.to_i64().unwrap();
+                    observedOtherTotalCount = observedOtherTotalCount + otherCount;
                 }
             }
 
-            self.totalCount += observedOtherTotalCount;
+            self.totalCount = self.totalCount + observedOtherTotalCount;
             let mx = source.max();
             if mx > self.max() {
                 self.update_max(mx);
@@ -473,8 +486,7 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
             let otherCount = other[i];
             if otherCount != T::zero() {
                 let otherValue = other.value_for(i);
-                if self.count_at(otherValue).unwrap().to_i64().unwrap() <
-                   otherCount.to_i64().unwrap() {
+                if self.count_at(otherValue).unwrap() < otherCount {
                     return Err("The other histogram includes counts that are higher than the \
                                 current count for that value.");
                 }
@@ -501,7 +513,7 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
         for c in self.counts.iter_mut() {
             *c = T::zero();
         }
-        self.totalCount = 0;
+        self.totalCount = T::zero();
     }
 
     /// Reset the contents and statistics of this histogram, preserving only its configuration.
@@ -625,8 +637,7 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
             maxValue: 0,
             minNonZeroValue: i64::max_value(),
 
-            // TODO: atomics for maxValue/minNonZeroValue ?
-            totalCount: 0,
+            totalCount: T::zero(),
             counts: Vec::new(), // set by alloc() below
         };
 
@@ -643,7 +654,7 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
 
     /// Construct a `Histogram` with the same range settings as a given source histogram,
     /// duplicating the source's start/end timestamps (but NOT its contents).
-    pub fn new_from<F: num::Num + num::ToPrimitive + Copy>(source: &Histogram<F>) -> Histogram<T> {
+    pub fn new_from<F: Counter>(source: &Histogram<F>) -> Histogram<T> {
         let mut h = Self::new_with_bounds(source.lowestDiscernibleValue,
                                           source.highestTrackableValue,
                                           source.significantValueDigits)
@@ -715,9 +726,9 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
 
         self.update_min_max(value);
         if add {
-            self.totalCount += count.to_i64().unwrap();
+            self.totalCount = self.totalCount + count;
         } else {
-            self.totalCount -= count.to_i64().unwrap();
+            self.totalCount = self.totalCount - count;
         }
         Ok(())
     }
@@ -944,7 +955,7 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// Get the lowest recorded value level in the histogram.
     /// If the histogram has no recorded values, the value returned will be 0.
     pub fn min(&self) -> i64 {
-        if self.totalCount == 0 || self[0usize] != T::zero() {
+        if self.totalCount == T::zero() || self[0usize] != T::zero() {
             0
         } else {
             self.min_nz()
@@ -980,29 +991,30 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
 
     /// Get the computed mean value of all recorded values in the histogram.
     pub fn mean(&self) -> f64 {
-        if self.totalCount == 0 {
+        if self.totalCount == T::zero() {
             return 0.0;
         }
 
         self.iter_recorded().fold(0.0f64, |total, (v, _, c, _)| {
             total +
-            self.median_equivalent(v) as f64 * c.to_i64().unwrap() as f64 / self.totalCount as f64
+            self.median_equivalent(v) as f64 * c.to_f64().unwrap() /
+            self.totalCount.to_f64().unwrap()
         })
     }
 
     /// Get the computed standard deviation of all recorded values in the histogram
     pub fn stdev(&self) -> f64 {
-        if self.totalCount == 0 {
+        if self.totalCount == T::zero() {
             return 0.0;
         }
 
         let mean = self.mean();
         let geom_dev_tot = self.iter_recorded().fold(0.0f64, |gdt, (v, _, _, sc)| {
             let dev = self.median_equivalent(v) as f64 - mean;
-            gdt + (dev * dev) * sc as f64
+            gdt + (dev * dev) * sc.to_f64().unwrap()
         });
 
-        (geom_dev_tot / self.totalCount as f64).sqrt()
+        (geom_dev_tot / self.totalCount.to_f64().unwrap()).sqrt()
     }
 
     /// Get the value at a given percentile.
@@ -1014,8 +1026,6 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     ///
     /// Two values are considered "equivalent" if `self.equivalent` would return true.
     pub fn value_at_percentile(&self, percentile: f64) -> i64 {
-        use std::cmp;
-
         // Truncate down to 100%
         let percentile = if percentile > 100.0 {
             100.0
@@ -1024,14 +1034,18 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
         };
 
         // round to nearest
-        let countAtPercentile = (((percentile / 100.0) * self.totalCount as f64) + 0.5) as i64;
+        let mut countAtPercentile =
+            T::from_u64((((percentile / 100.0) * self.totalCount.to_f64().unwrap()) + 0.5) as u64)
+                .unwrap();
 
         // Make sure we at least reach the first recorded entry
-        let countAtPercentile = cmp::max(countAtPercentile, 1);
+        if countAtPercentile <= T::zero() {
+            countAtPercentile = T::one();
+        }
 
-        let mut totalToCurrentIndex = 0i64;
+        let mut totalToCurrentIndex = T::zero();
         for i in 0..self.len() {
-            totalToCurrentIndex += self[i].to_i64().unwrap();
+            totalToCurrentIndex = totalToCurrentIndex + self[i];
             if totalToCurrentIndex >= countAtPercentile {
                 let valueAtIndex = self.value_for(i);
                 return if percentile == 0.0 {
@@ -1054,14 +1068,14 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     pub fn percentile_below(&self, value: i64) -> f64 {
         use std::cmp;
 
-        if self.totalCount == 0 {
+        if self.totalCount == T::zero() {
             return 100.0;
         }
 
         let targetIndex = cmp::min(self.index_for(value), self.last() as isize) as usize;
-        let totalToCurrentIndex: i64 =
-            (0..(targetIndex + 1)).map(|i| self[i].to_i64().unwrap()).fold(0, |t, v| t + v);
-        (100 * totalToCurrentIndex) as f64 / self.totalCount as f64
+        let totalToCurrentIndex =
+            (0..(targetIndex + 1)).map(|i| self[i]).fold(T::zero(), |t, v| t + v);
+        100.0 * totalToCurrentIndex.to_f64().unwrap() / self.totalCount.to_f64().unwrap()
     }
 
     /// Get the count of recorded values within a range of value levels (inclusive to within the
@@ -1074,11 +1088,11 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
     /// lowest_equivalent(low)` and `<= highest_equivalent(high)`.
     ///
     /// May fail if the given values are out of bounds.
-    pub fn count_between(&self, low: i64, high: i64) -> Result<i64, ()> {
+    pub fn count_between(&self, low: i64, high: i64) -> Result<T, ()> {
         use std::cmp;
         let lowIndex = cmp::max(0, self.index_for(low)) as usize;
         let highIndex = cmp::min(self.index_for(high), self.last() as isize) as usize;
-        Ok((lowIndex..(highIndex + 1)).map(|i| self[i].to_i64().unwrap()).fold(0, |t, v| t + v))
+        Ok((lowIndex..(highIndex + 1)).map(|i| self[i]).fold(T::zero(), |t, v| t + v))
     }
 
     /// Get the count of recorded values at a specific value (to within the histogram resolution at
@@ -1315,11 +1329,11 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
 
         let mut max_i = None;
         let mut min_i = None;
-        let mut totalCount = 0;
+        let mut totalCount = T::zero();
         for i in 0..until {
             let count = self[i];
             if count != T::zero() {
-                totalCount += count.to_i64().unwrap();
+                totalCount = totalCount + count;
                 max_i = Some(i);
                 if min_i.is_none() && i != 0 {
                     min_i = Some(i);
@@ -1344,20 +1358,20 @@ impl<T: num::Num + num::ToPrimitive + Copy> Histogram<T> {
 // Trait implementations
 // ********************************************************************************************
 
-impl<T: num::Num + num::ToPrimitive + Copy> Index<usize> for Histogram<T> {
+impl<T: Counter> Index<usize> for Histogram<T> {
     type Output = T;
     fn index(&self, index: usize) -> &Self::Output {
         &self.counts[index]
     }
 }
 
-impl<T: num::Num + num::ToPrimitive + Copy> IndexMut<usize> for Histogram<T> {
+impl<T: Counter> IndexMut<usize> for Histogram<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.counts[index]
     }
 }
 
-impl<T: num::Num + num::ToPrimitive + Copy> Clone for Histogram<T> {
+impl<T: Counter> Clone for Histogram<T> {
     fn clone(&self) -> Self {
         let mut h = Histogram::new_from(self);
         h += self;
@@ -1366,27 +1380,29 @@ impl<T: num::Num + num::ToPrimitive + Copy> Clone for Histogram<T> {
 }
 
 // make it more ergonomic to add and subtract histograms
-impl<'a, T: num::Num + num::ToPrimitive + Copy> AddAssign<&'a Histogram<T>> for Histogram<T> {
+impl<'a, T: Counter> AddAssign<&'a Histogram<T>> for Histogram<T> {
     fn add_assign(&mut self, source: &'a Histogram<T>) {
         self.add(source).unwrap();
     }
 }
 
-impl<'a, T: num::Num + num::ToPrimitive + Copy> SubAssign<&'a Histogram<T>> for Histogram<T> {
+impl<'a, T: Counter> SubAssign<&'a Histogram<T>> for Histogram<T> {
     fn sub_assign(&mut self, other: &'a Histogram<T>) {
         self.subtract(other).unwrap();
     }
 }
 
 // make it more ergonomic to record samples
-impl<T: num::Num + num::ToPrimitive + Copy> AddAssign<i64> for Histogram<T> {
+impl<T: Counter> AddAssign<i64> for Histogram<T> {
     fn add_assign(&mut self, value: i64) {
         self.record(value).unwrap();
     }
 }
 
 // allow comparing histograms
-impl<T: num::Num + num::ToPrimitive + Copy, F: num::Num + num::ToPrimitive + Copy> PartialEq<Histogram<F>> for Histogram<T> {
+impl<T: Counter, F: Counter> PartialEq<Histogram<F>> for Histogram<T>
+    where T: PartialEq<F>
+{
     fn eq(&self, other: &Histogram<F>) -> bool {
         if self.lowestDiscernibleValue != other.lowestDiscernibleValue ||
            self.significantValueDigits != other.significantValueDigits {
@@ -1401,7 +1417,7 @@ impl<T: num::Num + num::ToPrimitive + Copy, F: num::Num + num::ToPrimitive + Cop
         if self.min_nz() != other.min_nz() {
             return false;
         }
-        (0..self.len()).all(|i| self[i].to_i64() == other[i].to_i64())
+        (0..self.len()).all(|i| self[i] == other[i])
     }
 }
 

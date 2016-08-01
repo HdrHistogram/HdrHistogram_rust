@@ -22,7 +22,7 @@ macro_rules! assert_near {
     }}
 }
 
-fn verify_max<T: num::Num + num::ToPrimitive + Copy, B: Borrow<Histogram<T>>>(hist: B) -> bool {
+fn verify_max<T: hdrsample::Counter, B: Borrow<Histogram<T>>>(hist: B) -> bool {
     let hist = hist.borrow();
     if let Some(mx) = hist.iter_recorded()
         .map(|(v, _, _, _)| v)
@@ -319,7 +319,7 @@ fn overflow() {
 }
 
 fn are_equal<T, B1, B2>(actual: B1, expected: B2)
-    where T: num::Num + num::ToPrimitive + Copy + fmt::Debug,
+    where T: hdrsample::Counter + fmt::Debug,
           B1: Borrow<Histogram<T>>,
           B2: Borrow<Histogram<T>>
 {

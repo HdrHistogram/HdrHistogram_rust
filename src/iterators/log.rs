@@ -1,9 +1,9 @@
-use num;
+use Counter;
 use Histogram;
 use iterators::{HistogramIterator, PickyIterator};
 
 /// An iterator that will yield at log-size steps through the histogram's value range.
-pub struct Iter<'a, T: 'a + num::Num + num::ToPrimitive + Copy> {
+pub struct Iter<'a, T: 'a + Counter> {
     hist: &'a Histogram<T>,
 
     nextValueReportingLevel: f64,
@@ -13,7 +13,7 @@ pub struct Iter<'a, T: 'a + num::Num + num::ToPrimitive + Copy> {
     currentStepHighestValueReportingLevel: i64,
 }
 
-impl<'a, T: 'a + num::Num + num::ToPrimitive + Copy> Iter<'a, T> {
+impl<'a, T: 'a + Counter> Iter<'a, T> {
     /// Construct a new logarithmic iterator. See `Histogram::iter_log` for details.
     pub fn new(hist: &'a Histogram<T>,
                valueUnitsInFirstBucket: i64,
@@ -32,8 +32,8 @@ impl<'a, T: 'a + num::Num + num::ToPrimitive + Copy> Iter<'a, T> {
     }
 }
 
-impl<'a, T: 'a + num::Num + num::ToPrimitive + Copy> PickyIterator<T> for Iter<'a, T> {
-    fn pick(&mut self, index: usize, _: i64) -> bool {
+impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
+    fn pick(&mut self, index: usize, _: T) -> bool {
         let val = self.hist.value_for(index);
         if val >= self.currentStepLowestValueReportingLevel || index == self.hist.last() {
             self.nextValueReportingLevel *= self.logBase;

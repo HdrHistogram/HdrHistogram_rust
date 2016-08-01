@@ -368,7 +368,7 @@ fn iter_recorded() {
         assert!(c != 0);
         // The count in a recorded iterator value should exactly match the amount added since the
         // last iteration
-        assert_eq!(c as i64, sc);
+        assert_eq!(c, sc);
 
         totalAddedCounts += sc;
         num += 1;
@@ -406,7 +406,7 @@ fn iter_all() {
         }
 
         // The count in iter_all buckets should exactly match the amount added since the last iteration
-        assert_eq!(c as i64, sc);
+        assert_eq!(c, sc);
         totalAddedCounts += sc;
         // valueFromIndex(index) should be equal to getValueIteratedTo()
         assert!(hist.equivalent(hist.value_for(i), v));

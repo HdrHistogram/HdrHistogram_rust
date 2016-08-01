@@ -1,9 +1,9 @@
-use num;
+use Counter;
 use Histogram;
 use iterators::{HistogramIterator, PickyIterator};
 
 /// An iterator that will yield at percentile steps through the histogram's value range.
-pub struct Iter<'a, T: 'a + num::Num + num::ToPrimitive + Copy> {
+pub struct Iter<'a, T: 'a + Counter> {
     hist: &'a Histogram<T>,
 
     percentileTicksPerHalfDistance: isize,
@@ -11,7 +11,7 @@ pub struct Iter<'a, T: 'a + num::Num + num::ToPrimitive + Copy> {
     reachedLastRecordedValue: bool,
 }
 
-impl<'a, T: 'a + num::Num + num::ToPrimitive + Copy> Iter<'a, T> {
+impl<'a, T: 'a + Counter> Iter<'a, T> {
     /// Construct a new percentile iterator. See `Histogram::iter_percentiles` for details.
     pub fn new(hist: &'a Histogram<T>,
                percentileTicksPerHalfDistance: isize)
@@ -26,14 +26,15 @@ impl<'a, T: 'a + num::Num + num::ToPrimitive + Copy> Iter<'a, T> {
     }
 }
 
-impl<'a, T: 'a + Copy + num::ToPrimitive + num::Num> PickyIterator<T> for Iter<'a, T> {
-    fn pick(&mut self, index: usize, running_total: i64) -> bool {
+impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
+    fn pick(&mut self, index: usize, running_total: T) -> bool {
         let count = &self.hist[index];
         if *count == T::zero() {
             return false;
         }
 
-        let currentPercentile = (100 * running_total) as f64 / self.hist.count() as f64;
+        let currentPercentile = 100.0 * running_total.to_f64().unwrap() /
+                                self.hist.count().to_f64().unwrap();
         if currentPercentile < self.percentileLevelToIterateTo {
             return false;
         }
@@ -60,7 +61,7 @@ impl<'a, T: 'a + Copy + num::ToPrimitive + num::Num> PickyIterator<T> for Iter<'
 
     fn more(&mut self, _: usize) -> bool {
         // We want one additional last step to 100%
-        if !self.reachedLastRecordedValue && self.hist.count() > 0 {
+        if !self.reachedLastRecordedValue && self.hist.count() != T::zero() {
             self.percentileLevelToIterateTo = 100.0;
             self.reachedLastRecordedValue = true;
             true
