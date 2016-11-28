@@ -34,9 +34,9 @@ fn verify_max<T: hdrsample::Counter, B: Borrow<Histogram<T>>>(hist: B) -> bool {
     }
 }
 
-const TRACKABLE_MAX: i64 = 3600 * 1000 * 1000;
+const TRACKABLE_MAX: u64 = 3600 * 1000 * 1000;
 const SIGFIG: u32 = 3;
-const TEST_VALUE_LEVEL: i64 = 4;
+const TEST_VALUE_LEVEL: u64 = 4;
 
 #[test]
 fn construction_arg_ranges() {

@@ -6,15 +6,15 @@ use iterators::{HistogramIterator, PickyIterator};
 pub struct Iter<'a, T: 'a + Counter> {
     hist: &'a Histogram<T>,
 
-    valueUnitsPerBucket: i64,
-    currentStepHighestValueReportingLevel: i64,
-    currentStepLowestValueReportingLevel: i64,
+    valueUnitsPerBucket: u64,
+    currentStepHighestValueReportingLevel: u64,
+    currentStepLowestValueReportingLevel: u64,
 }
 
 impl<'a, T: 'a + Counter> Iter<'a, T> {
     /// Construct a new linear iterator. See `Histogram::iter_linear` for details.
     pub fn new(hist: &'a Histogram<T>,
-               valueUnitsPerBucket: i64)
+               valueUnitsPerBucket: u64)
                -> HistogramIterator<'a, T, Iter<'a, T>> {
         HistogramIterator::new(hist,
                                Iter {
