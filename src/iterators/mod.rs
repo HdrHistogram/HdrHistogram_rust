@@ -19,7 +19,7 @@ pub mod all;
 /// A trait for designing an subset iterator over values in a `Histogram`.
 pub trait PickyIterator<T: Counter> {
     /// should an item be yielded for the given index?
-    fn pick(&mut self, usize, T) -> bool;
+    fn pick(&mut self, usize, u64) -> bool;
     /// should we keep iterating even though all future indices are zeros?
     fn more(&mut self, usize) -> bool;
 }
@@ -39,8 +39,8 @@ pub trait PickyIterator<T: Counter> {
 /// indices they have already visited.
 pub struct HistogramIterator<'a, T: 'a + Counter, P: PickyIterator<T>> {
     hist: &'a Histogram<T>,
-    totalCountToIndex: T,
-    prevTotalCount: T,
+    totalCountToIndex: u64,
+    prevTotalCount: u64,
     currentIndex: usize,
     fresh: bool,
     ended: bool,
@@ -51,8 +51,8 @@ impl<'a, T: Counter, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
     fn new(h: &'a Histogram<T>, picker: P) -> HistogramIterator<'a, T, P> {
         HistogramIterator {
             hist: h,
-            totalCountToIndex: T::zero(),
-            prevTotalCount: T::zero(),
+            totalCountToIndex: 0,
+            prevTotalCount: 0,
             currentIndex: 0,
             picker: picker,
             fresh: true,
@@ -61,10 +61,9 @@ impl<'a, T: Counter, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
     }
 
     // (value, percentile, count-for-value, count-for-step)
-    fn current(&self) -> (i64, f64, T, T) {
+    fn current(&self) -> (i64, f64, T, u64) {
         let value = self.hist.highest_equivalent(self.hist.value_for(self.currentIndex));
-        let perc = 100.0 * self.totalCountToIndex.to_f64().unwrap() /
-                   self.hist.count().to_f64().unwrap();
+        let perc = 100.0 * self.totalCountToIndex as f64 / self.hist.count() as f64;
         let count = self.hist[self.currentIndex];
         (value, perc, count, self.totalCountToIndex - self.prevTotalCount)
     }
@@ -74,7 +73,7 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
     where T: Counter,
           P: PickyIterator<T>
 {
-    type Item = (i64, f64, T, T);
+    type Item = (i64, f64, T, u64);
     fn next(&mut self) -> Option<Self::Item> {
         // here's the deal: we are iterating over all the indices in the histogram's .count array.
         // however, most of those values (especially towards the end) will be zeros, which the
@@ -116,7 +115,7 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
                     }
 
                     // maintain total count so we can yield percentiles
-                    self.totalCountToIndex = self.totalCountToIndex + count;
+                    self.totalCountToIndex = self.totalCountToIndex + count.to_u64().unwrap();
 
                     // make sure we don't add this index again
                     self.fresh = false;

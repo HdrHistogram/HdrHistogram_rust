@@ -454,3 +454,37 @@ fn value_duplication() {
     assert!(histogram1 == histogram2,
             "histograms should be equal after re-recording");
 }
+
+#[test]
+fn total_count_exceeds_bucket_type() {
+    let mut h: Histogram<u8> = Histogram::new(3).unwrap();
+
+    for _ in 0..200 {
+        h.record(100).unwrap();
+    }
+
+
+    for _ in 0..200 {
+        h.record(100_000).unwrap();
+    }
+
+    assert_eq!(400, h.count());
+
+}
+
+#[test]
+fn value_at_percentile_internal_count_exceeds_bucket_type() {
+    let mut h: Histogram<u8> = Histogram::new(3).unwrap();
+
+    for _ in 0..200 {
+        h.record(100).unwrap();
+    }
+
+
+    for _ in 0..200 {
+        h.record(100_000).unwrap();
+    }
+
+    // we won't get back the original input because of bucketing
+    assert_eq!(h.highest_equivalent(100_000), h.value_at_percentile(100.0));
+}

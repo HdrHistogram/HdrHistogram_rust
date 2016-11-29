@@ -27,14 +27,13 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
 }
 
 impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
-    fn pick(&mut self, index: usize, running_total: T) -> bool {
+    fn pick(&mut self, index: usize, running_total: u64) -> bool {
         let count = &self.hist[index];
         if *count == T::zero() {
             return false;
         }
 
-        let currentPercentile = 100.0 * running_total.to_f64().unwrap() /
-                                self.hist.count().to_f64().unwrap();
+        let currentPercentile = 100.0 * running_total as f64 / self.hist.count() as f64;
         if currentPercentile < self.percentileLevelToIterateTo {
             return false;
         }
@@ -61,7 +60,7 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
 
     fn more(&mut self, _: usize) -> bool {
         // We want one additional last step to 100%
-        if !self.reachedLastRecordedValue && self.hist.count() != T::zero() {
+        if !self.reachedLastRecordedValue && self.hist.count() != 0 {
             self.percentileLevelToIterateTo = 100.0;
             self.reachedLastRecordedValue = true;
             true
