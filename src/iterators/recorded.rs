@@ -20,7 +20,7 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
 }
 
 impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
-    fn pick(&mut self, index: usize, _: T) -> bool {
+    fn pick(&mut self, index: usize, _: u64) -> bool {
         // is the count non-zero?
         if self.hist[index] != T::zero() {
             // have we visited before?

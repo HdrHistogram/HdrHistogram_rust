@@ -218,7 +218,7 @@ pub struct Histogram<T: Counter> {
     maxValue: i64, // 0
     minNonZeroValue: i64, // MAX
 
-    totalCount: T,
+    totalCount: u64,
     counts: Vec<T>,
 }
 
@@ -251,7 +251,7 @@ impl<T: Counter> Histogram<T> {
     }
 
     /// Get the total number of samples recorded.
-    pub fn count(&self) -> T {
+    pub fn count(&self) -> u64 {
         self.totalCount
     }
 
@@ -386,12 +386,12 @@ impl<T: Counter> Histogram<T> {
            self.unitMagnitude == source.unitMagnitude {
             // Counts arrays are of the same length and meaning,
             // so we can just iterate and add directly:
-            let mut observedOtherTotalCount = T::zero();
+            let mut observedOtherTotalCount: u64 = 0;
             for i in 0..source.len() {
                 let otherCount = source[i];
                 if otherCount != T::zero() {
                     self[i] = self[i] + otherCount;
-                    observedOtherTotalCount = observedOtherTotalCount + otherCount;
+                    observedOtherTotalCount = observedOtherTotalCount + otherCount.to_u64().unwrap();
                 }
             }
 
@@ -513,7 +513,7 @@ impl<T: Counter> Histogram<T> {
         for c in self.counts.iter_mut() {
             *c = T::zero();
         }
-        self.totalCount = T::zero();
+        self.totalCount = 0;
     }
 
     /// Reset the contents and statistics of this histogram, preserving only its configuration.
@@ -637,7 +637,7 @@ impl<T: Counter> Histogram<T> {
             maxValue: 0,
             minNonZeroValue: i64::max_value(),
 
-            totalCount: T::zero(),
+            totalCount: 0,
             counts: Vec::new(), // set by alloc() below
         };
 
@@ -726,9 +726,9 @@ impl<T: Counter> Histogram<T> {
 
         self.update_min_max(value);
         if add {
-            self.totalCount = self.totalCount + count;
+            self.totalCount = self.totalCount + count.to_u64().unwrap();
         } else {
-            self.totalCount = self.totalCount - count;
+            self.totalCount = self.totalCount - count.to_u64().unwrap();
         }
         Ok(())
     }
@@ -955,7 +955,7 @@ impl<T: Counter> Histogram<T> {
     /// Get the lowest recorded value level in the histogram.
     /// If the histogram has no recorded values, the value returned will be 0.
     pub fn min(&self) -> i64 {
-        if self.totalCount == T::zero() || self[0usize] != T::zero() {
+        if self.totalCount == 0 || self[0usize] != T::zero() {
             0
         } else {
             self.min_nz()
@@ -991,30 +991,29 @@ impl<T: Counter> Histogram<T> {
 
     /// Get the computed mean value of all recorded values in the histogram.
     pub fn mean(&self) -> f64 {
-        if self.totalCount == T::zero() {
+        if self.totalCount == 0 {
             return 0.0;
         }
 
         self.iter_recorded().fold(0.0f64, |total, (v, _, c, _)| {
             total +
-            self.median_equivalent(v) as f64 * c.to_f64().unwrap() /
-            self.totalCount.to_f64().unwrap()
+            self.median_equivalent(v) as f64 * c.to_f64().unwrap() / self.totalCount as f64
         })
     }
 
     /// Get the computed standard deviation of all recorded values in the histogram
     pub fn stdev(&self) -> f64 {
-        if self.totalCount == T::zero() {
+        if self.totalCount == 0 {
             return 0.0;
         }
 
         let mean = self.mean();
         let geom_dev_tot = self.iter_recorded().fold(0.0f64, |gdt, (v, _, _, sc)| {
             let dev = self.median_equivalent(v) as f64 - mean;
-            gdt + (dev * dev) * sc.to_f64().unwrap()
+            gdt + (dev * dev) * sc as f64
         });
 
-        (geom_dev_tot / self.totalCount.to_f64().unwrap()).sqrt()
+        (geom_dev_tot / self.totalCount as f64).sqrt()
     }
 
     /// Get the value at a given percentile.
@@ -1034,18 +1033,16 @@ impl<T: Counter> Histogram<T> {
         };
 
         // round to nearest
-        let mut countAtPercentile =
-            T::from_u64((((percentile / 100.0) * self.totalCount.to_f64().unwrap()) + 0.5) as u64)
-                .unwrap();
+        let mut countAtPercentile = (((percentile / 100.0) * self.totalCount as f64) + 0.5) as u64;
 
         // Make sure we at least reach the first recorded entry
-        if countAtPercentile <= T::zero() {
-            countAtPercentile = T::one();
+        if countAtPercentile == 0 {
+            countAtPercentile = 1;
         }
 
-        let mut totalToCurrentIndex = T::zero();
+        let mut totalToCurrentIndex: u64 = 0;
         for i in 0..self.len() {
-            totalToCurrentIndex = totalToCurrentIndex + self[i];
+            totalToCurrentIndex = totalToCurrentIndex + self[i].to_u64().unwrap();
             if totalToCurrentIndex >= countAtPercentile {
                 let valueAtIndex = self.value_for(i);
                 return if percentile == 0.0 {
@@ -1068,14 +1065,14 @@ impl<T: Counter> Histogram<T> {
     pub fn percentile_below(&self, value: i64) -> f64 {
         use std::cmp;
 
-        if self.totalCount == T::zero() {
+        if self.totalCount == 0 {
             return 100.0;
         }
 
         let targetIndex = cmp::min(self.index_for(value), self.last() as isize) as usize;
         let totalToCurrentIndex =
             (0..(targetIndex + 1)).map(|i| self[i]).fold(T::zero(), |t, v| t + v);
-        100.0 * totalToCurrentIndex.to_f64().unwrap() / self.totalCount.to_f64().unwrap()
+        100.0 * totalToCurrentIndex.to_f64().unwrap() / self.totalCount as f64
     }
 
     /// Get the count of recorded values within a range of value levels (inclusive to within the
@@ -1329,11 +1326,11 @@ impl<T: Counter> Histogram<T> {
 
         let mut max_i = None;
         let mut min_i = None;
-        let mut totalCount = T::zero();
+        let mut totalCount: u64 = 0;
         for i in 0..until {
             let count = self[i];
             if count != T::zero() {
-                totalCount = totalCount + count;
+                totalCount = totalCount + count.to_u64().unwrap();
                 max_i = Some(i);
                 if min_i.is_none() && i != 0 {
                     min_i = Some(i);
