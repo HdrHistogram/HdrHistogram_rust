@@ -33,7 +33,7 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
 }
 
 impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
-    fn pick(&mut self, index: usize, _: T) -> bool {
+    fn pick(&mut self, index: usize, _: u64) -> bool {
         let val = self.hist.value_for(index);
         if val >= self.currentStepLowestValueReportingLevel || index == self.hist.last() {
             self.nextValueReportingLevel *= self.logBase;
