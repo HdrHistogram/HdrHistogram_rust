@@ -6,6 +6,7 @@ use iterators::{HistogramIterator, PickyIterator};
 pub struct Iter<'a, T: 'a + Counter> {
     hist: &'a Histogram<T>,
 
+    // > 0
     valueUnitsPerBucket: u64,
     currentStepHighestValueReportingLevel: u64,
     currentStepLowestValueReportingLevel: u64,
@@ -16,10 +17,12 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
     pub fn new(hist: &'a Histogram<T>,
                valueUnitsPerBucket: u64)
                -> HistogramIterator<'a, T, Iter<'a, T>> {
+        assert!(valueUnitsPerBucket > 0);
         HistogramIterator::new(hist,
                                Iter {
                                    hist: hist,
                                    valueUnitsPerBucket: valueUnitsPerBucket,
+                                   // won't underflow because valueUnitsPerBucket > 0
                                    currentStepHighestValueReportingLevel: valueUnitsPerBucket - 1,
                                    currentStepLowestValueReportingLevel:
                                        hist.lowest_equivalent(valueUnitsPerBucket - 1),

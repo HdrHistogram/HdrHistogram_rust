@@ -198,8 +198,11 @@ impl<T> Counter for T
 pub struct Histogram<T: Counter> {
     autoResize: bool,
 
+    // >= 2 * lowestDiscernibleValue
     highestTrackableValue: u64,
+    // >= 1
     lowestDiscernibleValue: u64,
+    // in [0, 5]
     significantValueDigits: u32,
 
     bucketCount: usize,
@@ -609,6 +612,7 @@ impl<T: Counter> Histogram<T> {
         } - 1;
         let subBucketCount = 2usize.pow(subBucketHalfCountMagnitude as u32 + 1);
         let subBucketHalfCount = subBucketCount / 2;
+        // subBucketCount is always at least 2, so subtraction won't underflow
         let subBucketMask = (subBucketCount as u64 - 1) << unitMagnitude;
 
         let mut h = Histogram {
@@ -751,7 +755,7 @@ impl<T: Counter> Histogram<T> {
     /// disabled.
     pub fn record_n_correct(&mut self, value: u64, count: T, interval: u64) -> Result<(), ()> {
         try!(self.record_n(value, count));
-        if interval <= 0 {
+        if interval == 0 {
             return Ok(());
         }
 
@@ -759,7 +763,7 @@ impl<T: Counter> Histogram<T> {
             // only enter loop when calculations will stay non-negative
             let mut missingValue = value - interval;
             while missingValue >= interval {
-            try!(self.record_n(missingValue, count));
+                try!(self.record_n(missingValue, count));
                 missingValue -= interval;
             }
         }
@@ -1133,7 +1137,7 @@ impl<T: Counter> Histogram<T> {
     /// resolution. Equivalent here means that value samples recorded for any two equivalent values
     /// are counted in a common total count.
     ///
-    /// Note that the return value is capped at `i64::max_value()`.
+    /// Note that the return value is capped at `u64::max_value()`.
     pub fn highest_equivalent(&self, value: u64) -> u64 {
         if value == u64::max_value() {
             u64::max_value()
