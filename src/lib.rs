@@ -198,8 +198,11 @@ impl<T> Counter for T
 pub struct Histogram<T: Counter> {
     autoResize: bool,
 
-    highestTrackableValue: i64,
-    lowestDiscernibleValue: i64,
+    // >= 2 * lowestDiscernibleValue
+    highestTrackableValue: u64,
+    // >= 1
+    lowestDiscernibleValue: u64,
+    // in [0, 5]
     significantValueDigits: u32,
 
     bucketCount: usize,
@@ -211,12 +214,12 @@ pub struct Histogram<T: Counter> {
     unitMagnitude: usize,
     subBucketHalfCount: usize,
 
-    subBucketMask: i64,
+    subBucketMask: u64,
 
-    unitMagnitudeMask: i64,
+    unitMagnitudeMask: u64,
 
-    maxValue: i64, // 0
-    minNonZeroValue: i64, // MAX
+    maxValue: u64, // 0
+    minNonZeroValue: u64, // MAX
 
     totalCount: u64,
     counts: Vec<T>,
@@ -236,12 +239,12 @@ impl<T: Counter> Histogram<T> {
     }
 
     /// Get the lowest discernible value for the histogram in its current configuration.
-    pub fn low(&self) -> i64 {
+    pub fn low(&self) -> u64 {
         self.lowestDiscernibleValue
     }
 
     /// Get the highest trackable value for the histogram in its current configuration.
-    pub fn high(&self) -> i64 {
+    pub fn high(&self) -> u64 {
         self.highestTrackableValue
     }
 
@@ -277,11 +280,7 @@ impl<T: Counter> Histogram<T> {
     /// Find the bucket the given value should be placed in.
     ///
     /// May panic if the given value falls outside the current range of the histogram.
-    fn index_for(&self, value: i64) -> isize {
-        if value < 0 {
-            panic!("Histogram recorded value cannot be negative.");
-        }
-
+    fn index_for(&self, value: u64) -> isize {
         let bucketIndex = self.bucket_for(value);
         let subBucketIndex = self.sub_bucket_for(value, bucketIndex);
 
@@ -305,7 +304,7 @@ impl<T: Counter> Histogram<T> {
     }
 
     /// Get a mutable reference to the count bucket for the given value, if it is in range.
-    fn mut_at(&mut self, value: i64) -> Option<&mut T> {
+    fn mut_at(&mut self, value: u64) -> Option<&mut T> {
         let i = self.index_for(value);
         if i < 0 {
             return None;
@@ -335,7 +334,7 @@ impl<T: Counter> Histogram<T> {
     ///
     /// If `interval` is larger than 0, add auto-generated value records as appropriate if value is
     /// larger than `interval`.
-    pub fn clone_correct(&self, interval: i64) -> Histogram<T> {
+    pub fn clone_correct(&self, interval: u64) -> Histogram<T> {
         let mut h = Histogram::new_from(self);
         for (value, _, count, _) in self.iter_recorded() {
             h.record_n_correct(value, count, interval).unwrap();
@@ -355,7 +354,7 @@ impl<T: Counter> Histogram<T> {
     /// `clone_correct` for more detailed explanation about how correction is applied
     pub fn set_to_corrected<B: Borrow<Histogram<T>>>(&mut self,
                                                      source: B,
-                                                     interval: i64)
+                                                     interval: u64)
                                                      -> Result<(), ()> {
         self.reset();
         self.add_correct(source, interval)
@@ -453,7 +452,7 @@ impl<T: Counter> Histogram<T> {
     /// disabled.
     pub fn add_correct<B: Borrow<Histogram<T>>>(&mut self,
                                                 source: B,
-                                                interval: i64)
+                                                interval: u64)
                                                 -> Result<(), ()> {
         let source = source.borrow();
 
@@ -521,7 +520,7 @@ impl<T: Counter> Histogram<T> {
         self.clear();
 
         self.reset_max(0);
-        self.reset_min(i64::max_value());
+        self.reset_min(u64::max_value());
         // self.normalizingIndexOffset = 0;
         // self.startTime = time::Instant::now();
         // self.endTime = time::Instant::now();
@@ -561,7 +560,7 @@ impl<T: Counter> Histogram<T> {
     /// that is >= 2. `sigfig` specifies the number of significant figures to maintain. This is the
     /// number of significant decimal digits to which the histogram will maintain value resolution
     /// and separation. Must be a non-negative integer between 0 and 5.
-    pub fn new_with_max(high: i64, sigfig: u32) -> Result<Histogram<T>, &'static str> {
+    pub fn new_with_max(high: u64, sigfig: u32) -> Result<Histogram<T>, &'static str> {
         Self::new_with_bounds(1, high, sigfig)
     }
 
@@ -578,7 +577,7 @@ impl<T: Counter> Histogram<T> {
     /// figures to maintain. This is the number of significant decimal digits to which the
     /// histogram will maintain value resolution and separation. Must be a non-negative integer
     /// between 0 and 5.
-    pub fn new_with_bounds(low: i64, high: i64, sigfig: u32) -> Result<Histogram<T>, &'static str> {
+    pub fn new_with_bounds(low: u64, high: u64, sigfig: u32) -> Result<Histogram<T>, &'static str> {
         // Verify argument validity
         if low < 1 {
             return Err("lowest discernible value must be >= 1");
@@ -596,7 +595,7 @@ impl<T: Counter> Histogram<T> {
         // maintain single unit resolution to 2x 10^decimalPoints.
 
         // largest value with single unit resolution
-        let largest = 2 * 10i64.pow(sigfig);
+        let largest = 2 * 10u64.pow(sigfig);
 
         let unitMagnitude = ((low as f64).log2() / 2f64.log2()).floor() as usize;
         let unitMagnitudeMask = (1 << unitMagnitude) - 1;
@@ -613,7 +612,8 @@ impl<T: Counter> Histogram<T> {
         } - 1;
         let subBucketCount = 2usize.pow(subBucketHalfCountMagnitude as u32 + 1);
         let subBucketHalfCount = subBucketCount / 2;
-        let subBucketMask = (subBucketCount as i64 - 1) << unitMagnitude;
+        // subBucketCount is always at least 2, so subtraction won't underflow
+        let subBucketMask = (subBucketCount as u64 - 1) << unitMagnitude;
 
         let mut h = Histogram {
             autoResize: false,
@@ -635,14 +635,14 @@ impl<T: Counter> Histogram<T> {
 
             unitMagnitudeMask: unitMagnitudeMask,
             maxValue: 0,
-            minNonZeroValue: i64::max_value(),
+            minNonZeroValue: u64::max_value(),
 
             totalCount: 0,
             counts: Vec::new(), // set by alloc() below
         };
 
         // determine exponent range needed to support the trackable value with no overflow:
-        let len = try!(h.cover(high));
+        let len = h.cover(high);
 
         // Establish leadingZeroCountBase, used in bucketIndexOf() fast path:
         // subtract the bits that would be used by the largest value in bucket 0.
@@ -681,7 +681,7 @@ impl<T: Counter> Histogram<T> {
     ///
     /// Returns an error if `value` exceeds the highest trackable value and auto-resize is
     /// disabled.
-    pub fn record(&mut self, value: i64) -> Result<(), ()> {
+    pub fn record(&mut self, value: u64) -> Result<(), ()> {
         self.record_n(value, T::one())
     }
 
@@ -689,11 +689,11 @@ impl<T: Counter> Histogram<T> {
     ///
     /// `count` is the number of occurrences of this value to record. Returns an error if `value`
     /// exceeds the highest trackable value and auto-resize is disabled.
-    pub fn record_n(&mut self, value: i64, count: T) -> Result<(), ()> {
+    pub fn record_n(&mut self, value: u64, count: T) -> Result<(), ()> {
         self.alter_n(value, count, true)
     }
 
-    fn alter_n(&mut self, value: i64, count: T, add: bool) -> Result<(), ()> {
+    fn alter_n(&mut self, value: u64, count: T, add: bool) -> Result<(), ()> {
         let success = if let Some(c) = self.mut_at(value) {
             if add {
                 *c = *c + count;
@@ -735,8 +735,8 @@ impl<T: Counter> Histogram<T> {
 
     /// Record a value in the histogram while correcting for coordinated omission.
     ///
-    /// See `record_correct` for further documentation.
-    pub fn record_correct(&mut self, value: i64, interval: i64) -> Result<(), ()> {
+    /// See `record_n_correct` for further documentation.
+    pub fn record_correct(&mut self, value: u64, interval: u64) -> Result<(), ()> {
         self.record_n_correct(value, T::one(), interval)
     }
 
@@ -753,17 +753,21 @@ impl<T: Counter> Histogram<T> {
     ///
     /// Returns an error if `value` exceeds the highest trackable value and auto-resize is
     /// disabled.
-    pub fn record_n_correct(&mut self, value: i64, count: T, interval: i64) -> Result<(), ()> {
+    pub fn record_n_correct(&mut self, value: u64, count: T, interval: u64) -> Result<(), ()> {
         try!(self.record_n(value, count));
-        if interval <= 0 {
+        if interval == 0 {
             return Ok(());
         }
 
-        let mut missingValue = value - interval;
-        while missingValue >= interval {
-            try!(self.record_n(missingValue, count));
-            missingValue -= interval;
+        if value > interval {
+            // only enter loop when calculations will stay non-negative
+            let mut missingValue = value - interval;
+            while missingValue >= interval {
+                try!(self.record_n(missingValue, count));
+                missingValue -= interval;
+            }
         }
+
         Ok(())
     }
 
@@ -848,7 +852,7 @@ impl<T: Counter> Histogram<T> {
     /// ```
     pub fn iter_linear<'a>
         (&'a self,
-         step: i64)
+         step: u64)
          -> iterators::HistogramIterator<'a, T, iterators::linear::Iter<'a, T>> {
         iterators::linear::Iter::new(self, step)
     }
@@ -878,7 +882,7 @@ impl<T: Counter> Histogram<T> {
     /// assert_eq!(perc.next(), None);
     /// ```
     pub fn iter_log<'a>(&'a self,
-                        start: i64,
+                        start: u64,
                         exp: f64)
                         -> iterators::HistogramIterator<'a, T, iterators::log::Iter<'a, T>> {
         iterators::log::Iter::new(self, start, exp)
@@ -954,7 +958,7 @@ impl<T: Counter> Histogram<T> {
 
     /// Get the lowest recorded value level in the histogram.
     /// If the histogram has no recorded values, the value returned will be 0.
-    pub fn min(&self) -> i64 {
+    pub fn min(&self) -> u64 {
         if self.totalCount == 0 || self[0usize] != T::zero() {
             0
         } else {
@@ -964,7 +968,7 @@ impl<T: Counter> Histogram<T> {
 
     /// Get the highest recorded value level in the histogram.
     /// If the histogram has no recorded values, the value returned is undefined.
-    pub fn max(&self) -> i64 {
+    pub fn max(&self) -> u64 {
         if self.maxValue == 0 {
             0
         } else {
@@ -973,10 +977,10 @@ impl<T: Counter> Histogram<T> {
     }
 
     /// Get the lowest recorded non-zero value level in the histogram.
-    /// If the histogram has no recorded values, the value returned is `i64::max_value()`.
-    pub fn min_nz(&self) -> i64 {
-        if self.minNonZeroValue == i64::max_value() {
-            i64::max_value()
+    /// If the histogram has no recorded values, the value returned is `u64::max_value()`.
+    pub fn min_nz(&self) -> u64 {
+        if self.minNonZeroValue == u64::max_value() {
+            u64::max_value()
         } else {
             self.lowest_equivalent(self.minNonZeroValue)
         }
@@ -985,7 +989,7 @@ impl<T: Counter> Histogram<T> {
     /// Determine if two values are equivalent with the histogram's resolution. Equivalent here
     /// means that value samples recorded for any two equivalent values are counted in a common
     /// total count.
-    pub fn equivalent(&self, value1: i64, value2: i64) -> bool {
+    pub fn equivalent(&self, value1: u64, value2: u64) -> bool {
         self.lowest_equivalent(value1) == self.lowest_equivalent(value2)
     }
 
@@ -1024,7 +1028,7 @@ impl<T: Counter> Histogram<T> {
     /// all value entries in the histogram are either larger than or equivalent to.
     ///
     /// Two values are considered "equivalent" if `self.equivalent` would return true.
-    pub fn value_at_percentile(&self, percentile: f64) -> i64 {
+    pub fn value_at_percentile(&self, percentile: f64) -> u64 {
         // Truncate down to 100%
         let percentile = if percentile > 100.0 {
             100.0
@@ -1062,7 +1066,7 @@ impl<T: Counter> Histogram<T> {
     /// smaller than or equivalent to the given value.
     ///
     /// Two values are considered "equivalent" if `self.equivalent` would return true.
-    pub fn percentile_below(&self, value: i64) -> f64 {
+    pub fn percentile_below(&self, value: u64) -> f64 {
         use std::cmp;
 
         if self.totalCount == 0 {
@@ -1085,7 +1089,7 @@ impl<T: Counter> Histogram<T> {
     /// lowest_equivalent(low)` and `<= highest_equivalent(high)`.
     ///
     /// May fail if the given values are out of bounds.
-    pub fn count_between(&self, low: i64, high: i64) -> Result<T, ()> {
+    pub fn count_between(&self, low: u64, high: u64) -> Result<T, ()> {
         use std::cmp;
         let lowIndex = cmp::max(0, self.index_for(low)) as usize;
         let highIndex = cmp::min(self.index_for(high), self.last() as isize) as usize;
@@ -1099,7 +1103,7 @@ impl<T: Counter> Histogram<T> {
     /// range that is `>= lowest_equivalent(value)` and `<= highest_equivalent(value)`.
     ///
     /// May fail if the given value is out of bounds.
-    pub fn count_at(&self, value: i64) -> Result<T, ()> {
+    pub fn count_at(&self, value: u64) -> Result<T, ()> {
         use std::cmp;
         Ok(self[cmp::min(cmp::max(0, self.index_for(value)), self.last() as isize) as usize])
     }
@@ -1109,7 +1113,7 @@ impl<T: Counter> Histogram<T> {
     // ********************************************************************************************
 
     /// Computes the matching histogram value for the given histogram bin.
-    pub fn value_for(&self, index: usize) -> i64 {
+    pub fn value_for(&self, index: usize) -> u64 {
         let mut bucketIndex = (index >> self.subBucketHalfCountMagnitude) as isize - 1;
         let mut subBucketIndex =
             ((index & (self.subBucketHalfCount - 1)) + self.subBucketHalfCount) as isize;
@@ -1123,7 +1127,7 @@ impl<T: Counter> Histogram<T> {
     /// Get the lowest value that is equivalent to the given value within the histogram's
     /// resolution. Equivalent here means that value samples recorded for any two equivalent values
     /// are counted in a common total count.
-    pub fn lowest_equivalent(&self, value: i64) -> i64 {
+    pub fn lowest_equivalent(&self, value: u64) -> u64 {
         let bucketIndex = self.bucket_for(value);
         let subBucketIndex = self.sub_bucket_for(value, bucketIndex);
         self.value_from_loc(bucketIndex, subBucketIndex)
@@ -1133,10 +1137,10 @@ impl<T: Counter> Histogram<T> {
     /// resolution. Equivalent here means that value samples recorded for any two equivalent values
     /// are counted in a common total count.
     ///
-    /// Note that the return value is capped at `i64::max_value()`.
-    pub fn highest_equivalent(&self, value: i64) -> i64 {
-        if value == i64::max_value() {
-            i64::max_value()
+    /// Note that the return value is capped at `u64::max_value()`.
+    pub fn highest_equivalent(&self, value: u64) -> u64 {
+        if value == u64::max_value() {
+            u64::max_value()
         } else {
             self.next_non_equivalent(value) - 1
         }
@@ -1146,10 +1150,10 @@ impl<T: Counter> Histogram<T> {
     /// given value. Equivalent here means that value samples recorded for any two equivalent
     /// values are counted in a common total count.
     ///
-    /// Note that the return value is capped at `i64::max_value()`.
-    pub fn median_equivalent(&self, value: i64) -> i64 {
+    /// Note that the return value is capped at `u64::max_value()`.
+    pub fn median_equivalent(&self, value: u64) -> u64 {
         match self.lowest_equivalent(value).overflowing_add(self.equivalent_range(value) >> 1) {
-            (_, of) if of => i64::max_value(),
+            (_, of) if of => u64::max_value(),
             (v, _) => v,
         }
     }
@@ -1158,10 +1162,10 @@ impl<T: Counter> Histogram<T> {
     /// resolution. Equivalent means that value samples recorded for any two equivalent values are
     /// counted in a common total count.
     ///
-    /// Note that the return value is capped at `i64::max_value()`.
-    pub fn next_non_equivalent(&self, value: i64) -> i64 {
+    /// Note that the return value is capped at `u64::max_value()`.
+    pub fn next_non_equivalent(&self, value: u64) -> u64 {
         match self.lowest_equivalent(value).overflowing_add(self.equivalent_range(value)) {
-            (_, of) if of => i64::max_value(),
+            (_, of) if of => u64::max_value(),
             (v, _) => v,
         }
     }
@@ -1169,11 +1173,11 @@ impl<T: Counter> Histogram<T> {
     /// Get the size (in value units) of the range of values that are equivalent to the given value
     /// within the histogram's resolution. Equivalent here means that value samples recorded for
     /// any two equivalent values are counted in a common total count.
-    pub fn equivalent_range(&self, value: i64) -> i64 {
+    pub fn equivalent_range(&self, value: u64) -> u64 {
         let bucketIndex = self.bucket_for(value);
         let subBucketIndex = self.sub_bucket_for(value, bucketIndex);
         // calculate distance to next value
-        1i64 <<
+        1u64 <<
         (self.unitMagnitude +
          if subBucketIndex >= self.subBucketCount {
             bucketIndex + 1
@@ -1189,7 +1193,7 @@ impl<T: Counter> Histogram<T> {
     /// Compute the lowest (and therefore highest precision) bucket index that can represent the
     /// value.
     #[inline]
-    fn bucket_for(&self, value: i64) -> usize {
+    fn bucket_for(&self, value: u64) -> usize {
         // Calculates the number of powers of two by which the value is greater than the biggest
         // value that fits in bucket 0. This is the bucket index since each successive bucket can
         // hold a value 2x greater. The mask maps small values to bucket 0.
@@ -1198,7 +1202,7 @@ impl<T: Counter> Histogram<T> {
 
     #[inline]
     /// Compute the position inside a bucket at which the given value should be recorded.
-    fn sub_bucket_for(&self, value: i64, bucketIndex: usize) -> usize {
+    fn sub_bucket_for(&self, value: u64, bucketIndex: usize) -> usize {
         // For bucketIndex 0, this is just value, so it may be anywhere in 0 to subBucketCount. For
         // other bucketIndex, this will always end up in the top half of subBucketCount: assume
         // that for some bucket k > 0, this calculation will yield a value in the bottom half of 0
@@ -1211,19 +1215,19 @@ impl<T: Counter> Histogram<T> {
     }
 
     #[inline]
-    fn value_from_loc(&self, bucketIndex: usize, subBucketIndex: usize) -> i64 {
-        (subBucketIndex as i64) << (bucketIndex + self.unitMagnitude)
+    fn value_from_loc(&self, bucketIndex: usize, subBucketIndex: usize) -> u64 {
+        (subBucketIndex as u64) << (bucketIndex + self.unitMagnitude)
     }
 
     /// Find the number of buckets needed such that `value` is representable.
-    fn buckets_to_cover(&self, value: i64) -> usize {
+    fn buckets_to_cover(&self, value: u64) -> usize {
         // the k'th bucket can express from 0 * 2^k to subBucketCount * 2^k in units of 2^k
-        let mut smallestUntrackableValue = (self.subBucketCount as i64) << self.unitMagnitude;
+        let mut smallestUntrackableValue = (self.subBucketCount as u64) << self.unitMagnitude;
 
         // always have at least 1 bucket
         let mut bucketsNeeded = 1;
         while smallestUntrackableValue <= value {
-            if smallestUntrackableValue > i64::max_value() / 2 {
+            if smallestUntrackableValue > u64::max_value() / 2 {
                 // next shift will overflow, meaning that bucket could represent values up to ones
                 // greater than i64::max_value, so it's the last bucket
                 return bucketsNeeded + 1;
@@ -1250,10 +1254,9 @@ impl<T: Counter> Histogram<T> {
     /// of bins needed to cover that range.
     ///
     /// May fail if `high` is not at least twice the lowest discernible value.
-    fn cover(&mut self, high: i64) -> Result<usize, &'static str> {
-        if high < 2 * self.lowestDiscernibleValue {
-            return Err("highest trackable value cannot be < (2 * lowest discernible value)");
-        }
+    fn cover(&mut self, high: u64) -> usize {
+        assert!(high >= 2 * self.lowestDiscernibleValue,
+            "highest trackable value must be >= (2 * lowest discernible value)");
 
         // establish counts array length:
         let bucketsNeeded = self.buckets_to_cover(high);
@@ -1265,20 +1268,20 @@ impl<T: Counter> Histogram<T> {
         // establish the new highest trackable value:
         self.highestTrackableValue = high;
 
-        Ok(countsArrayLength)
+        countsArrayLength
     }
 
     /// Resize the underlying counts array such that it can cover the given `high` value.
-    fn resize(&mut self, high: i64) {
+    fn resize(&mut self, high: u64) {
         // figure out how large the sample tracker now needs to be
-        let len = self.cover(high).unwrap();
+        let len = self.cover(high);
 
         // expand counts to also hold the new counts
         self.counts.resize(len, T::zero());
     }
 
     /// Set internally tracked maxValue to new value if new value is greater than current one.
-    fn update_max(&mut self, value: i64) {
+    fn update_max(&mut self, value: u64) {
         let internalValue = value | self.unitMagnitudeMask; // Max unit-equivalent value
         if internalValue > self.maxValue {
             self.maxValue = internalValue;
@@ -1287,7 +1290,7 @@ impl<T: Counter> Histogram<T> {
 
     /// Set internally tracked minNonZeroValue to new value if new value is smaller than current
     /// one.
-    fn update_min(&mut self, value: i64) {
+    fn update_min(&mut self, value: u64) {
         if value <= self.unitMagnitudeMask {
             return; // Unit-equivalent to 0.
         }
@@ -1298,7 +1301,7 @@ impl<T: Counter> Histogram<T> {
         }
     }
 
-    fn update_min_max(&mut self, value: i64) {
+    fn update_min_max(&mut self, value: u64) {
         if value > self.maxValue {
             self.update_max(value);
         }
@@ -1307,13 +1310,13 @@ impl<T: Counter> Histogram<T> {
         }
     }
 
-    fn reset_max(&mut self, max: i64) {
+    fn reset_max(&mut self, max: u64) {
         self.maxValue = max | self.unitMagnitudeMask; // Max unit-equivalent value
     }
 
-    fn reset_min(&mut self, min: i64) {
+    fn reset_min(&mut self, min: u64) {
         let internalValue = min & !self.unitMagnitudeMask; // Min unit-equivalent value
-        self.minNonZeroValue = if min == i64::max_value() {
+        self.minNonZeroValue = if min == u64::max_value() {
             min
         } else {
             internalValue
@@ -1322,7 +1325,7 @@ impl<T: Counter> Histogram<T> {
 
     fn restat(&mut self, until: usize) {
         self.reset_max(0);
-        self.reset_min(i64::max_value());
+        self.reset_min(u64::max_value());
 
         let mut max_i = None;
         let mut min_i = None;
@@ -1390,8 +1393,8 @@ impl<'a, T: Counter> SubAssign<&'a Histogram<T>> for Histogram<T> {
 }
 
 // make it more ergonomic to record samples
-impl<T: Counter> AddAssign<i64> for Histogram<T> {
-    fn add_assign(&mut self, value: i64) {
+impl<T: Counter> AddAssign<u64> for Histogram<T> {
+    fn add_assign(&mut self, value: u64) {
         self.record(value).unwrap();
     }
 }

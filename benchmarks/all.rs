@@ -15,9 +15,9 @@ mod inner {
     use hdrsample::Histogram;
     use std::time::Duration;
 
-    const TRACKABLE_MAX: i64 = 3600 * 1000 * 1000; // e.g. for 1 hr in usec units
+    const TRACKABLE_MAX: u64 = 3600 * 1000 * 1000; // e.g. for 1 hr in usec units
     const SIGFIG: u32 = 3;
-    const TEST_VALUE_LEVEL: i64 = 12340;
+    const TEST_VALUE_LEVEL: u64 = 12340;
 
     pub fn main() {
         let mut h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();

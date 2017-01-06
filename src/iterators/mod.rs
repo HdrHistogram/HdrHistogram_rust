@@ -61,7 +61,7 @@ impl<'a, T: Counter, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
     }
 
     // (value, percentile, count-for-value, count-for-step)
-    fn current(&self) -> (i64, f64, T, u64) {
+    fn current(&self) -> (u64, f64, T, u64) {
         let value = self.hist.highest_equivalent(self.hist.value_for(self.currentIndex));
         let perc = 100.0 * self.totalCountToIndex as f64 / self.hist.count() as f64;
         let count = self.hist[self.currentIndex];
@@ -73,7 +73,7 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
     where T: Counter,
           P: PickyIterator<T>
 {
-    type Item = (i64, f64, T, u64);
+    type Item = (u64, f64, T, u64);
     fn next(&mut self) -> Option<Self::Item> {
         // here's the deal: we are iterating over all the indices in the histogram's .count array.
         // however, most of those values (especially towards the end) will be zeros, which the

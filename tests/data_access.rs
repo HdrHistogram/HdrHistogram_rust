@@ -29,10 +29,10 @@ struct Loaded {
     scaled_post: Histogram<u64>,
 }
 
-const TRACKABLE_MAX: i64 = 3600 * 1000 * 1000;
+const TRACKABLE_MAX: u64 = 3600 * 1000 * 1000;
 const SIGFIG: u32 = 3;
-const EINTERVAL: i64 = 10000; /* 10 msec expected EINTERVAL */
-const SCALEF: i64 = 512;
+const EINTERVAL: u64 = 10000; /* 10 msec expected EINTERVAL */
+const SCALEF: u64 = 512;
 
 fn load_histograms() -> Loaded {
     let mut hist = Histogram::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
@@ -193,7 +193,7 @@ fn percentiles() {
 
 #[test]
 fn large_percentile() {
-    let largestValue = 1000000000000i64;
+    let largestValue = 1000000000000u64;
     let mut h = Histogram::<u64>::new_with_max(largestValue, 5).unwrap();
     h += largestValue;
     assert!(h.value_at_percentile(100.0) > 0);
@@ -204,7 +204,7 @@ fn percentile_atorbelow() {
     let Loaded { hist, raw, .. } = load_histograms();
     assert_near!(99.99, raw.percentile_below(5000), 0.0001);
     assert_near!(50.0, hist.percentile_below(5000), 0.0001);
-    assert_near!(100.0, hist.percentile_below(100000000i64), 0.0001);
+    assert_near!(100.0, hist.percentile_below(100000000u64), 0.0001);
 }
 
 #[test]
