@@ -595,22 +595,22 @@ impl<T: Counter> Histogram<T> {
         // maintain single unit resolution to 2x 10^decimalPoints.
 
         // largest value with single unit resolution
-        let largest = 2 * 10u64.pow(sigfig);
+        let largest = 2 * 10_u64.pow(sigfig);
 
-        let unitMagnitude = ((low as f64).log2() / 2f64.log2()).floor() as usize;
+        let unitMagnitude = ((low as f64).log2() / 2_f64.log2()).floor() as usize;
         let unitMagnitudeMask = (1 << unitMagnitude) - 1;
 
         // We need to maintain power-of-two subBucketCount (for clean direct indexing) that is
         // large enough to provide unit resolution to at least
         // largestValueWithSingleUnitResolution. So figure out
         // largestValueWithSingleUnitResolution's nearest power-of-two (rounded up), and use that:
-        let subBucketCountMagnitude = ((largest as f64).log2() / 2f64.log2()).ceil() as usize;
+        let subBucketCountMagnitude = ((largest as f64).log2() / 2_f64.log2()).ceil() as usize;
         let subBucketHalfCountMagnitude = if subBucketCountMagnitude > 1 {
             subBucketCountMagnitude
         } else {
             1
         } - 1;
-        let subBucketCount = 2usize.pow(subBucketHalfCountMagnitude as u32 + 1);
+        let subBucketCount = 2_usize.pow(subBucketHalfCountMagnitude as u32 + 1);
         let subBucketHalfCount = subBucketCount / 2;
         // subBucketCount is always at least 2, so subtraction won't underflow
         let subBucketMask = (subBucketCount as u64 - 1) << unitMagnitude;
@@ -959,7 +959,7 @@ impl<T: Counter> Histogram<T> {
     /// Get the lowest recorded value level in the histogram.
     /// If the histogram has no recorded values, the value returned will be 0.
     pub fn min(&self) -> u64 {
-        if self.totalCount == 0 || self[0usize] != T::zero() {
+        if self.totalCount == 0 || self[0_usize] != T::zero() {
             0
         } else {
             self.min_nz()
@@ -999,7 +999,7 @@ impl<T: Counter> Histogram<T> {
             return 0.0;
         }
 
-        self.iter_recorded().fold(0.0f64, |total, (v, _, c, _)| {
+        self.iter_recorded().fold(0.0_f64, |total, (v, _, c, _)| {
             total +
             self.median_equivalent(v) as f64 * c.to_f64().unwrap() / self.totalCount as f64
         })
@@ -1012,7 +1012,7 @@ impl<T: Counter> Histogram<T> {
         }
 
         let mean = self.mean();
-        let geom_dev_tot = self.iter_recorded().fold(0.0f64, |gdt, (v, _, _, sc)| {
+        let geom_dev_tot = self.iter_recorded().fold(0.0_f64, |gdt, (v, _, _, sc)| {
             let dev = self.median_equivalent(v) as f64 - mean;
             gdt + (dev * dev) * sc as f64
         });
@@ -1177,7 +1177,7 @@ impl<T: Counter> Histogram<T> {
         let bucketIndex = self.bucket_for(value);
         let subBucketIndex = self.sub_bucket_for(value, bucketIndex);
         // calculate distance to next value
-        1u64 <<
+        1_u64 <<
         (self.unitMagnitude +
          if subBucketIndex >= self.subBucketCount {
             bucketIndex + 1

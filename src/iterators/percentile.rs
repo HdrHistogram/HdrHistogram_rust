@@ -52,8 +52,8 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
 
         let percentileReportingTicks =
             self.percentileTicksPerHalfDistance *
-            2f64.powi(((100.0 / (100.0 - self.percentileLevelToIterateTo)).ln() /
-                       2f64.ln()) as i32 + 1) as isize;
+            2_f64.powi(((100.0 / (100.0 - self.percentileLevelToIterateTo)).ln() /
+                       2_f64.ln()) as i32 + 1) as isize;
         self.percentileLevelToIterateTo += 100.0 / percentileReportingTicks as f64;
         true
     }
