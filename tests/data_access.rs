@@ -151,16 +151,16 @@ fn get_stdev() {
 
     // direct avg. of raw results
     let expectedRawMean: f64 = ((10000.0 * 1000.0) + (1.0 * 100000000.0)) / 10001.0;
-    let expectedRawStdDev = (((10000.0 * (1000f64 - expectedRawMean).powi(2)) +
-                              (100000000f64 - expectedRawMean).powi(2)) /
+    let expectedRawStdDev = (((10000.0 * (1000_f64 - expectedRawMean).powi(2)) +
+                              (100000000_f64 - expectedRawMean).powi(2)) /
                              10001.0)
         .sqrt();
 
     // avg. 1 msec for half the time, and 50 sec for other half
-    let expectedMean = (1000.0 + 50000000.0) / 2f64;
-    let mut expectedSquareDeviationSum = 10000.0 * (1000f64 - expectedMean).powi(2);
+    let expectedMean = (1000.0 + 50000000.0) / 2_f64;
+    let mut expectedSquareDeviationSum = 10000.0 * (1000_f64 - expectedMean).powi(2);
 
-    let mut value = 10000f64;
+    let mut value = 10000_f64;
     while value <= 100000000.0 {
         expectedSquareDeviationSum += (value - expectedMean).powi(2);
         value += 10000.0;
@@ -193,7 +193,7 @@ fn percentiles() {
 
 #[test]
 fn large_percentile() {
-    let largestValue = 1000000000000u64;
+    let largestValue = 1000000000000_u64;
     let mut h = Histogram::<u64>::new_with_max(largestValue, 5).unwrap();
     h += largestValue;
     assert!(h.value_at_percentile(100.0) > 0);
@@ -204,7 +204,7 @@ fn percentile_atorbelow() {
     let Loaded { hist, raw, .. } = load_histograms();
     assert_near!(99.99, raw.percentile_below(5000), 0.0001);
     assert_near!(50.0, hist.percentile_below(5000), 0.0001);
-    assert_near!(100.0, hist.percentile_below(100000000u64), 0.0001);
+    assert_near!(100.0, hist.percentile_below(100000000_u64), 0.0001);
 }
 
 #[test]
