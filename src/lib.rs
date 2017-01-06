@@ -642,7 +642,7 @@ impl<T: Counter> Histogram<T> {
         };
 
         // determine exponent range needed to support the trackable value with no overflow:
-        let len = try!(h.cover(high));
+        let len = h.cover(high);
 
         // Establish leadingZeroCountBase, used in bucketIndexOf() fast path:
         // subtract the bits that would be used by the largest value in bucket 0.
@@ -1254,10 +1254,9 @@ impl<T: Counter> Histogram<T> {
     /// of bins needed to cover that range.
     ///
     /// May fail if `high` is not at least twice the lowest discernible value.
-    fn cover(&mut self, high: u64) -> Result<usize, &'static str> {
-        if high < 2 * self.lowestDiscernibleValue {
-            return Err("highest trackable value cannot be < (2 * lowest discernible value)");
-        }
+    fn cover(&mut self, high: u64) -> usize {
+        assert!(high >= 2 * self.lowestDiscernibleValue,
+            "highest trackable value must be >= (2 * lowest discernible value)");
 
         // establish counts array length:
         let bucketsNeeded = self.buckets_to_cover(high);
@@ -1269,13 +1268,13 @@ impl<T: Counter> Histogram<T> {
         // establish the new highest trackable value:
         self.highestTrackableValue = high;
 
-        Ok(countsArrayLength)
+        countsArrayLength
     }
 
     /// Resize the underlying counts array such that it can cover the given `high` value.
     fn resize(&mut self, high: u64) {
         // figure out how large the sample tracker now needs to be
-        let len = self.cover(high).unwrap();
+        let len = self.cover(high);
 
         // expand counts to also hold the new counts
         self.counts.resize(len, T::zero());
