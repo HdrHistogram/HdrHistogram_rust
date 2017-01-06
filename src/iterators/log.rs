@@ -21,8 +21,8 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
                valueUnitsInFirstBucket: u64,
                logBase: f64)
                -> HistogramIterator<'a, T, Iter<'a, T>> {
-        assert!(valueUnitsInFirstBucket > 0);
-        assert!(logBase > 1.0);
+        assert!(valueUnitsInFirstBucket > 0, "valueUnitsPerBucket must be > 0");
+        assert!(logBase > 1.0, "logBase must be > 1.0");
         HistogramIterator::new(hist,
                                Iter {
                                    hist: hist,

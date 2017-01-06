@@ -17,7 +17,7 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
     pub fn new(hist: &'a Histogram<T>,
                valueUnitsPerBucket: u64)
                -> HistogramIterator<'a, T, Iter<'a, T>> {
-        assert!(valueUnitsPerBucket > 0);
+        assert!(valueUnitsPerBucket > 0, "valueUnitsPerBucket must be > 0");
         HistogramIterator::new(hist,
                                Iter {
                                    hist: hist,
