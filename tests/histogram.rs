@@ -25,7 +25,7 @@ macro_rules! assert_near {
 fn verify_max<T: hdrsample::Counter, B: Borrow<Histogram<T>>>(hist: B) -> bool {
     let hist = hist.borrow();
     if let Some(mx) = hist.iter_recorded()
-        .map(|(v, _, _, _)| v)
+        .map(|v| v.value)
         .map(|v| hist.highest_equivalent(v))
         .last() {
         hist.max() == mx
