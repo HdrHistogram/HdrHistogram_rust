@@ -50,14 +50,43 @@ pub struct HistogramIterator<'a, T: 'a + Counter, P: PickyIterator<T>> {
 /// The value emitted at each step when iterating over a `Histogram`.
 #[derive(Debug, PartialEq)]
 pub struct IterationValue<T: Counter> {
+    value: u64,
+    percentile: f64,
+    count_at_value: T,
+    count_since_last_iteration: u64
+}
+
+impl<T: Counter> IterationValue<T> {
+    /// Create a new IterationValue.
+    pub fn new(value: u64, percentile: f64, count_at_value: T, count_since_last_iteration: u64)
+            -> IterationValue<T> {
+        IterationValue {
+            value: value,
+            percentile: percentile,
+            count_at_value: count_at_value,
+            count_since_last_iteration: count_since_last_iteration
+        }
+    }
+
     /// the lowest value stored in the current histogram bin
-    pub value: u64,
+    pub fn value(&self) -> u64 {
+        self.value
+    }
+
     /// percent of recorded values that are equivalent to or below `value`
-    pub percentile: f64,
+    pub fn percentile(&self) -> f64 {
+        self.percentile
+    }
+
     /// recorded count for values equivalent to `value`
-    pub count_at_value: T,
+    pub fn count_at_value(&self) -> T {
+        self.count_at_value
+    }
+
     /// number of values traversed since the last iteration step
-    pub count_since_last_iteration: u64
+    pub fn count_since_last_iteration(&self) -> u64 {
+        self.count_since_last_iteration
+    }
 }
 
 impl<'a, T: Counter, P: PickyIterator<T>> HistogramIterator<'a, T, P> {

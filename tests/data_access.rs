@@ -228,7 +228,7 @@ fn count_at() {
 fn perc_iter() {
     let Loaded { hist, .. } = load_histograms();
     for v in hist.iter_percentiles(5 /* ticks per half */) {
-        assert_eq!(v.value, hist.highest_equivalent(hist.value_at_percentile(v.percentile)));
+        assert_eq!(v.value(), hist.highest_equivalent(hist.value_at_percentile(v.percentile())));
     }
 }
 
@@ -247,11 +247,11 @@ fn linear_iter() {
     for (i, v) in raw.iter_linear(100000).enumerate() {
         match i {
             // Raw Linear 100 msec bucket # 0 added a count of 10000
-            0 => assert_eq!(v.count_since_last_iteration, 10000),
+            0 => assert_eq!(v.count_since_last_iteration(), 10000),
             // Raw Linear 100 msec bucket # 999 added a count of 1
-            999 => assert_eq!(v.count_since_last_iteration, 1),
+            999 => assert_eq!(v.count_since_last_iteration(), 1),
             // Remaining raw Linear 100 msec buckets add a count of 0
-            _ => assert_eq!(v.count_since_last_iteration, 0),
+            _ => assert_eq!(v.count_since_last_iteration(), 0),
         }
         num += 1;
     }
@@ -262,7 +262,7 @@ fn linear_iter() {
     // Iterate data using linear buckets of 10 msec each.
     for (i, v) in hist.iter_linear(10000).enumerate() {
         if i == 0 {
-            assert_eq!(v.count_since_last_iteration, 10000);
+            assert_eq!(v.count_since_last_iteration(), 10000);
         }
 
         // Because value resolution is low enough (3 digits) that multiple linear buckets will end
@@ -270,7 +270,7 @@ fn linear_iter() {
         // 2 or more, and some will have 0 (when the first bucket in the equivalent range was the
         // one that got the total count bump). However, we can still verify the sum of counts added
         // in all the buckets...
-        totalAddedCounts += v.count_since_last_iteration;
+        totalAddedCounts += v.count_since_last_iteration();
         num += 1;
     }
     // There should be 10000 linear buckets of size 10000 usec between 0 and 100 sec.
@@ -282,7 +282,7 @@ fn linear_iter() {
     // Iterate data using linear buckets of 1 msec each.
     for (i, v) in hist.iter_linear(1000).enumerate() {
         if i == 1 {
-            assert_eq!(v.count_since_last_iteration, 10000);
+            assert_eq!(v.count_since_last_iteration(), 10000);
         }
 
         // Because value resolution is low enough (3 digits) that multiple linear buckets will end
@@ -290,7 +290,7 @@ fn linear_iter() {
         // 2 or more, and some will have 0 (when the first bucket in the equivalent range was the
         // one that got the total count bump). However, we can still verify the sum of counts added
         // in all the buckets...
-        totalAddedCounts += v.count_since_last_iteration;
+        totalAddedCounts += v.count_since_last_iteration();
         num += 1
     }
 
@@ -316,11 +316,11 @@ fn iter_log() {
     for (i, v) in raw.iter_log(10000, 2.0).enumerate() {
         match i {
             // Raw logarithmic 10 msec bucket # 0 added a count of 10000
-            0 => assert_eq!(v.count_since_last_iteration, 10000),
+            0 => assert_eq!(v.count_since_last_iteration(), 10000),
             // Raw logarithmic 10 msec bucket # 14 added a count of 1
-            14 => assert_eq!(v.count_since_last_iteration, 1),
+            14 => assert_eq!(v.count_since_last_iteration(), 1),
             // Remaining raw logarithmic 100 msec buckets add a count of 0
-            _ => assert_eq!(v.count_since_last_iteration, 0),
+            _ => assert_eq!(v.count_since_last_iteration(), 0),
         }
         num += 1;
     }
@@ -330,9 +330,9 @@ fn iter_log() {
     let mut totalAddedCounts = 0;
     for (i, v) in hist.iter_log(10000, 2.0).enumerate() {
         if i == 0 {
-            assert_eq!(v.count_since_last_iteration, 10000);
+            assert_eq!(v.count_since_last_iteration(), 10000);
         }
-        totalAddedCounts += v.count_since_last_iteration;
+        totalAddedCounts += v.count_since_last_iteration();
         num += 1;
     }
     // There should be 14 Logarithmic buckets of size 10000 usec between 0 and 100 sec.
@@ -349,9 +349,9 @@ fn iter_recorded() {
     for (i, v) in raw.iter_recorded().enumerate() {
         match i {
             // Raw recorded value bucket # 0 added a count of 10000
-            0 => assert_eq!(v.count_since_last_iteration, 10000),
+            0 => assert_eq!(v.count_since_last_iteration(), 10000),
             // Remaining recorded value buckets add a count of 1
-            _ => assert_eq!(v.count_since_last_iteration, 1),
+            _ => assert_eq!(v.count_since_last_iteration(), 1),
         }
         num += 1;
     }
@@ -361,16 +361,16 @@ fn iter_recorded() {
     let mut totalAddedCounts = 0;
     for (i, v) in hist.iter_recorded().enumerate() {
         if i == 0 {
-            assert_eq!(v.count_since_last_iteration, 10000);
+            assert_eq!(v.count_since_last_iteration(), 10000);
         }
 
         // The count in a recorded iterator value should never be zero
-        assert!(v.count_at_value != 0);
+        assert!(v.count_at_value() != 0);
         // The count in a recorded iterator value should exactly match the amount added since the
         // last iteration
-        assert_eq!(v.count_at_value, v.count_since_last_iteration);
+        assert_eq!(v.count_at_value(), v.count_since_last_iteration());
 
-        totalAddedCounts += v.count_since_last_iteration;
+        totalAddedCounts += v.count_since_last_iteration();
         num += 1;
     }
     assert_eq!(totalAddedCounts, 20000);
@@ -384,11 +384,11 @@ fn iter_all() {
     let mut num = 0;
     for (i, v) in raw.iter_all().enumerate() {
         if i == 1000 {
-            assert_eq!(v.count_since_last_iteration, 10000);
-        } else if hist.equivalent(v.value, 100000000) {
-            assert_eq!(v.count_since_last_iteration, 1);
+            assert_eq!(v.count_since_last_iteration(), 10000);
+        } else if hist.equivalent(v.value(), 100000000) {
+            assert_eq!(v.count_since_last_iteration(), 1);
         } else {
-            assert_eq!(v.count_since_last_iteration, 0);
+            assert_eq!(v.count_since_last_iteration(), 0);
         }
 
         // TODO: also test total count and total value once the iterator exposes this
@@ -402,14 +402,14 @@ fn iter_all() {
     for (i, v) in hist.iter_all().enumerate() {
         // v1 = v;
         if i == 1000 {
-            assert_eq!(v.count_since_last_iteration, 10000);
+            assert_eq!(v.count_since_last_iteration(), 10000);
         }
 
         // The count in iter_all buckets should exactly match the amount added since the last iteration
-        assert_eq!(v.count_at_value, v.count_since_last_iteration);
-        totalAddedCounts += v.count_since_last_iteration;
+        assert_eq!(v.count_at_value(), v.count_since_last_iteration());
+        totalAddedCounts += v.count_since_last_iteration();
         // valueFromIndex(index) should be equal to getValueIteratedTo()
-        assert!(hist.equivalent(hist.value_for(i), v.value));
+        assert!(hist.equivalent(hist.value_for(i), v.value()));
         num += 1;
     }
     assert_eq!(num, hist.len());
@@ -438,9 +438,9 @@ fn value_duplication() {
     let mut ranges = Vec::with_capacity(histogram1.len());
     let mut counts = Vec::with_capacity(histogram1.len());
     for v in histogram1.iter_all() {
-        if v.count_since_last_iteration > 0 {
-            ranges.push(v.value);
-            counts.push(v.count_since_last_iteration);
+        if v.count_since_last_iteration() > 0 {
+            ranges.push(v.value());
+            counts.push(v.count_since_last_iteration());
         }
         num += 1;
     }

@@ -109,7 +109,7 @@
 //! // ...
 //! for v in hist.iter_recorded() {
 //!     println!("{}'th percentile of data is {} with {} samples",
-//!         v.percentile, v.value, v.count_at_value);
+//!         v.percentile(), v.value(), v.count_at_value());
 //! }
 //! ```
 //!
@@ -338,7 +338,7 @@ impl<T: Counter> Histogram<T> {
     pub fn clone_correct(&self, interval: u64) -> Histogram<T> {
         let mut h = Histogram::new_from(self);
         for v in self.iter_recorded() {
-            h.record_n_correct(v.value, v.count_at_value, interval).unwrap();
+            h.record_n_correct(v.value(), v.count_at_value(), interval).unwrap();
         }
         h
     }
@@ -458,7 +458,7 @@ impl<T: Counter> Histogram<T> {
         let source = source.borrow();
 
         for v in source.iter_recorded() {
-            try!(self.record_n_correct(v.value, v.count_at_value, interval));
+            try!(self.record_n_correct(v.value(), v.count_at_value(), interval));
         }
         Ok(())
     }
@@ -799,23 +799,17 @@ impl<T: Counter> Histogram<T> {
     ///
     /// println!("{:?}", hist.iter_percentiles(1).collect::<Vec<_>>());
     ///
-    /// assert_eq!(perc.next(), Some(IterationValue { value: hist.value_at_percentile(0.01),
-    ///     percentile: 0.01, count_at_value: 1, count_since_last_iteration: 1 }));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_percentile(0.01), 0.01, 1, 1)));
     /// // step size = 50
-    /// assert_eq!(perc.next(), Some(IterationValue { value: hist.value_at_percentile(50.0),
-    ///     percentile: 50.0, count_at_value: 1, count_since_last_iteration: 5000 - 1 }));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_percentile(50.0), 50.0, 1, 5000 - 1)));
     /// // step size = 25
-    /// assert_eq!(perc.next(), Some(IterationValue { value: hist.value_at_percentile(75.0),
-    ///     percentile: 75.0, count_at_value: 1, count_since_last_iteration: 2500 }));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_percentile(75.0), 75.0, 1, 2500)));
     /// // step size = 12.5
-    /// assert_eq!(perc.next(), Some(IterationValue { value: hist.value_at_percentile(87.5),
-    ///     percentile: 87.5, count_at_value: 1, count_since_last_iteration: 1250 }));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_percentile(87.5), 87.5, 1, 1250)));
     /// // step size = 6.25
-    /// assert_eq!(perc.next(), Some(IterationValue { value: hist.value_at_percentile(93.75),
-    ///     percentile: 93.75, count_at_value: 1, count_since_last_iteration: 625 }));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_percentile(93.75), 93.75, 1, 625)));
     /// // step size = 3.125
-    /// assert_eq!(perc.next(), Some(IterationValue { value: hist.value_at_percentile(96.88),
-    ///     percentile: 96.88, count_at_value: 1, count_since_last_iteration: 313 }));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_percentile(96.88), 96.88, 1, 313)));
     /// // etc...
     /// ```
     pub fn iter_percentiles<'a>(&'a self, percentileTicksPerHalfDistance: isize)
@@ -840,24 +834,15 @@ impl<T: Counter> Histogram<T> {
     /// hist += 850;
     ///
     /// let mut perc = hist.iter_linear(100);
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 99,
-    ///     percentile: hist.percentile_below(99), count_at_value: 0, count_since_last_iteration: 0 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 199,
-    ///     percentile: hist.percentile_below(199), count_at_value: 0, count_since_last_iteration: 1 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 299,
-    ///     percentile: hist.percentile_below(299), count_at_value: 0, count_since_last_iteration: 0 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 399,
-    ///     percentile: hist.percentile_below(399), count_at_value: 0, count_since_last_iteration: 0 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 499,
-    ///     percentile: hist.percentile_below(499), count_at_value: 0, count_since_last_iteration: 0 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 599,
-    ///     percentile: hist.percentile_below(599), count_at_value: 0, count_since_last_iteration: 1 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 699,
-    ///     percentile: hist.percentile_below(699), count_at_value: 0, count_since_last_iteration: 0 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 799,
-    ///     percentile: hist.percentile_below(799), count_at_value: 0, count_since_last_iteration: 0 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 899,
-    ///     percentile: hist.percentile_below(899), count_at_value: 0, count_since_last_iteration: 2 }));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(99, hist.percentile_below(99), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(199, hist.percentile_below(199), 0, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(299, hist.percentile_below(299), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(399, hist.percentile_below(399), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(499, hist.percentile_below(499), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(599, hist.percentile_below(599), 0, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(699, hist.percentile_below(699), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(799, hist.percentile_below(799), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(899, hist.percentile_below(899), 0, 2)));
     /// assert_eq!(perc.next(), None);
     /// ```
     pub fn iter_linear<'a>(&'a self, step: u64)
@@ -881,14 +866,10 @@ impl<T: Counter> Histogram<T> {
     /// hist += 850;
     ///
     /// let mut perc = hist.iter_log(1, 10.0);
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 0,
-    ///     percentile: hist.percentile_below(0), count_at_value: 0, count_since_last_iteration: 0 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 9,
-    ///     percentile: hist.percentile_below(9), count_at_value: 0, count_since_last_iteration: 0 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 99,
-    ///     percentile: hist.percentile_below(99), count_at_value: 0, count_since_last_iteration: 0 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 999,
-    ///     percentile: hist.percentile_below(999), count_at_value: 0, count_since_last_iteration: 4 }));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(0, hist.percentile_below(0), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(9, hist.percentile_below(9), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(99, hist.percentile_below(99), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(999, hist.percentile_below(999), 0, 4)));
     /// assert_eq!(perc.next(), None);
     /// ```
     pub fn iter_log<'a>(&'a self, start: u64, exp: f64)
@@ -912,14 +893,10 @@ impl<T: Counter> Histogram<T> {
     /// hist += 850;
     ///
     /// let mut perc = hist.iter_recorded();
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 100,
-    ///     percentile: hist.percentile_below(100), count_at_value: 1, count_since_last_iteration: 1 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 500,
-    ///     percentile: hist.percentile_below(500), count_at_value: 1, count_since_last_iteration: 1 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 800,
-    ///     percentile: hist.percentile_below(800), count_at_value: 1, count_since_last_iteration: 1 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 850,
-    ///     percentile: hist.percentile_below(850), count_at_value: 1, count_since_last_iteration: 1 }));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(100, hist.percentile_below(100), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(500, hist.percentile_below(500), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(800, hist.percentile_below(800), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(850, hist.percentile_below(850), 1, 1)));
     /// assert_eq!(perc.next(), None);
     /// ```
     pub fn iter_recorded<'a>(&'a self)
@@ -943,28 +920,17 @@ impl<T: Counter> Histogram<T> {
     /// hist += 8;
     ///
     /// let mut perc = hist.iter_all();
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 0,
-    ///     percentile: 0.0, count_at_value: 0, count_since_last_iteration: 0 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 1,
-    ///     percentile: hist.percentile_below(1), count_at_value: 1, count_since_last_iteration: 1 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 2,
-    ///     percentile: hist.percentile_below(2), count_at_value: 0, count_since_last_iteration: 0 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 3,
-    ///     percentile: hist.percentile_below(3), count_at_value: 0, count_since_last_iteration: 0 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 4,
-    ///     percentile: hist.percentile_below(4), count_at_value: 0, count_since_last_iteration: 0 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 5,
-    ///     percentile: hist.percentile_below(5), count_at_value: 1, count_since_last_iteration: 1 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 6,
-    ///     percentile: hist.percentile_below(6), count_at_value: 0, count_since_last_iteration: 0 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 7,
-    ///     percentile: hist.percentile_below(7), count_at_value: 0, count_since_last_iteration: 0 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 8,
-    ///     percentile: hist.percentile_below(8), count_at_value: 1, count_since_last_iteration: 1 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 9,
-    ///     percentile: hist.percentile_below(9), count_at_value: 0, count_since_last_iteration: 0 }));
-    /// assert_eq!(perc.next(), Some(IterationValue { value: 10,
-    ///     percentile: 100.0, count_at_value: 0, count_since_last_iteration: 0 }));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(0, 0.0, 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(1, hist.percentile_below(1), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(2, hist.percentile_below(2), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(3, hist.percentile_below(3), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(4, hist.percentile_below(4), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(5, hist.percentile_below(5), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(6, hist.percentile_below(6), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(7, hist.percentile_below(7), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(8, hist.percentile_below(8), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(9, hist.percentile_below(9), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(10, 100.0, 0, 0)));
     /// ```
     pub fn iter_all<'a>(&'a self) -> iterators::HistogramIterator<'a, T, iterators::all::Iter> {
         iterators::all::Iter::new(self)
@@ -1019,7 +985,7 @@ impl<T: Counter> Histogram<T> {
 
         self.iter_recorded().fold(0.0_f64, |total, v| {
             total +
-                self.median_equivalent(v.value) as f64 * v.count_at_value.to_f64().unwrap()
+                self.median_equivalent(v.value()) as f64 * v.count_at_value().to_f64().unwrap()
                     / self.totalCount as f64
         })
     }
@@ -1032,8 +998,8 @@ impl<T: Counter> Histogram<T> {
 
         let mean = self.mean();
         let geom_dev_tot = self.iter_recorded().fold(0.0_f64, |gdt, v| {
-            let dev = self.median_equivalent(v.value) as f64 - mean;
-            gdt + (dev * dev) * v.count_since_last_iteration as f64
+            let dev = self.median_equivalent(v.value()) as f64 - mean;
+            gdt + (dev * dev) * v.count_since_last_iteration() as f64
         });
 
         (geom_dev_tot / self.totalCount as f64).sqrt()
