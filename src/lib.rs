@@ -107,8 +107,9 @@
 //! use hdrsample::Histogram;
 //! let hist = Histogram::<u64>::new(2).unwrap();
 //! // ...
-//! for (value, percentile, _, count) in hist.iter_recorded() {
-//!     println!("{}'th percentile of data is {} with {} samples", percentile, value, count);
+//! for v in hist.iter_recorded() {
+//!     println!("{}'th percentile of data is {} with {} samples",
+//!         v.percentile(), v.value(), v.count_at_value());
 //! }
 //! ```
 //!
@@ -336,8 +337,8 @@ impl<T: Counter> Histogram<T> {
     /// larger than `interval`.
     pub fn clone_correct(&self, interval: u64) -> Histogram<T> {
         let mut h = Histogram::new_from(self);
-        for (value, _, count, _) in self.iter_recorded() {
-            h.record_n_correct(value, count, interval).unwrap();
+        for v in self.iter_recorded() {
+            h.record_n_correct(v.value(), v.count_at_value(), interval).unwrap();
         }
         h
     }
@@ -456,8 +457,8 @@ impl<T: Counter> Histogram<T> {
                                                 -> Result<(), ()> {
         let source = source.borrow();
 
-        for (value, _, count, _) in source.iter_recorded() {
-            try!(self.record_n_correct(value, count, interval));
+        for v in source.iter_recorded() {
+            try!(self.record_n_correct(v.value(), v.count_at_value(), interval));
         }
         Ok(())
     }
@@ -784,13 +785,11 @@ impl<T: Counter> Histogram<T> {
     /// `halving_period` values have been emitted, the percentile step size is halved, and the
     /// iteration continues.
     ///
-    /// The iterator yields a four-value tuple with the following values (in order): the value at
-    /// the current iterator step, the percentile of samples at or below that value, the number of
-    /// samples recorded at this value, and the number of samples present between the last iterator
-    /// value and the current one.
+    /// The iterator yields an `iterators::IterationValue` struct.
     ///
     /// ```
     /// use hdrsample::Histogram;
+    /// use hdrsample::iterators::IterationValue;
     /// let mut hist = Histogram::<u64>::new_with_max(10000, 4).unwrap();
     /// for i in 0..10000 {
     ///     hist += i;
@@ -800,23 +799,21 @@ impl<T: Counter> Histogram<T> {
     ///
     /// println!("{:?}", hist.iter_percentiles(1).collect::<Vec<_>>());
     ///
-    /// assert_eq!(perc.next(), Some((hist.value_at_percentile(0.01), 0.01, 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_percentile(0.01), 0.01, 1, 1)));
     /// // step size = 50
-    /// assert_eq!(perc.next(), Some((hist.value_at_percentile(50.0), 50.0, 1, 5000 - 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_percentile(50.0), 50.0, 1, 5000 - 1)));
     /// // step size = 25
-    /// assert_eq!(perc.next(), Some((hist.value_at_percentile(75.0), 75.0, 1, 2500)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_percentile(75.0), 75.0, 1, 2500)));
     /// // step size = 12.5
-    /// assert_eq!(perc.next(), Some((hist.value_at_percentile(87.5), 87.5, 1, 1250)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_percentile(87.5), 87.5, 1, 1250)));
     /// // step size = 6.25
-    /// assert_eq!(perc.next(), Some((hist.value_at_percentile(93.75), 93.75, 1, 625)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_percentile(93.75), 93.75, 1, 625)));
     /// // step size = 3.125
-    /// assert_eq!(perc.next(), Some((hist.value_at_percentile(96.88), 96.88, 1, 313)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_percentile(96.88), 96.88, 1, 313)));
     /// // etc...
     /// ```
-    pub fn iter_percentiles<'a>
-        (&'a self,
-         percentileTicksPerHalfDistance: isize)
-         -> iterators::HistogramIterator<'a, T, iterators::percentile::Iter<'a, T>> {
+    pub fn iter_percentiles<'a>(&'a self, percentileTicksPerHalfDistance: isize)
+            -> iterators::HistogramIterator<'a, T, iterators::percentile::Iter<'a, T>> {
         iterators::percentile::Iter::new(self, percentileTicksPerHalfDistance)
     }
 
@@ -825,13 +822,11 @@ impl<T: Counter> Histogram<T> {
     /// range of size `step`. The iterator terminates when all recorded histogram values are
     /// exhausted.
     ///
-    /// The iterator yields a four-value tuple with the following values (in order): the value at
-    /// the current iterator step, the percentile of samples at or below that value, the number of
-    /// samples recorded at this value, and the number of samples present between the last iterator
-    /// value and the current one.
+    /// The iterator yields an `iterators::IterationValue` struct.
     ///
     /// ```
     /// use hdrsample::Histogram;
+    /// use hdrsample::iterators::IterationValue;
     /// let mut hist = Histogram::<u64>::new_with_max(1000, 3).unwrap();
     /// hist += 100;
     /// hist += 500;
@@ -839,21 +834,19 @@ impl<T: Counter> Histogram<T> {
     /// hist += 850;
     ///
     /// let mut perc = hist.iter_linear(100);
-    /// assert_eq!(perc.next(), Some((99, hist.percentile_below(99), 0, 0)));
-    /// assert_eq!(perc.next(), Some((199, hist.percentile_below(199), 0, 1)));
-    /// assert_eq!(perc.next(), Some((299, hist.percentile_below(299), 0, 0)));
-    /// assert_eq!(perc.next(), Some((399, hist.percentile_below(399), 0, 0)));
-    /// assert_eq!(perc.next(), Some((499, hist.percentile_below(499), 0, 0)));
-    /// assert_eq!(perc.next(), Some((599, hist.percentile_below(599), 0, 1)));
-    /// assert_eq!(perc.next(), Some((699, hist.percentile_below(699), 0, 0)));
-    /// assert_eq!(perc.next(), Some((799, hist.percentile_below(799), 0, 0)));
-    /// assert_eq!(perc.next(), Some((899, hist.percentile_below(899), 0, 2)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(99, hist.percentile_below(99), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(199, hist.percentile_below(199), 0, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(299, hist.percentile_below(299), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(399, hist.percentile_below(399), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(499, hist.percentile_below(499), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(599, hist.percentile_below(599), 0, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(699, hist.percentile_below(699), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(799, hist.percentile_below(799), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(899, hist.percentile_below(899), 0, 2)));
     /// assert_eq!(perc.next(), None);
     /// ```
-    pub fn iter_linear<'a>
-        (&'a self,
-         step: u64)
-         -> iterators::HistogramIterator<'a, T, iterators::linear::Iter<'a, T>> {
+    pub fn iter_linear<'a>(&'a self, step: u64)
+            -> iterators::HistogramIterator<'a, T, iterators::linear::Iter<'a, T>> {
         iterators::linear::Iter::new(self, step)
     }
 
@@ -861,13 +854,11 @@ impl<T: Counter> Histogram<T> {
     /// performed in steps that start at `start` and increase exponentially according to `exp`. The
     /// iterator terminates when all recorded histogram values are exhausted.
     ///
-    /// The iterator yields a four-value tuple with the following values (in order): the value at
-    /// the current iterator step, the percentile of samples at or below that value, the number of
-    /// samples recorded at this value, and the number of samples present between the last iterator
-    /// value and the current one.
+    /// The iterator yields an `iterators::IterationValue` struct.
     ///
     /// ```
     /// use hdrsample::Histogram;
+    /// use hdrsample::iterators::IterationValue;
     /// let mut hist = Histogram::<u64>::new_with_max(1000, 3).unwrap();
     /// hist += 100;
     /// hist += 500;
@@ -875,16 +866,14 @@ impl<T: Counter> Histogram<T> {
     /// hist += 850;
     ///
     /// let mut perc = hist.iter_log(1, 10.0);
-    /// assert_eq!(perc.next(), Some((0, hist.percentile_below(0), 0, 0)));
-    /// assert_eq!(perc.next(), Some((9, hist.percentile_below(9), 0, 0)));
-    /// assert_eq!(perc.next(), Some((99, hist.percentile_below(99), 0, 0)));
-    /// assert_eq!(perc.next(), Some((999, hist.percentile_below(999), 0, 4)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(0, hist.percentile_below(0), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(9, hist.percentile_below(9), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(99, hist.percentile_below(99), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(999, hist.percentile_below(999), 0, 4)));
     /// assert_eq!(perc.next(), None);
     /// ```
-    pub fn iter_log<'a>(&'a self,
-                        start: u64,
-                        exp: f64)
-                        -> iterators::HistogramIterator<'a, T, iterators::log::Iter<'a, T>> {
+    pub fn iter_log<'a>(&'a self, start: u64, exp: f64)
+            -> iterators::HistogramIterator<'a, T, iterators::log::Iter<'a, T>> {
         iterators::log::Iter::new(self, start, exp)
     }
 
@@ -892,13 +881,11 @@ impl<T: Counter> Histogram<T> {
     /// by the underlying representation. The iteration steps through all non-zero recorded value
     /// counts, and terminates when all recorded histogram values are exhausted.
     ///
-    /// The iterator yields a four-value tuple with the following values (in order): the value at
-    /// the current iterator step, the percentile of samples at or below that value, the number of
-    /// samples recorded at this value, and the number of samples present between the last iterator
-    /// value and the current one.
+    /// The iterator yields an `iterators::IterationValue` struct.
     ///
     /// ```
     /// use hdrsample::Histogram;
+    /// use hdrsample::iterators::IterationValue;
     /// let mut hist = Histogram::<u64>::new_with_max(1000, 3).unwrap();
     /// hist += 100;
     /// hist += 500;
@@ -906,15 +893,14 @@ impl<T: Counter> Histogram<T> {
     /// hist += 850;
     ///
     /// let mut perc = hist.iter_recorded();
-    /// assert_eq!(perc.next(), Some((100, hist.percentile_below(100), 1, 1)));
-    /// assert_eq!(perc.next(), Some((500, hist.percentile_below(500), 1, 1)));
-    /// assert_eq!(perc.next(), Some((800, hist.percentile_below(800), 1, 1)));
-    /// assert_eq!(perc.next(), Some((850, hist.percentile_below(850), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(100, hist.percentile_below(100), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(500, hist.percentile_below(500), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(800, hist.percentile_below(800), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(850, hist.percentile_below(850), 1, 1)));
     /// assert_eq!(perc.next(), None);
     /// ```
-    pub fn iter_recorded<'a>
-        (&'a self)
-         -> iterators::HistogramIterator<'a, T, iterators::recorded::Iter<'a, T>> {
+    pub fn iter_recorded<'a>(&'a self)
+            -> iterators::HistogramIterator<'a, T, iterators::recorded::Iter<'a, T>> {
         iterators::recorded::Iter::new(self)
     }
 
@@ -923,30 +909,28 @@ impl<T: Counter> Histogram<T> {
     /// regardless of whether or not there were recorded values for that value level, and
     /// terminates when all recorded histogram values are exhausted.
     ///
-    /// The iterator yields a four-value tuple with the following values (in order): the value at
-    /// the current iterator step, the percentile of samples at or below that value, the number of
-    /// samples recorded at this value, and the number of samples present between the last iterator
-    /// value and the current one.
+    /// The iterator yields an `iterators::IterationValue` struct.
     ///
     /// ```
     /// use hdrsample::Histogram;
+    /// use hdrsample::iterators::IterationValue;
     /// let mut hist = Histogram::<u64>::new_with_max(10, 1).unwrap();
     /// hist += 1;
     /// hist += 5;
     /// hist += 8;
     ///
     /// let mut perc = hist.iter_all();
-    /// assert_eq!(perc.next(), Some((0, 0.0, 0, 0)));
-    /// assert_eq!(perc.next(), Some((1, hist.percentile_below(1), 1, 1)));
-    /// assert_eq!(perc.next(), Some((2, hist.percentile_below(2), 0, 0)));
-    /// assert_eq!(perc.next(), Some((3, hist.percentile_below(3), 0, 0)));
-    /// assert_eq!(perc.next(), Some((4, hist.percentile_below(4), 0, 0)));
-    /// assert_eq!(perc.next(), Some((5, hist.percentile_below(5), 1, 1)));
-    /// assert_eq!(perc.next(), Some((6, hist.percentile_below(6), 0, 0)));
-    /// assert_eq!(perc.next(), Some((7, hist.percentile_below(7), 0, 0)));
-    /// assert_eq!(perc.next(), Some((8, hist.percentile_below(8), 1, 1)));
-    /// assert_eq!(perc.next(), Some((9, hist.percentile_below(9), 0, 0)));
-    /// assert_eq!(perc.next(), Some((10, 100.0, 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(0, 0.0, 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(1, hist.percentile_below(1), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(2, hist.percentile_below(2), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(3, hist.percentile_below(3), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(4, hist.percentile_below(4), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(5, hist.percentile_below(5), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(6, hist.percentile_below(6), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(7, hist.percentile_below(7), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(8, hist.percentile_below(8), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(9, hist.percentile_below(9), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(10, 100.0, 0, 0)));
     /// ```
     pub fn iter_all<'a>(&'a self) -> iterators::HistogramIterator<'a, T, iterators::all::Iter> {
         iterators::all::Iter::new(self)
@@ -999,9 +983,10 @@ impl<T: Counter> Histogram<T> {
             return 0.0;
         }
 
-        self.iter_recorded().fold(0.0_f64, |total, (v, _, c, _)| {
+        self.iter_recorded().fold(0.0_f64, |total, v| {
             total +
-            self.median_equivalent(v) as f64 * c.to_f64().unwrap() / self.totalCount as f64
+                self.median_equivalent(v.value()) as f64 * v.count_at_value().to_f64().unwrap()
+                    / self.totalCount as f64
         })
     }
 
@@ -1012,9 +997,9 @@ impl<T: Counter> Histogram<T> {
         }
 
         let mean = self.mean();
-        let geom_dev_tot = self.iter_recorded().fold(0.0_f64, |gdt, (v, _, _, sc)| {
-            let dev = self.median_equivalent(v) as f64 - mean;
-            gdt + (dev * dev) * sc as f64
+        let geom_dev_tot = self.iter_recorded().fold(0.0_f64, |gdt, v| {
+            let dev = self.median_equivalent(v.value()) as f64 - mean;
+            gdt + (dev * dev) * v.count_since_last_iteration() as f64
         });
 
         (geom_dev_tot / self.totalCount as f64).sqrt()

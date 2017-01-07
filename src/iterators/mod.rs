@@ -47,6 +47,48 @@ pub struct HistogramIterator<'a, T: 'a + Counter, P: PickyIterator<T>> {
     picker: P,
 }
 
+/// The value emitted at each step when iterating over a `Histogram`.
+#[derive(Debug, PartialEq)]
+pub struct IterationValue<T: Counter> {
+    value: u64,
+    percentile: f64,
+    count_at_value: T,
+    count_since_last_iteration: u64
+}
+
+impl<T: Counter> IterationValue<T> {
+    /// Create a new IterationValue.
+    pub fn new(value: u64, percentile: f64, count_at_value: T, count_since_last_iteration: u64)
+            -> IterationValue<T> {
+        IterationValue {
+            value: value,
+            percentile: percentile,
+            count_at_value: count_at_value,
+            count_since_last_iteration: count_since_last_iteration
+        }
+    }
+
+    /// the lowest value stored in the current histogram bin
+    pub fn value(&self) -> u64 {
+        self.value
+    }
+
+    /// percent of recorded values that are equivalent to or below `value`
+    pub fn percentile(&self) -> f64 {
+        self.percentile
+    }
+
+    /// recorded count for values equivalent to `value`
+    pub fn count_at_value(&self) -> T {
+        self.count_at_value
+    }
+
+    /// number of values traversed since the last iteration step
+    pub fn count_since_last_iteration(&self) -> u64 {
+        self.count_since_last_iteration
+    }
+}
+
 impl<'a, T: Counter, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
     fn new(h: &'a Histogram<T>, picker: P) -> HistogramIterator<'a, T, P> {
         HistogramIterator {
@@ -61,11 +103,13 @@ impl<'a, T: Counter, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
     }
 
     // (value, percentile, count-for-value, count-for-step)
-    fn current(&self) -> (u64, f64, T, u64) {
-        let value = self.hist.highest_equivalent(self.hist.value_for(self.currentIndex));
-        let perc = 100.0 * self.totalCountToIndex as f64 / self.hist.count() as f64;
-        let count = self.hist[self.currentIndex];
-        (value, perc, count, self.totalCountToIndex - self.prevTotalCount)
+    fn current(&self) -> IterationValue<T> {
+        IterationValue {
+            value: self.hist.highest_equivalent(self.hist.value_for(self.currentIndex)),
+            percentile: 100.0 * self.totalCountToIndex as f64 / self.hist.count() as f64,
+            count_at_value: self.hist[self.currentIndex],
+            count_since_last_iteration: self.totalCountToIndex - self.prevTotalCount
+        }
     }
 }
 
@@ -73,7 +117,7 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
     where T: Counter,
           P: PickyIterator<T>
 {
-    type Item = (u64, f64, T, u64);
+    type Item = IterationValue<T>;
     fn next(&mut self) -> Option<Self::Item> {
         // here's the deal: we are iterating over all the indices in the histogram's .count array.
         // however, most of those values (especially towards the end) will be zeros, which the
