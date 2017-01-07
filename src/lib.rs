@@ -148,8 +148,6 @@ use std::ops::AddAssign;
 use std::ops::SubAssign;
 use std::borrow::Borrow;
 
-use iterators::HistogramIterator;
-
 /// This auto-implemented marker trait represents the operations a histogram must be able to
 /// perform on the underlying counter type. The `ToPrimitive` trait is needed to perform floating
 /// point operations on the counts (usually for percentiles). The `FromPrimitive` to convert back
@@ -821,7 +819,7 @@ impl<T: Counter> Histogram<T> {
     /// // etc...
     /// ```
     pub fn iter_percentiles<'a>(&'a self, percentileTicksPerHalfDistance: isize)
-            -> HistogramIterator<'a, T, iterators::percentile::Iter<'a, T>> {
+            -> iterators::HistogramIterator<'a, T, iterators::percentile::Iter<'a, T>> {
         iterators::percentile::Iter::new(self, percentileTicksPerHalfDistance)
     }
 
@@ -863,7 +861,7 @@ impl<T: Counter> Histogram<T> {
     /// assert_eq!(perc.next(), None);
     /// ```
     pub fn iter_linear<'a>(&'a self, step: u64)
-            -> HistogramIterator<'a, T, iterators::linear::Iter<'a, T>> {
+            -> iterators::HistogramIterator<'a, T, iterators::linear::Iter<'a, T>> {
         iterators::linear::Iter::new(self, step)
     }
 
@@ -894,7 +892,7 @@ impl<T: Counter> Histogram<T> {
     /// assert_eq!(perc.next(), None);
     /// ```
     pub fn iter_log<'a>(&'a self, start: u64, exp: f64)
-            -> HistogramIterator<'a, T, iterators::log::Iter<'a, T>> {
+            -> iterators::HistogramIterator<'a, T, iterators::log::Iter<'a, T>> {
         iterators::log::Iter::new(self, start, exp)
     }
 
@@ -925,7 +923,7 @@ impl<T: Counter> Histogram<T> {
     /// assert_eq!(perc.next(), None);
     /// ```
     pub fn iter_recorded<'a>(&'a self)
-            -> HistogramIterator<'a, T, iterators::recorded::Iter<'a, T>> {
+            -> iterators::HistogramIterator<'a, T, iterators::recorded::Iter<'a, T>> {
         iterators::recorded::Iter::new(self)
     }
 
@@ -968,7 +966,7 @@ impl<T: Counter> Histogram<T> {
     /// assert_eq!(perc.next(), Some(IterationValue { value: 10,
     ///     percentile: 100.0, count_at_value: 0, count_since_last_iteration: 0 }));
     /// ```
-    pub fn iter_all<'a>(&'a self) -> HistogramIterator<'a, T, iterators::all::Iter> {
+    pub fn iter_all<'a>(&'a self) -> iterators::HistogramIterator<'a, T, iterators::all::Iter> {
         iterators::all::Iter::new(self)
     }
 
