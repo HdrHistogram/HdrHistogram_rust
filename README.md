@@ -1,8 +1,8 @@
 # hdrsample
 
+[![Crates.io](https://img.shields.io/crates/v/hdrsample.svg)](https://crates.io/crates/hdrsample)
+[![Documentation](https://docs.rs/hdrsample/badge.svg)](https://docs.rs/hdrsample/)
 [![Build Status](https://travis-ci.org/jonhoo/hdrsample.svg?branch=master)](https://travis-ci.org/jonhoo/hdrsample)
-
-[Documentation](https://jon.tsp.io/crates/hdrsample)
 
 HdrSample is a port of Gil Tene's HdrHistogram to native Rust. It provides recording and
 analyzing of sampled data value counts across a large, configurable value range with
@@ -113,8 +113,9 @@ the [Java documentation](https://hdrhistogram.github.io/HdrHistogram/JavaDoc/).
 use hdrsample::Histogram;
 let hist = Histogram::<u64>::new(2).unwrap();
 // ...
-for (value, percentile, _, count) in hist.iter_recorded() {
-    println!("{}'th percentile of data is {} with {} samples", percentile, value, count);
+for v in hist.iter_recorded() {
+    println!("{}'th percentile of data is {} with {} samples",
+        v.percentile(), v.value(), v.count_at_value());
 }
 ```
 
