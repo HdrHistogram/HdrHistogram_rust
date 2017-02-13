@@ -39,9 +39,9 @@ pub trait PickyIterator<T: Counter> {
 /// indices they have already visited.
 pub struct HistogramIterator<'a, T: 'a + Counter, P: PickyIterator<T>> {
     hist: &'a Histogram<T>,
-    totalCountToIndex: u64,
-    prevTotalCount: u64,
-    currentIndex: usize,
+    total_count_to_index: u64,
+    prev_total_count: u64,
+    current_index: usize,
     fresh: bool,
     ended: bool,
     picker: P,
@@ -93,9 +93,9 @@ impl<'a, T: Counter, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
     fn new(h: &'a Histogram<T>, picker: P) -> HistogramIterator<'a, T, P> {
         HistogramIterator {
             hist: h,
-            totalCountToIndex: 0,
-            prevTotalCount: 0,
-            currentIndex: 0,
+            total_count_to_index: 0,
+            prev_total_count: 0,
+            current_index: 0,
             picker: picker,
             fresh: true,
             ended: false,
@@ -105,10 +105,10 @@ impl<'a, T: Counter, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
     // (value, percentile, count-for-value, count-for-step)
     fn current(&self) -> IterationValue<T> {
         IterationValue {
-            value: self.hist.highest_equivalent(self.hist.value_for(self.currentIndex)),
-            percentile: 100.0 * self.totalCountToIndex as f64 / self.hist.count() as f64,
-            count_at_value: self.hist[self.currentIndex],
-            count_since_last_iteration: self.totalCountToIndex - self.prevTotalCount
+            value: self.hist.highest_equivalent(self.hist.value_for(self.current_index)),
+            percentile: 100.0 * self.total_count_to_index as f64 / self.hist.count() as f64,
+            count_at_value: self.hist[self.current_index],
+            count_since_last_iteration: self.total_count_to_index - self.prev_total_count
         }
     }
 }
@@ -131,35 +131,35 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
         // unless we have ended.
         while !self.ended {
             // have we reached the end?
-            if self.currentIndex == self.hist.len() {
+            if self.current_index == self.hist.len() {
                 self.ended = true;
                 return None;
             }
 
             // have we yielded all non-zeros in the histogram?
             let total = self.hist.count();
-            if self.prevTotalCount == total {
+            if self.prev_total_count == total {
                 // is the picker done?
-                if !self.picker.more(self.currentIndex) {
+                if !self.picker.more(self.current_index) {
                     self.ended = true;
                     return None;
                 }
 
                 // nope -- alright, let's keep iterating
             } else {
-                assert!(self.currentIndex < self.hist.len());
-                assert!(self.prevTotalCount < total);
+                assert!(self.current_index < self.hist.len());
+                assert!(self.prev_total_count < total);
 
                 if self.fresh {
-                    let count = self.hist[self.currentIndex];
+                    let count = self.hist[self.current_index];
 
                     // if we've seen all counts, no other counts should be non-zero
-                    if self.totalCountToIndex == total {
+                    if self.total_count_to_index == total {
                         assert!(count == T::zero());
                     }
 
                     // maintain total count so we can yield percentiles
-                    self.totalCountToIndex = self.totalCountToIndex + count.to_u64().unwrap();
+                    self.total_count_to_index = self.total_count_to_index + count.to_u64().unwrap();
 
                     // make sure we don't add this index again
                     self.fresh = false;
@@ -167,19 +167,19 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
             }
 
             // figure out if picker thinks we should yield this value
-            if self.picker.pick(self.currentIndex, self.totalCountToIndex) {
+            if self.picker.pick(self.current_index, self.total_count_to_index) {
                 let val = self.current();
 
-                // note that we *don't* increment self.currentIndex here. the picker will be
+                // note that we *don't* increment self.current_index here. the picker will be
                 // exposed to the same value again after yielding. not sure why this is the
                 // behavior we want, but it's what the original Java implementation dictates.
 
-                self.prevTotalCount = self.totalCountToIndex;
+                self.prev_total_count = self.total_count_to_index;
                 return Some(val);
             }
 
             // check the next entry
-            self.currentIndex += 1;
+            self.current_index += 1;
             self.fresh = true;
         }
         None

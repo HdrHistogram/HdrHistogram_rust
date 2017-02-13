@@ -6,22 +6,22 @@ use iterators::{HistogramIterator, PickyIterator};
 pub struct Iter<'a, T: 'a + Counter> {
     hist: &'a Histogram<T>,
 
-    percentileTicksPerHalfDistance: isize,
-    percentileLevelToIterateTo: f64,
-    reachedLastRecordedValue: bool,
+    percentile_ticks_per_half_distance: isize,
+    percentile_level_to_iterate_to: f64,
+    reached_last_recorded_value: bool,
 }
 
 impl<'a, T: 'a + Counter> Iter<'a, T> {
     /// Construct a new percentile iterator. See `Histogram::iter_percentiles` for details.
     pub fn new(hist: &'a Histogram<T>,
-               percentileTicksPerHalfDistance: isize)
+               percentile_ticks_per_half_distance: isize)
                -> HistogramIterator<'a, T, Iter<'a, T>> {
         HistogramIterator::new(hist,
                                Iter {
                                    hist: hist,
-                                   percentileTicksPerHalfDistance: percentileTicksPerHalfDistance,
-                                   percentileLevelToIterateTo: 0.0,
-                                   reachedLastRecordedValue: false,
+                                   percentile_ticks_per_half_distance: percentile_ticks_per_half_distance,
+                                   percentile_level_to_iterate_to: 0.0,
+                                   reached_last_recorded_value: false,
                                })
     }
 }
@@ -33,8 +33,8 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
             return false;
         }
 
-        let currentPercentile = 100.0 * running_total as f64 / self.hist.count() as f64;
-        if currentPercentile < self.percentileLevelToIterateTo {
+        let current_percentile = 100.0 * running_total as f64 / self.hist.count() as f64;
+        if current_percentile < self.percentile_level_to_iterate_to {
             return false;
         }
 
@@ -50,19 +50,19 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
         // the previous half-distance]. When that half-distance is crossed, the scale changes and
         // the tick size is effectively cut in half.
 
-        let percentileReportingTicks =
-            self.percentileTicksPerHalfDistance *
-            2_f64.powi(((100.0 / (100.0 - self.percentileLevelToIterateTo)).ln() /
+        let percentile_reporting_ticks =
+            self.percentile_ticks_per_half_distance *
+            2_f64.powi(((100.0 / (100.0 - self.percentile_level_to_iterate_to)).ln() /
                        2_f64.ln()) as i32 + 1) as isize;
-        self.percentileLevelToIterateTo += 100.0 / percentileReportingTicks as f64;
+        self.percentile_level_to_iterate_to += 100.0 / percentile_reporting_ticks as f64;
         true
     }
 
     fn more(&mut self, _: usize) -> bool {
         // We want one additional last step to 100%
-        if !self.reachedLastRecordedValue && self.hist.count() != 0 {
-            self.percentileLevelToIterateTo = 100.0;
-            self.reachedLastRecordedValue = true;
+        if !self.reached_last_recorded_value && self.hist.count() != 0 {
+            self.percentile_level_to_iterate_to = 100.0;
+            self.reached_last_recorded_value = true;
             true
         } else {
             false
