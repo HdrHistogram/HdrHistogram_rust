@@ -40,9 +40,9 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
     fn pick(&mut self, index: usize, _: u64) -> bool {
         let val = self.hist.value_for(index);
         if val >= self.current_step_lowest_value_reporting_level || index == self.hist.last() {
-            // implies logBase must be > 1.0
+            // implies log_base must be > 1.0
             self.next_value_reporting_level *= self.log_base;
-            // won't underflow since nextValueReportingLevel starts > 0 and only grows
+            // won't underflow since next_value_reporting_level starts > 0 and only grows
             self.current_step_highest_value_reporting_level = self.next_value_reporting_level as u64 - 1;
             self.current_step_lowest_value_reporting_level = self.hist
                 .lowest_equivalent(self.current_step_highest_value_reporting_level);

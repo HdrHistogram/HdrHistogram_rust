@@ -22,7 +22,7 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
                                Iter {
                                    hist: hist,
                                    value_units_per_bucket: value_units_per_bucket,
-                                   // won't underflow because valueUnitsPerBucket > 0
+                                   // won't underflow because value_units_per_bucket > 0
                                    current_step_highest_value_reporting_level: value_units_per_bucket - 1,
                                    current_step_lowest_value_reporting_level:
                                        hist.lowest_equivalent(value_units_per_bucket - 1),

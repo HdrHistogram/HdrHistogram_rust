@@ -170,7 +170,7 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
             if self.picker.pick(self.current_index, self.total_count_to_index) {
                 let val = self.current();
 
-                // note that we *don't* increment self.currentIndex here. the picker will be
+                // note that we *don't* increment self.current_index here. the picker will be
                 // exposed to the same value again after yielding. not sure why this is the
                 // behavior we want, but it's what the original Java implementation dictates.
 

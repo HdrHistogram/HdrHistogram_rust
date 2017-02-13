@@ -209,7 +209,7 @@ impl<T> Counter for T
 pub struct Histogram<T: Counter> {
     auto_resize: bool,
 
-    // >= 2 * lowestDiscernibleValue
+    // >= 2 * lowest_discernible_value
     highest_trackable_value: u64,
     // >= 1
     lowest_discernible_value: u64,
@@ -299,18 +299,18 @@ impl<T: Counter> Histogram<T> {
         debug_assert!(bucket_index == 0 || (sub_bucket_index >= self.sub_bucket_half_count));
 
         // Calculate the index for the first entry that will be used in the bucket (halfway through
-        // subBucketCount). For bucketIndex 0, all subBucketCount entries may be used, but
-        // bucketBaseIndex is still set in the middle.
+        // sub_bucket_count). For bucket_index 0, all sub_bucket_count entries may be used, but
+        // bucket_base_index is still set in the middle.
         let bucket_base_index = (bucket_index + 1) << self.sub_bucket_half_count_magnitude;
 
         // Calculate the offset in the bucket. This subtraction will result in a positive value in
         // all buckets except the 0th bucket (since a value in that bucket may be less than half
-        // the bucket's 0 to subBucketCount range). However, this works out since we give bucket 0
+        // the bucket's 0 to sub_bucket_count range). However, this works out since we give bucket 0
         // twice as much space.
         let offset_in_bucket = sub_bucket_index as isize - self.sub_bucket_half_count as isize;
 
         // The following is the equivalent of
-        // ((sub_bucket_index  - subBucketHalfCount) + bucketBaseIndex;
+        // ((sub_bucket_index  - sub_bucket_half_count) + bucket_base_index;
         (bucket_base_index as isize + offset_in_bucket)
     }
 
@@ -434,11 +434,11 @@ impl<T: Counter> Histogram<T> {
         }
 
         // TODO:
-        // if source.startTime < self.startTime {
-        //     self.startTime = source.startTime;
+        // if source.start_time < self.start_time {
+        //     self.start_time = source.start_time;
         // }
-        // if source.endTime > self.endTime {
-        //     self.endTime = source.endTime;
+        // if source.end_time > self.end_time {
+        //     self.end_time = source.end_time;
         // }
         Ok(())
     }
@@ -504,7 +504,7 @@ impl<T: Counter> Histogram<T> {
             }
         }
 
-        // With subtraction, the max and minNonZero values could have changed:
+        // With subtraction, the max and min_non_zero values could have changed:
         if self.count_at(self.max()).unwrap() == T::zero() ||
            self.count_at(self.min_nz()).unwrap() == T::zero() {
             let l = self.len();
@@ -532,9 +532,9 @@ impl<T: Counter> Histogram<T> {
 
         self.reset_max(0);
         self.reset_min(u64::max_value());
-        // self.normalizingIndexOffset = 0;
-        // self.startTime = time::Instant::now();
-        // self.endTime = time::Instant::now();
+        // self.normalizing_index_offset = 0;
+        // self.start_time = time::Instant::now();
+        // self.end_time = time::Instant::now();
         // self.tag = String::new();
     }
 
@@ -603,7 +603,7 @@ impl<T: Counter> Histogram<T> {
         // Given a 3 decimal point accuracy, the expectation is obviously for "+/- 1 unit at 1000".
         // It also means that it's "ok to be +/- 2 units at 2000". The "tricky" thing is that it is
         // NOT ok to be +/- 2 units at 1999. Only starting at 2000. So internally, we need to
-        // maintain single unit resolution to 2x 10^decimalPoints.
+        // maintain single unit resolution to 2x 10^decimal_points.
 
         // largest value with single unit resolution
         let largest = 2 * 10_u64.pow(sigfig);
@@ -613,8 +613,8 @@ impl<T: Counter> Histogram<T> {
 
         // We need to maintain power-of-two sub_bucket_count (for clean direct indexing) that is
         // large enough to provide unit resolution to at least
-        // largestValueWithSingleUnitResolution. So figure out
-        // largestValueWithSingleUnitResolution's nearest power-of-two (rounded up), and use that:
+        // largest_value_with_single_unit_resolution. So figure out
+        // largest_value_with_single_unit_resolution's nearest power-of-two (rounded up), and use that:
         let sub_bucket_count_magnitude = ((largest as f64).log2() / 2_f64.log2()).ceil() as usize;
         let sub_bucket_half_count_magnitude = if sub_bucket_count_magnitude > 1 {
             sub_bucket_count_magnitude
@@ -633,10 +633,10 @@ impl<T: Counter> Histogram<T> {
             lowest_discernible_value: low,
             significant_value_digits: sigfig,
 
-            bucket_count: 0, // set by establishSize below
+            bucket_count: 0, // set by establish_size below
             sub_bucket_count: sub_bucket_count,
 
-            leading_zero_count_base: 0, // set below, needs establishSize
+            leading_zero_count_base: 0, // set below, needs establish_size
             sub_bucket_half_count_magnitude: sub_bucket_half_count_magnitude,
 
             unit_magnitude: unit_magnitude,
@@ -655,7 +655,7 @@ impl<T: Counter> Histogram<T> {
         // determine exponent range needed to support the trackable value with no overflow:
         let len = h.cover(high);
 
-        // Establish leadingZeroCountBase, used in bucketIndexOf() fast path:
+        // Establish leading_zero_count_base, used in bucket_index_of() fast path:
         // subtract the bits that would be used by the largest value in bucket 0.
         h.leading_zero_count_base = (64 - h.unit_magnitude - h.sub_bucket_half_count_magnitude - 1) as u32;
 
@@ -671,8 +671,8 @@ impl<T: Counter> Histogram<T> {
                                           source.significant_value_digits)
             .unwrap();
 
-        // h.startTime = source.startTime;
-        // h.endTime = source.endTime;
+        // h.start_time = source.start_time;
+        // h.end_time = source.end_time;
         h.auto_resize = source.auto_resize;
         h.alloc(source.len());
         h
@@ -1198,13 +1198,13 @@ impl<T: Counter> Histogram<T> {
     #[inline]
     /// Compute the position inside a bucket at which the given value should be recorded.
     fn sub_bucket_for(&self, value: u64, bucket_index: usize) -> usize {
-        // For bucket_index 0, this is just value, so it may be anywhere in 0 to subBucketCount. For
-        // other bucket_index, this will always end up in the top half of subBucketCount: assume
+        // For bucket_index 0, this is just value, so it may be anywhere in 0 to sub_bucket_count. For
+        // other bucket_index, this will always end up in the top half of sub_bucket_count: assume
         // that for some bucket k > 0, this calculation will yield a value in the bottom half of 0
-        // to subBucketCount. Then, because of how buckets overlap, it would have also been in the
-        // top half of bucket k-1, and therefore would have returned k-1 in bucket_indexOf(). Since
+        // to sub_bucket_count. Then, because of how buckets overlap, it would have also been in the
+        // top half of bucket k-1, and therefore would have returned k-1 in bucket_index_of(). Since
         // we would then shift it one fewer bits here, it would be twice as big, and therefore in
-        // the top half of subBucketCount.
+        // the top half of sub_bucket_count.
         // TODO: >>> ?
         (value >> (bucket_index + self.unit_magnitude)) as usize
     }
@@ -1216,7 +1216,7 @@ impl<T: Counter> Histogram<T> {
 
     /// Find the number of buckets needed such that `value` is representable.
     fn buckets_to_cover(&self, value: u64) -> usize {
-        // the k'th bucket can express from 0 * 2^k to subBucketCount * 2^k in units of 2^k
+        // the k'th bucket can express from 0 * 2^k to sub_bucket_count * 2^k in units of 2^k
         let mut smallest_untrackable_value = (self.sub_bucket_count as u64) << self.unit_magnitude;
 
         // always have at least 1 bucket
@@ -1418,12 +1418,12 @@ impl<T: Counter, F: Counter> PartialEq<Histogram<F>> for Histogram<T>
 
 // /**
 //  * Indicate whether or not the histogram is capable of supporting auto-resize functionality.
-//  * Note that this is an indication that enabling auto-resize by calling setAutoResize() is
-//  * allowed, and NOT that the histogram will actually auto-resize. Use isAutoResize() to
+//  * Note that this is an indication that enabling auto-resize by calling set_auto_resize() is
+//  * allowed, and NOT that the histogram will actually auto-resize. Use is_auto_resize() to
 //  * determine if the histogram is in auto-resize mode.
-//  * @return autoResize setting
+//  * @return auto_resize setting
 //  */
-// public boolean supportsAutoResize() { return true; }
+// public boolean supports_auto_resize() { return true; }
 
 // TODO: shift
 // TODO: hash

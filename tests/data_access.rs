@@ -238,7 +238,7 @@ fn linear_iter() {
 
     // Note that using linear buckets should work "as expected" as long as the number of linear
     // buckets is lower than the resolution level determined by
-    // largestValueWithSingleUnitResolution (2000 in this case). Above that count, some of the
+    // largest_value_with_single_unit_resolution (2000 in this case). Above that count, some of the
     // linear buckets can end up rounded up in size (to the nearest local resolution unit level),
     // which can result in a smaller number of buckets that expected covering the range.
 
@@ -408,7 +408,7 @@ fn iter_all() {
         // The count in iter_all buckets should exactly match the amount added since the last iteration
         assert_eq!(v.count_at_value(), v.count_since_last_iteration());
         total_added_counts += v.count_since_last_iteration();
-        // valueFromIndex(index) should be equal to getValueIteratedTo()
+        // value_from_index(index) should be equal to get_value_iterated_to()
         assert!(hist.equivalent(hist.value_for(i), v.value()));
         num += 1;
     }
