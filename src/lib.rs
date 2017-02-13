@@ -1275,7 +1275,7 @@ impl<T: Counter> Histogram<T> {
         self.counts.resize(len, T::zero());
     }
 
-    /// Set internally tracked max value to new value if new value is greater than current one.
+    /// Set internally tracked max_value to new value if new value is greater than current one.
     fn update_max(&mut self, value: u64) {
         let internal_value = value | self.unit_magnitude_mask; // Max unit-equivalent value
         if internal_value > self.max_value {
@@ -1283,7 +1283,7 @@ impl<T: Counter> Histogram<T> {
         }
     }
 
-    /// Set internally tracked min non zero value to new value if new value is smaller than current
+    /// Set internally tracked min_non_zero_value to new value if new value is smaller than current
     /// one.
     fn update_min(&mut self, value: u64) {
         if value <= self.unit_magnitude_mask {
