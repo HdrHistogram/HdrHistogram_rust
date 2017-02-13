@@ -136,13 +136,13 @@ fn get_mean() {
     let Loaded { hist, raw, .. } = load_histograms();
 
     // direct avg. of raw results
-    let expectedRawMean = ((10000.0 * 1000.0) + (1.0 * 100000000.0)) / 10001.0;
+    let expected_raw_mean = ((10000.0 * 1000.0) + (1.0 * 100000000.0)) / 10001.0;
     // avg. 1 msec for half the time, and 50 sec for other half
-    let expectedMean = (1000.0 + 50000000.0) / 2.0;
+    let expected_mean = (1000.0 + 50000000.0) / 2.0;
 
     // We expect to see the mean to be accurate to ~3 decimal points (~0.1%):
-    assert_near!(raw.mean(), expectedRawMean, 0.001);
-    assert_near!(hist.mean(), expectedMean, 0.001);
+    assert_near!(raw.mean(), expected_raw_mean, 0.001);
+    assert_near!(hist.mean(), expected_mean, 0.001);
 }
 
 #[test]
@@ -150,26 +150,26 @@ fn get_stdev() {
     let Loaded { hist, raw, .. } = load_histograms();
 
     // direct avg. of raw results
-    let expectedRawMean: f64 = ((10000.0 * 1000.0) + (1.0 * 100000000.0)) / 10001.0;
-    let expectedRawStdDev = (((10000.0 * (1000_f64 - expectedRawMean).powi(2)) +
-                              (100000000_f64 - expectedRawMean).powi(2)) /
+    let expected_raw_mean: f64 = ((10000.0 * 1000.0) + (1.0 * 100000000.0)) / 10001.0;
+    let expected_raw_std_dev = (((10000.0 * (1000_f64 - expected_raw_mean).powi(2)) +
+                              (100000000_f64 - expected_raw_mean).powi(2)) /
                              10001.0)
         .sqrt();
 
     // avg. 1 msec for half the time, and 50 sec for other half
-    let expectedMean = (1000.0 + 50000000.0) / 2_f64;
-    let mut expectedSquareDeviationSum = 10000.0 * (1000_f64 - expectedMean).powi(2);
+    let expected_mean = (1000.0 + 50000000.0) / 2_f64;
+    let mut expected_square_deviation_sum = 10000.0 * (1000_f64 - expected_mean).powi(2);
 
     let mut value = 10000_f64;
     while value <= 100000000.0 {
-        expectedSquareDeviationSum += (value - expectedMean).powi(2);
+        expected_square_deviation_sum += (value - expected_mean).powi(2);
         value += 10000.0;
     }
-    let expectedStdDev = (expectedSquareDeviationSum / 20000.0).sqrt();
+    let expected_std_dev = (expected_square_deviation_sum / 20000.0).sqrt();
 
     // We expect to see the standard deviations to be accurate to ~3 decimal points (~0.1%):
-    assert_near!(raw.stdev(), expectedRawStdDev, 0.001);
-    assert_near!(hist.stdev(), expectedStdDev, 0.001);
+    assert_near!(raw.stdev(), expected_raw_std_dev, 0.001);
+    assert_near!(hist.stdev(), expected_std_dev, 0.001);
 }
 
 #[test]
@@ -193,9 +193,9 @@ fn percentiles() {
 
 #[test]
 fn large_percentile() {
-    let largestValue = 1000000000000_u64;
-    let mut h = Histogram::<u64>::new_with_max(largestValue, 5).unwrap();
-    h += largestValue;
+    let largest_value = 1000000000000_u64;
+    let mut h = Histogram::<u64>::new_with_max(largest_value, 5).unwrap();
+    h += largest_value;
     assert!(h.value_at_percentile(100.0) > 0);
 }
 
@@ -258,7 +258,7 @@ fn linear_iter() {
     assert_eq!(num, 1000);
 
     num = 0;
-    let mut totalAddedCounts = 0;
+    let mut total_added_counts = 0;
     // Iterate data using linear buckets of 10 msec each.
     for (i, v) in hist.iter_linear(10000).enumerate() {
         if i == 0 {
@@ -270,15 +270,15 @@ fn linear_iter() {
         // 2 or more, and some will have 0 (when the first bucket in the equivalent range was the
         // one that got the total count bump). However, we can still verify the sum of counts added
         // in all the buckets...
-        totalAddedCounts += v.count_since_last_iteration();
+        total_added_counts += v.count_since_last_iteration();
         num += 1;
     }
     // There should be 10000 linear buckets of size 10000 usec between 0 and 100 sec.
     assert_eq!(num, 10000);
-    assert_eq!(totalAddedCounts, 20000);
+    assert_eq!(total_added_counts, 20000);
 
     num = 0;
-    totalAddedCounts = 0;
+    total_added_counts = 0;
     // Iterate data using linear buckets of 1 msec each.
     for (i, v) in hist.iter_linear(1000).enumerate() {
         if i == 1 {
@@ -290,7 +290,7 @@ fn linear_iter() {
         // 2 or more, and some will have 0 (when the first bucket in the equivalent range was the
         // one that got the total count bump). However, we can still verify the sum of counts added
         // in all the buckets...
-        totalAddedCounts += v.count_since_last_iteration();
+        total_added_counts += v.count_since_last_iteration();
         num += 1
     }
 
@@ -304,7 +304,7 @@ fn linear_iter() {
     // 100000 or 100007 steps. The proper thing to do is to run to the end of the sub-bucket
     // quanta...
     assert_eq!(num, 100007);
-    assert_eq!(totalAddedCounts, 20000);
+    assert_eq!(total_added_counts, 20000);
 }
 
 #[test]
@@ -327,17 +327,17 @@ fn iter_log() {
     assert_eq!(num - 1, 14);
 
     num = 0;
-    let mut totalAddedCounts = 0;
+    let mut total_added_counts = 0;
     for (i, v) in hist.iter_log(10000, 2.0).enumerate() {
         if i == 0 {
             assert_eq!(v.count_since_last_iteration(), 10000);
         }
-        totalAddedCounts += v.count_since_last_iteration();
+        total_added_counts += v.count_since_last_iteration();
         num += 1;
     }
     // There should be 14 Logarithmic buckets of size 10000 usec between 0 and 100 sec.
     assert_eq!(num - 1, 14);
-    assert_eq!(totalAddedCounts, 20000);
+    assert_eq!(total_added_counts, 20000);
 }
 
 #[test]
@@ -358,7 +358,7 @@ fn iter_recorded() {
     assert_eq!(num, 2);
 
     num = 0;
-    let mut totalAddedCounts = 0;
+    let mut total_added_counts = 0;
     for (i, v) in hist.iter_recorded().enumerate() {
         if i == 0 {
             assert_eq!(v.count_since_last_iteration(), 10000);
@@ -370,10 +370,10 @@ fn iter_recorded() {
         // last iteration
         assert_eq!(v.count_at_value(), v.count_since_last_iteration());
 
-        totalAddedCounts += v.count_since_last_iteration();
+        total_added_counts += v.count_since_last_iteration();
         num += 1;
     }
-    assert_eq!(totalAddedCounts, 20000);
+    assert_eq!(total_added_counts, 20000);
 }
 
 #[test]
@@ -397,7 +397,7 @@ fn iter_all() {
     assert_eq!(num, hist.len());
 
     num = 0;
-    let mut totalAddedCounts = 0;
+    let mut total_added_counts = 0;
     // HistogramIterationValue v1 = null;
     for (i, v) in hist.iter_all().enumerate() {
         // v1 = v;
@@ -407,13 +407,13 @@ fn iter_all() {
 
         // The count in iter_all buckets should exactly match the amount added since the last iteration
         assert_eq!(v.count_at_value(), v.count_since_last_iteration());
-        totalAddedCounts += v.count_since_last_iteration();
+        total_added_counts += v.count_since_last_iteration();
         // valueFromIndex(index) should be equal to getValueIteratedTo()
         assert!(hist.equivalent(hist.value_for(i), v.value()));
         num += 1;
     }
     assert_eq!(num, hist.len());
-    assert_eq!(totalAddedCounts, 20000);
+    assert_eq!(total_added_counts, 20000);
 }
 
 #[test]
