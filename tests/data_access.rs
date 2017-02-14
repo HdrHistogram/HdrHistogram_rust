@@ -1,7 +1,5 @@
 //! Tests from HistogramDataAccessTest.java
 
-#![allow(non_snake_case)]
-
 extern crate hdrsample;
 
 use hdrsample::Histogram;
