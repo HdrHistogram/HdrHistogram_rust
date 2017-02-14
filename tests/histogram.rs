@@ -1,7 +1,5 @@
 //! Tests from HistogramTest.java
 
-#![allow(non_snake_case)]
-
 extern crate hdrsample;
 extern crate num;
 
