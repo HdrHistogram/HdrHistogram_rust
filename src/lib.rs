@@ -206,6 +206,7 @@ impl<T> Counter for T
 /// = 2048 * 2^(k-1)`, which is the k-1'th bucket's end. So, we would use the previous bucket
 /// for those lower values as it has better precision.
 ///
+#[derive(Debug)]
 pub struct Histogram<T: Counter> {
     auto_resize: bool,
 
@@ -622,6 +623,13 @@ impl<T: Counter> Histogram<T> {
             1
         } - 1;
         let sub_bucket_count = 2_usize.pow(sub_bucket_half_count_magnitude as u32 + 1);
+
+        if unit_magnitude + sub_bucket_half_count_magnitude + 1 > 63 {
+            // Cannot represent shifted sub bucket count in 64 bits.
+            // This will cause an infinite loop when calculating number of buckets
+            return Err("Cannot represent significant figures' worth of measurements beyond lowest value");
+        };
+
         let sub_bucket_half_count = sub_bucket_count / 2;
         // sub_bucket_count is always at least 2, so subtraction won't underflow
         let sub_bucket_mask = (sub_bucket_count as u64 - 1) << unit_magnitude;
@@ -1431,3 +1439,6 @@ impl<T: Counter, F: Counter> PartialEq<Histogram<F>> for Histogram<T>
 // TODO: encoding/decoding
 // TODO: timestamps and tags
 // TODO: textual output
+
+#[cfg(test)]
+mod tests;
