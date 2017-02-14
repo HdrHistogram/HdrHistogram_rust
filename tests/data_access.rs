@@ -28,7 +28,7 @@ struct Loaded {
 }
 
 const TRACKABLE_MAX: u64 = 3600 * 1000 * 1000;
-const SIGFIG: u32 = 3;
+const SIGFIG: u8 = 3;
 const EINTERVAL: u64 = 10000; /* 10 msec expected EINTERVAL */
 const SCALEF: u64 = 512;
 

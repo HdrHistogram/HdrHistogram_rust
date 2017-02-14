@@ -27,6 +27,9 @@ benchmark = [] # for crates.io publication
 num = "0.1"
 #criterion = { git = "https://github.com/japaric/criterion.rs.git", optional = true }
 
+[dev-dependencies]
+rand = "0.3.15"
+
 [lib]
 path = "src/lib.rs"
 

@@ -2,7 +2,7 @@ extern crate hdrsample;
 use hdrsample::Histogram;
 
 const TRACKABLE_MAX: u64 = 3600 * 1000 * 1000; // e.g. for 1 hr in usec units
-const SIGFIG: u32 = 3;
+const SIGFIG: u8 = 3;
 const TEST_VALUE_LEVEL: u64 = 12340;
 
 fn main() {

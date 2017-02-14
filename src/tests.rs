@@ -35,7 +35,7 @@ fn init_fields_max_value_max_precision_largest_possible_array() {
     assert_eq!(1 << 17, h.sub_bucket_half_count);
     // 2^46 * 2^18 = 2^64, so 47 buckets.
     assert_eq!(47, h.bucket_count);
-    assert_eq!(46 * h.sub_bucket_half_count + h.sub_bucket_count, h.counts.len());
+    assert_eq!(46 * h.sub_bucket_half_count + h.sub_bucket_count, h.counts.len() as u32);
     assert_eq!(17, h.sub_bucket_half_count_magnitude);
     assert_eq!((1 << 18) - 1, h.sub_bucket_mask);
 
@@ -59,7 +59,7 @@ fn init_fields_max_value_medium_precision() {
     assert_eq!(1 << 10, h.sub_bucket_half_count);
     // 2^53 * 2048 == 2^64, so that's 54 buckets.
     assert_eq!(54, h.bucket_count);
-    assert_eq!(53 * h.sub_bucket_half_count + h.sub_bucket_count, h.counts.len());
+    assert_eq!(53 * h.sub_bucket_half_count + h.sub_bucket_count, h.counts.len() as u32);
     assert_eq!(10, h.sub_bucket_half_count_magnitude);
     assert_eq!((1 << 11) - 1, h.sub_bucket_mask);
 
@@ -82,7 +82,7 @@ fn init_fields_1_bucket_medium_precision() {
     assert_eq!(1 << 10, h.sub_bucket_half_count);
     // 2^0 * 2048 == 2^11, so that's 1 bucket.
     assert_eq!(1, h.bucket_count);
-    assert_eq!(h.sub_bucket_count, h.counts.len());
+    assert_eq!(h.sub_bucket_count, h.counts.len() as u32);
     assert_eq!(10, h.sub_bucket_half_count_magnitude);
     assert_eq!((1 << 11) - 1, h.sub_bucket_mask);
 
@@ -106,7 +106,7 @@ fn init_fields_max_value_0_precision_most_buckets() {
     // 2^63 * 2 = 2^64, so 64 buckets.
     assert_eq!(64, h.bucket_count);
     // 63 half buckets, one full bucket
-    assert_eq!(63 + 2, h.counts.len());
+    assert_eq!(63 + 2, h.counts.len() as u32);
     assert_eq!(0, h.sub_bucket_half_count_magnitude);
     assert_eq!(1, h.sub_bucket_mask);
 
@@ -131,7 +131,7 @@ fn init_fields_max_value_0_precision_increased_min_value() {
     // 2^54 * 2^10 = 2^64, so 55 buckets.
     assert_eq!(55, h.bucket_count);
     // 54 half buckets, one full bucket
-    assert_eq!(54 + 2, h.counts.len());
+    assert_eq!(54 + 2, h.counts.len() as u32);
     assert_eq!(0, h.sub_bucket_half_count_magnitude);
     assert_eq!(1 << 9, h.sub_bucket_mask);
 
@@ -157,7 +157,7 @@ fn init_fields_max_value_max_precision_increased_min_value() {
     // 2^37 * 2^27 = 2^64, so 38 buckets.
     assert_eq!(38, h.bucket_count);
     // 37 half buckets, one full bucket
-    assert_eq!(37 * h.sub_bucket_half_count + h.sub_bucket_count, h.counts.len());
+    assert_eq!(37 * h.sub_bucket_half_count + h.sub_bucket_count, h.counts.len() as u32);
     assert_eq!(17, h.sub_bucket_half_count_magnitude);
     assert_eq!(((1 << 18) - 1) << 9, h.sub_bucket_mask);
 
@@ -184,7 +184,7 @@ fn init_fields_10m_max_1k_min_middle_precision() {
     // 2^4 * 2^20 = 2^24, so 5 buckets.
     assert_eq!(5, h.bucket_count);
     // 4 half buckets, one full bucket
-    assert_eq!(4 * h.sub_bucket_half_count + h.sub_bucket_count, h.counts.len());
+    assert_eq!(4 * h.sub_bucket_half_count + h.sub_bucket_count, h.counts.len() as u32);
     assert_eq!(10, h.sub_bucket_half_count_magnitude);
     assert_eq!(((1 << 11) - 1) << 9, h.sub_bucket_mask);
 
@@ -210,7 +210,7 @@ fn init_fields_max_value_max_unit_magnitude_0_precision() {
     // 2^1 * 2^63 = 2^64, so 2 buckets.
     assert_eq!(2, h.bucket_count);
     // 1 half buckets, one full bucket
-    assert_eq!(h.sub_bucket_half_count + h.sub_bucket_count, h.counts.len());
+    assert_eq!(h.sub_bucket_half_count + h.sub_bucket_count, h.counts.len() as u32);
     assert_eq!(0, h.sub_bucket_half_count_magnitude);
     assert_eq!((2 - 1) << 62, h.sub_bucket_mask);
     // didn't shift off too much
@@ -238,7 +238,7 @@ fn init_fields_max_value_max_unit_magnitude_max_precision() {
     // 2^1 * 2^63 = 2^64, so 2 buckets.
     assert_eq!(2, h.bucket_count);
     // 1 half buckets, one full bucket
-    assert_eq!(h.sub_bucket_half_count + h.sub_bucket_count, h.counts.len());
+    assert_eq!(h.sub_bucket_half_count + h.sub_bucket_count, h.counts.len() as u32);
     assert_eq!(17, h.sub_bucket_half_count_magnitude);
     assert_eq!(((1 << 18) - 1) << 45, h.sub_bucket_mask);
     // didn't shift off too much
@@ -265,7 +265,7 @@ fn new_err_high_not_double_low() {
 }
 
 #[cfg(test)]
-fn histo64(lowest_discernible_value: u64, highest_trackable_value: u64, num_significant_digits: u32)
+fn histo64(lowest_discernible_value: u64, highest_trackable_value: u64, num_significant_digits: u8)
            -> Histogram<u64> {
     Histogram::<u64>::new_with_bounds(lowest_discernible_value, highest_trackable_value,
                                       num_significant_digits).unwrap()
