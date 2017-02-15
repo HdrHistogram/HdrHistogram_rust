@@ -36,6 +36,7 @@ fn verify_max<T: hdrsample::Counter, B: Borrow<Histogram<T>>>(hist: B) -> bool {
 }
 
 const TRACKABLE_MAX: u64 = 3600 * 1000 * 1000;
+// Store up to 2 * 10^3 in single-unit precision. Can be 5 at most.
 const SIGFIG: u8 = 3;
 const TEST_VALUE_LEVEL: u64 = 4;
 
