@@ -215,23 +215,28 @@ pub struct Histogram<T: Counter> {
     // >= 1
     lowest_discernible_value: u64,
     // in [0, 5]
-    significant_value_digits: u32,
+    significant_value_digits: u8,
 
-    bucket_count: usize,
-    sub_bucket_count: usize,
-
-    leading_zero_count_base: u32,
-    sub_bucket_half_count_magnitude: usize,
-
-    unit_magnitude: usize,
-    sub_bucket_half_count: usize,
-
+    // in [1, 64]
+    bucket_count: u8,
+    // 2^(sub_bucket_half_count_magnitude + 1) = [2, 2^18]
+    sub_bucket_count: u32,
+    // sub_bucket_count / 2 = [1, 2^17]
+    sub_bucket_half_count: u32,
+    // In [0, 17]
+    sub_bucket_half_count_magnitude: u8,
     sub_bucket_mask: u64,
 
+    // in [1, 63]
+    leading_zero_count_base: u8,
+
+    // Largest exponent of 2 that's smaller than the lowest discernible value. In [0, 62].
+    unit_magnitude: u8,
+    // low unit_magnitude bits set
     unit_magnitude_mask: u64,
 
-    max_value: u64, // 0
-    min_non_zero_value: u64, // MAX
+    max_value: u64,
+    min_non_zero_value: u64,
 
     total_count: u64,
     counts: Vec<T>,
@@ -261,7 +266,7 @@ impl<T: Counter> Histogram<T> {
     }
 
     /// Get the number of significant value digits kept by this histogram.
-    pub fn sigfig(&self) -> u32 {
+    pub fn sigfig(&self) -> u8 {
         self.significant_value_digits
     }
 
@@ -281,7 +286,7 @@ impl<T: Counter> Histogram<T> {
     /// bucket.
     ///
     /// This method is probably only useful for testing purposes.
-    pub fn buckets(&self) -> usize {
+    pub fn buckets(&self) -> u8 {
         self.bucket_count
     }
 
@@ -292,7 +297,7 @@ impl<T: Counter> Histogram<T> {
     /// Find the bucket the given value should be placed in.
     ///
     /// May panic if the given value falls outside the current range of the histogram.
-    fn index_for(&self, value: u64) -> isize {
+    fn index_for(&self, value: u64) -> usize {
         let bucket_index = self.bucket_for(value);
         let sub_bucket_index = self.sub_bucket_for(value, bucket_index);
 
@@ -302,7 +307,7 @@ impl<T: Counter> Histogram<T> {
         // Calculate the index for the first entry that will be used in the bucket (halfway through
         // sub_bucket_count). For bucket_index 0, all sub_bucket_count entries may be used, but
         // bucket_base_index is still set in the middle.
-        let bucket_base_index = (bucket_index + 1) << self.sub_bucket_half_count_magnitude;
+        let bucket_base_index = (bucket_index as usize + 1) << self.sub_bucket_half_count_magnitude;
 
         // Calculate the offset in the bucket. This subtraction will result in a positive value in
         // all buckets except the 0th bucket (since a value in that bucket may be less than half
@@ -310,19 +315,18 @@ impl<T: Counter> Histogram<T> {
         // twice as much space.
         let offset_in_bucket = sub_bucket_index as isize - self.sub_bucket_half_count as isize;
 
-        // The following is the equivalent of
-        // ((sub_bucket_index  - sub_bucket_half_count) + bucket_base_index;
-        (bucket_base_index as isize + offset_in_bucket)
+        let index = bucket_base_index as isize + offset_in_bucket;
+        // This is always non-negative because offset_in_bucket is only negative (and only then by
+        // sub_bucket_half_count at most) for bucket 0, and bucket_base_index will be halfway into
+        // bucket 0's sub buckets in that case.
+        debug_assert!(index >= 0);
+        return index as usize;
     }
 
     /// Get a mutable reference to the count bucket for the given value, if it is in range.
     fn mut_at(&mut self, value: u64) -> Option<&mut T> {
         let i = self.index_for(value);
-        if i < 0 {
-            return None;
-        }
-
-        self.counts.get_mut(i as usize)
+        self.counts.get_mut(i)
     }
 
     // ********************************************************************************************
@@ -421,7 +425,7 @@ impl<T: Counter> Histogram<T> {
             // and add each non-zero value found at it's proper value:
 
             // Do max value first, to avoid max value updates on each iteration:
-            let other_max_index = source.index_for(source.max()) as usize;
+            let other_max_index = source.index_for(source.max());
             let other_count = source[other_max_index];
             self.record_n(source.value_for(other_max_index), other_count).unwrap();
 
@@ -556,7 +560,7 @@ impl<T: Counter> Histogram<T> {
     /// `sigfig` specifies the number of significant value digits to preserve in the recorded data.
     /// This is the number of significant decimal digits to which the histogram will maintain value
     /// resolution and separation. Must be a non-negative integer between 0 and 5.
-    pub fn new(sigfig: u32) -> Result<Histogram<T>, &'static str> {
+    pub fn new(sigfig: u8) -> Result<Histogram<T>, &'static str> {
         let mut h = Self::new_with_bounds(1, 2, sigfig);
         if let Ok(ref mut h) = h {
             h.auto_resize = true;
@@ -572,7 +576,7 @@ impl<T: Counter> Histogram<T> {
     /// that is >= 2. `sigfig` specifies the number of significant figures to maintain. This is the
     /// number of significant decimal digits to which the histogram will maintain value resolution
     /// and separation. Must be a non-negative integer between 0 and 5.
-    pub fn new_with_max(high: u64, sigfig: u32) -> Result<Histogram<T>, &'static str> {
+    pub fn new_with_max(high: u64, sigfig: u8) -> Result<Histogram<T>, &'static str> {
         Self::new_with_bounds(1, high, sigfig)
     }
 
@@ -589,10 +593,14 @@ impl<T: Counter> Histogram<T> {
     /// figures to maintain. This is the number of significant decimal digits to which the
     /// histogram will maintain value resolution and separation. Must be a non-negative integer
     /// between 0 and 5.
-    pub fn new_with_bounds(low: u64, high: u64, sigfig: u32) -> Result<Histogram<T>, &'static str> {
+    pub fn new_with_bounds(low: u64, high: u64, sigfig: u8) -> Result<Histogram<T>, &'static str> {
         // Verify argument validity
         if low < 1 {
             return Err("lowest discernible value must be >= 1");
+        }
+        if low > u64::max_value() / 2 {
+            // avoid overflow in 2 * low
+            return Err("lowest discernible value must be <= u64::max_value() / 2")
         }
         if high < 2 * low {
             return Err("highest trackable value must be >= 2 * lowest discernible value");
@@ -606,25 +614,24 @@ impl<T: Counter> Histogram<T> {
         // NOT ok to be +/- 2 units at 1999. Only starting at 2000. So internally, we need to
         // maintain single unit resolution to 2x 10^decimal_points.
 
-        // largest value with single unit resolution
-        let largest = 2 * 10_u64.pow(sigfig);
+        // largest value with single unit resolution, in [2, 200_000].
+        let largest = 2 * 10_u32.pow(sigfig as u32);
 
-        let unit_magnitude = ((low as f64).log2() / 2_f64.log2()).floor() as usize;
+        let unit_magnitude = (low as f64).log2().floor() as u8;
         let unit_magnitude_mask = (1 << unit_magnitude) - 1;
 
         // We need to maintain power-of-two sub_bucket_count (for clean direct indexing) that is
         // large enough to provide unit resolution to at least
         // largest_value_with_single_unit_resolution. So figure out
-        // largest_value_with_single_unit_resolution's nearest power-of-two (rounded up), and use that:
-        let sub_bucket_count_magnitude = ((largest as f64).log2() / 2_f64.log2()).ceil() as usize;
-        let sub_bucket_half_count_magnitude = if sub_bucket_count_magnitude > 1 {
-            sub_bucket_count_magnitude
-        } else {
-            1
-        } - 1;
-        let sub_bucket_count = 2_usize.pow(sub_bucket_half_count_magnitude as u32 + 1);
+        // largest_value_with_single_unit_resolution's nearest power-of-two (rounded up), and use
+        // that.
+        // In [1, 18]. 2^18 > 2 * 10^5 (the largest possible
+        // largest_value_with_single_unit_resolution)
+        let sub_bucket_count_magnitude = (largest as f64).log2().ceil() as u8;
+        let sub_bucket_half_count_magnitude = sub_bucket_count_magnitude - 1;
+        let sub_bucket_count = 1_u32 << (sub_bucket_count_magnitude as u32);
 
-        if unit_magnitude + sub_bucket_half_count_magnitude + 1 > 63 {
+        if unit_magnitude + sub_bucket_count_magnitude > 63 {
             // Cannot represent shifted sub bucket count in 64 bits.
             // This will cause an infinite loop when calculating number of buckets
             return Err("Cannot represent significant figures' worth of measurements beyond lowest value");
@@ -641,10 +648,14 @@ impl<T: Counter> Histogram<T> {
             lowest_discernible_value: low,
             significant_value_digits: sigfig,
 
-            bucket_count: 0, // set by establish_size below
+            // set by cover() below
+            bucket_count: 0,
             sub_bucket_count: sub_bucket_count,
 
-            leading_zero_count_base: 0, // set below, needs establish_size
+
+            // Establish leading_zero_count_base, used in bucket_index_of() fast path:
+            // subtract the bits that would be used by the largest value in bucket 0.
+            leading_zero_count_base: 64 - unit_magnitude - sub_bucket_count_magnitude,
             sub_bucket_half_count_magnitude: sub_bucket_half_count_magnitude,
 
             unit_magnitude: unit_magnitude,
@@ -657,17 +668,14 @@ impl<T: Counter> Histogram<T> {
             min_non_zero_value: u64::max_value(),
 
             total_count: 0,
-            counts: Vec::new(), // set by alloc() below
+            // set by alloc() below
+            counts: Vec::new(),
         };
 
         // determine exponent range needed to support the trackable value with no overflow:
         let len = h.cover(high);
 
-        // Establish leading_zero_count_base, used in bucket_index_of() fast path:
-        // subtract the bits that would be used by the largest value in bucket 0.
-        h.leading_zero_count_base = (64 - h.unit_magnitude - h.sub_bucket_half_count_magnitude - 1) as u32;
-
-        h.alloc(len);
+        h.alloc(len as usize);
         Ok(h)
     }
 
@@ -1076,7 +1084,7 @@ impl<T: Counter> Histogram<T> {
             return 100.0;
         }
 
-        let target_index = cmp::min(self.index_for(value), self.last() as isize) as usize;
+        let target_index = cmp::min(self.index_for(value), self.last());
         let total_to_current_index =
             (0..(target_index + 1)).map(|i| self[i]).fold(T::zero(), |t, v| t + v);
         100.0 * total_to_current_index.to_f64().unwrap() / self.total_count as f64
@@ -1094,8 +1102,8 @@ impl<T: Counter> Histogram<T> {
     /// May fail if the given values are out of bounds.
     pub fn count_between(&self, low: u64, high: u64) -> Result<T, ()> {
         use std::cmp;
-        let low_index = cmp::max(0, self.index_for(low)) as usize;
-        let high_index = cmp::min(self.index_for(high), self.last() as isize) as usize;
+        let low_index = self.index_for(low);
+        let high_index = cmp::min(self.index_for(high), self.last());
         Ok((low_index..(high_index + 1)).map(|i| self[i]).fold(T::zero(), |t, v| t + v))
     }
 
@@ -1108,7 +1116,7 @@ impl<T: Counter> Histogram<T> {
     /// May fail if the given value is out of bounds.
     pub fn count_at(&self, value: u64) -> Result<T, ()> {
         use std::cmp;
-        Ok(self[cmp::min(cmp::max(0, self.index_for(value)), self.last() as isize) as usize])
+        Ok(self[cmp::min(self.index_for(value), self.last())])
     }
 
     // ********************************************************************************************
@@ -1117,14 +1125,27 @@ impl<T: Counter> Histogram<T> {
 
     /// Computes the matching histogram value for the given histogram bin.
     pub fn value_for(&self, index: usize) -> u64 {
+        // TODO what to do about indexes that are beyond what can be represented by this histogram?
+        // Pretty easy to end up shifting off the high end of a u64, e.g. asking for a big index
+        // when sigfigs is high.
+
+        // Dividing by sub bucket half count will yield 1 in top half of first bucket, 2 in
+        // in the top half (i.e., the only half that's used) of the 2nd bucket, etc, so subtract 1
+        // to get 0-indexed bucket indexes.
         let mut bucket_index = (index >> self.sub_bucket_half_count_magnitude) as isize - 1;
+        // Mask to lower half, add in half count to always end up in top half.
+        // This will move things in lower half of first bucket into the top half.
+        // The subtraction won't underflow because half count is always at least 1.
+        // TODO precalculate sub_bucket_half_count mask if benchmarks show improvement
         let mut sub_bucket_index =
-            ((index & (self.sub_bucket_half_count - 1)) + self.sub_bucket_half_count) as isize;
+            ((index & (self.sub_bucket_half_count as usize - 1))
+                + (self.sub_bucket_half_count as usize)) as u32;
         if bucket_index < 0 {
-            sub_bucket_index -= self.sub_bucket_half_count as isize;
+            // lower half of first bucket case; move sub bucket index back
+            sub_bucket_index -= self.sub_bucket_half_count;
             bucket_index = 0;
         }
-        self.value_from_loc(bucket_index as usize, sub_bucket_index as usize)
+        self.value_from_loc(bucket_index as u8, sub_bucket_index)
     }
 
     /// Get the lowest value that is equivalent to the given value within the histogram's
@@ -1180,6 +1201,7 @@ impl<T: Counter> Histogram<T> {
         let bucket_index = self.bucket_for(value);
         let sub_bucket_index = self.sub_bucket_for(value, bucket_index);
         // calculate distance to next value
+        // TODO when is sub_bucket_index >= sub_bucket_count?
         1_u64 <<
         (self.unit_magnitude +
          if sub_bucket_index >= self.sub_bucket_count {
@@ -1193,37 +1215,41 @@ impl<T: Counter> Histogram<T> {
     // Internal helpers
     // ********************************************************************************************
 
-    /// Compute the lowest (and therefore highest precision) bucket index that can represent the
-    /// value.
+    /// Compute the lowest (and therefore highest precision) bucket index whose sub-buckets can
+    /// represent the value.
     #[inline]
-    fn bucket_for(&self, value: u64) -> usize {
+    fn bucket_for(&self, value: u64) -> u8 {
         // Calculates the number of powers of two by which the value is greater than the biggest
         // value that fits in bucket 0. This is the bucket index since each successive bucket can
         // hold a value 2x greater. The mask maps small values to bucket 0.
-        (self.leading_zero_count_base - (value | self.sub_bucket_mask).leading_zeros()) as usize
+        self.leading_zero_count_base - (value | self.sub_bucket_mask).leading_zeros() as u8
     }
 
     #[inline]
-    /// Compute the position inside a bucket at which the given value should be recorded.
-    fn sub_bucket_for(&self, value: u64, bucket_index: usize) -> usize {
-        // For bucket_index 0, this is just value, so it may be anywhere in 0 to sub_bucket_count. For
-        // other bucket_index, this will always end up in the top half of sub_bucket_count: assume
-        // that for some bucket k > 0, this calculation will yield a value in the bottom half of 0
-        // to sub_bucket_count. Then, because of how buckets overlap, it would have also been in the
-        // top half of bucket k-1, and therefore would have returned k-1 in bucket_index_of(). Since
-        // we would then shift it one fewer bits here, it would be twice as big, and therefore in
-        // the top half of sub_bucket_count.
-        // TODO: >>> ?
-        (value >> (bucket_index + self.unit_magnitude)) as usize
+    /// Compute the position inside a bucket at which the given value should be recorded, indexed
+    /// from position 0 in the bucket (in the first half, which is not used past the first bucket).
+    /// For bucket_index > 0, the result will be in the top half of the bucket.
+    fn sub_bucket_for(&self, value: u64, bucket_index: u8) -> u32 {
+        // Since bucket_index is simply how many powers of 2 greater value is than what will fit in
+        // bucket 0 (that is, what will fit in [0, sub_bucket_count)), we shift off that many
+        // powers of two, and end up with a number in [0, sub_bucket_count).
+        // For bucket_index 0, this is just value. For bucket index k > 0, we know value won't fit
+        // in bucket (k - 1) by definition, so this calculation won't end up in the lower half of
+        // [0, sub_bucket_count) because that would mean it would also fit in bucket (k - 1).
+        (value >> (bucket_index + self.unit_magnitude)) as u32
     }
 
     #[inline]
-    fn value_from_loc(&self, bucket_index: usize, sub_bucket_index: usize) -> u64 {
+    fn value_from_loc(&self, bucket_index: u8, sub_bucket_index: u32) -> u64 {
+        // Sum won't overflow; bucket_index and unit_magnitude are both <= 64.
+        // However, the resulting shift may overflow given bogus input, e.g. if unit magnitude is
+        // large and the input sub_bucket_index is for an entry in the counts index that shouldn't
+        // be used (because this calculation will overflow).
         (sub_bucket_index as u64) << (bucket_index + self.unit_magnitude)
     }
 
     /// Find the number of buckets needed such that `value` is representable.
-    fn buckets_to_cover(&self, value: u64) -> usize {
+    fn buckets_to_cover(&self, value: u64) -> u8 {
         // the k'th bucket can express from 0 * 2^k to sub_bucket_count * 2^k in units of 2^k
         let mut smallest_untrackable_value = (self.sub_bucket_count as u64) << self.unit_magnitude;
 
@@ -1249,15 +1275,17 @@ impl<T: Counter> Histogram<T> {
     /// covered by previous buckets), and the +1 being used for the lower half of the 0'th bucket.
     /// Or, equivalently, we need 1 more bucket to capture the max value if we consider the
     /// sub-bucket length to be halved.
-    fn num_bins(&self, number_of_buckets: usize) -> usize {
-        (number_of_buckets + 1) * (self.sub_bucket_count / 2)
+    fn num_bins(&self, number_of_buckets: u8) -> u32 {
+        // TODO use sub_bucket_half_count
+        (number_of_buckets as u32 + 1) * (self.sub_bucket_count / 2)
     }
 
     /// Compute the number of buckets needed to cover the given value, as well as the total number
     /// of bins needed to cover that range.
     ///
     /// May fail if `high` is not at least twice the lowest discernible value.
-    fn cover(&mut self, high: u64) -> usize {
+    fn cover(&mut self, high: u64) -> u32 {
+        // TODO validate before we get to here so we don't need an assert
         assert!(high >= 2 * self.lowest_discernible_value,
             "highest trackable value must be >= (2 * lowest discernible value)");
 
@@ -1280,7 +1308,7 @@ impl<T: Counter> Histogram<T> {
         let len = self.cover(high);
 
         // expand counts to also hold the new counts
-        self.counts.resize(len, T::zero());
+        self.counts.resize(len as usize, T::zero());
     }
 
     /// Set internally tracked max_value to new value if new value is greater than current one.

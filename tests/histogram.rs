@@ -2,6 +2,9 @@
 
 extern crate hdrsample;
 extern crate num;
+extern crate rand;
+
+use self::rand::Rng;
 
 use hdrsample::Histogram;
 use std::borrow::Borrow;
@@ -33,7 +36,8 @@ fn verify_max<T: hdrsample::Counter, B: Borrow<Histogram<T>>>(hist: B) -> bool {
 }
 
 const TRACKABLE_MAX: u64 = 3600 * 1000 * 1000;
-const SIGFIG: u32 = 3;
+// Store up to 2 * 10^3 in single-unit precision. Can be 5 at most.
+const SIGFIG: u8 = 3;
 const TEST_VALUE_LEVEL: u64 = 4;
 
 #[test]
@@ -394,4 +398,51 @@ fn scaled_set_to() {
 
     h2.set_to(&h1).unwrap();
     are_equal(&h1, &h2);
+}
+
+
+#[test]
+fn random_write_full_value_range_precision_5_no_panic() {
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 5).unwrap();
+
+    let mut rng = rand::weak_rng();
+
+    for _ in 0..1_000_000 {
+        let mut r: u64 = rng.gen();
+        if r == 0 {
+            r = 1;
+        }
+
+        h.record(r).unwrap();
+    }
+}
+
+
+#[test]
+fn random_write_full_value_range_precision_0_no_panic() {
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 0).unwrap();
+
+    let mut rng = rand::weak_rng();
+
+    for _ in 0..1_000_000 {
+        let mut r: u64 = rng.gen();
+        if r == 0 {
+            r = 1;
+        }
+
+        h.record(r).unwrap();
+    }
+}
+
+#[test]
+fn random_write_middle_of_value_range_precision_3_no_panic() {
+    let low = 1_000;
+    let high = 1_000_000_000;
+    let mut h = Histogram::<u64>::new_with_bounds(low, high, 3).unwrap();
+
+    let mut rng = rand::weak_rng();
+
+    for _ in 0..1_000_000 {
+        h.record(rng.gen_range(low, high + 1)).unwrap();
+    }
 }
