@@ -1276,8 +1276,7 @@ impl<T: Counter> Histogram<T> {
     /// Or, equivalently, we need 1 more bucket to capture the max value if we consider the
     /// sub-bucket length to be halved.
     fn num_bins(&self, number_of_buckets: u8) -> u32 {
-        // TODO use sub_bucket_half_count
-        (number_of_buckets as u32 + 1) * (self.sub_bucket_count / 2)
+        (number_of_buckets as u32 + 1) * (self.sub_bucket_half_count)
     }
 
     /// Compute the number of buckets needed to cover the given value, as well as the total number
