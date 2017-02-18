@@ -1241,7 +1241,8 @@ impl<T: Counter> Histogram<T> {
 
     #[inline]
     fn value_from_loc(&self, bucket_index: u8, sub_bucket_index: u32) -> u64 {
-        // sum won't overflow; bucket_index and unit_magnitude are both <= 64
+        // sum won't overflow; bucket_index and unit_magnitude are both <= 64.
+        // However, the resulting shift may overflow if unit magnitude is large, for instance.
         (sub_bucket_index as u64) << (bucket_index + self.unit_magnitude)
     }
 
