@@ -1,4 +1,4 @@
-use super::Histogram;
+use super::super::{CreationError, Histogram};
 use tests::helpers::histo64;
 
 #[test]
@@ -114,7 +114,7 @@ fn unit_magnitude_52_sub_bucket_magnitude_11_index_calculations() {
 
 #[test]
 fn unit_magnitude_53_sub_bucket_magnitude_11_throws() {
-    assert_eq!("Cannot represent sigfig worth of values beyond low",
+    assert_eq!(CreationError::CannotRepresentSigFigBeyondLow,
         Histogram::<u64>::new_with_bounds(1_u64 << 53, 1_u64 << 63, 3).unwrap_err());
 }
 
