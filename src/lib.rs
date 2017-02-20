@@ -628,9 +628,13 @@ impl<T: Counter> Histogram<T> {
         let sub_bucket_count = 1_u32 << (sub_bucket_count_magnitude as u32);
 
         if unit_magnitude + sub_bucket_count_magnitude > 63 {
-            // Cannot represent shifted sub bucket count in 64 bits.
-            // This will cause an infinite loop when calculating number of buckets
-            return Err("Cannot represent significant figures' worth of measurements beyond lowest value");
+            // sub_bucket_count entries can't be represented, with unit_magnitude applied, in a
+            // u64. Technically it still sort of works if their sum is 64: you can represent all
+            // but the last number in the shifted sub_bucket_count. However, the utility of such a
+            // histogram vs ones whose magnitude here fits in 63 bits is debatable, and it makes
+            // it harder to work through the logic. Sums larger than 64 are totally broken as
+            // leading_zero_count_base would go negative.
+            return Err("Cannot represent sigfig worth of values beyond low");
         };
 
         let sub_bucket_half_count = sub_bucket_count / 2;
@@ -1241,6 +1245,7 @@ impl<T: Counter> Histogram<T> {
 
     /// Find the number of buckets needed such that `value` is representable.
     fn buckets_to_cover(&self, value: u64) -> u8 {
+        // Shift won't overflow because sub_bucket_magnitude + unit_magnitude <= 63.
         // the k'th bucket can express from 0 * 2^k to sub_bucket_count * 2^k in units of 2^k
         let mut smallest_untrackable_value = (self.sub_bucket_count as u64) << self.unit_magnitude;
 

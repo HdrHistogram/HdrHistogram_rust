@@ -4,6 +4,8 @@ use super::Histogram;
 mod helpers;
 #[path = "init.rs"]
 mod init;
+#[path = "index_calculation.rs"]
+mod index_calculation;
 
 #[test]
 fn new_err_high_not_double_low() {
