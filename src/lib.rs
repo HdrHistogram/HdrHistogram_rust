@@ -1467,5 +1467,6 @@ impl<T: Counter, F: Counter> PartialEq<Histogram<F>> for Histogram<T>
 // TODO: timestamps and tags
 // TODO: textual output
 
+#[path = "tests/tests.rs"]
 #[cfg(test)]
 mod tests;
