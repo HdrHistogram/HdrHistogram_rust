@@ -295,8 +295,6 @@ impl<T: Counter> Histogram<T> {
     // ********************************************************************************************
 
     /// Find the bucket the given value should be placed in.
-    ///
-    /// May panic if the given value falls outside the current range of the histogram.
     fn index_for(&self, value: u64) -> usize {
         let bucket_index = self.bucket_for(value);
         let sub_bucket_index = self.sub_bucket_for(value, bucket_index);
@@ -1110,7 +1108,7 @@ impl<T: Counter> Histogram<T> {
     /// Get the count of recorded values at a specific value (to within the histogram resolution at
     /// the value level).
     ///
-    /// The count is cumputed across values recorded in the histogram that are within the value
+    /// The count is computed across values recorded in the histogram that are within the value
     /// range that is `>= lowest_equivalent(value)` and `<= highest_equivalent(value)`.
     ///
     /// May fail if the given value is out of bounds.
