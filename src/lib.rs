@@ -150,11 +150,9 @@
 
 extern crate num;
 
-use std::ops::Index;
-use std::ops::IndexMut;
-use std::ops::AddAssign;
-use std::ops::SubAssign;
 use std::borrow::Borrow;
+use std::cmp;
+use std::ops::{Index, IndexMut, AddAssign, SubAssign};
 
 use iterators::HistogramIterator;
 
@@ -696,8 +694,7 @@ impl<T: Counter> Histogram<T> {
 
     /// Allocate a counts array of the given size.
     fn alloc(&mut self, len: usize) {
-        use std::iter;
-        self.counts = iter::repeat(T::zero()).take(len).collect();
+        self.counts = std::iter::repeat(T::zero()).take(len).collect();
     }
 
     // ********************************************************************************************
@@ -1078,8 +1075,6 @@ impl<T: Counter> Histogram<T> {
     ///
     /// Two values are considered "equivalent" if `self.equivalent` would return true.
     pub fn percentile_below(&self, value: u64) -> f64 {
-        use std::cmp;
-
         if self.total_count == 0 {
             return 100.0;
         }
@@ -1101,7 +1096,6 @@ impl<T: Counter> Histogram<T> {
     ///
     /// May fail if the given values are out of bounds.
     pub fn count_between(&self, low: u64, high: u64) -> Result<T, ()> {
-        use std::cmp;
         let low_index = self.index_for(low);
         let high_index = cmp::min(self.index_for(high), self.last());
         Ok((low_index..(high_index + 1)).map(|i| self[i]).fold(T::zero(), |t, v| t + v))
@@ -1115,7 +1109,6 @@ impl<T: Counter> Histogram<T> {
     ///
     /// May fail if the given value is out of bounds.
     pub fn count_at(&self, value: u64) -> Result<T, ()> {
-        use std::cmp;
         Ok(self[cmp::min(self.index_for(value), self.last())])
     }
 
