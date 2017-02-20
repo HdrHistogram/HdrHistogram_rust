@@ -1,4 +1,4 @@
-use super::Histogram;
+use tests::helpers::histo64;
 
 #[test]
 fn init_fields_smallest_possible_array() {
@@ -249,24 +249,4 @@ fn init_fields_max_value_max_unit_magnitude_max_precision() {
     assert_eq!((1 << 45) - 1, h.unit_magnitude_mask);
 
     assert_eq!(64 - 62 - 1, h.leading_zero_count_base);
-}
-
-#[test]
-fn new_err_lowest_value_too_large_for_precision() {
-    let res = Histogram::<u64>::new_with_bounds(u64::max_value() / 2, u64::max_value(), 0);
-    assert_eq!("Cannot represent significant figures' worth of measurements beyond lowest value",
-               res.unwrap_err());
-}
-
-#[test]
-fn new_err_high_not_double_low() {
-    let res = Histogram::<u64>::new_with_bounds(10, 15, 0);
-    assert_eq!("highest trackable value must be >= 2 * lowest discernible value", res.unwrap_err());
-}
-
-#[cfg(test)]
-fn histo64(lowest_discernible_value: u64, highest_trackable_value: u64, num_significant_digits: u8)
-           -> Histogram<u64> {
-    Histogram::<u64>::new_with_bounds(lowest_discernible_value, highest_trackable_value,
-                                      num_significant_digits).unwrap()
 }
