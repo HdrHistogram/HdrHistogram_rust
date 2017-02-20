@@ -240,6 +240,52 @@ pub struct Histogram<T: Counter> {
     counts: Vec<T>,
 }
 
+/// Errors that can occur when creating a histogram.
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
+pub enum CreationError {
+    /// Lowest discernible value must be >= 1.
+    LowIsZero,
+    /// Lowest discernible value must be <= `u64::max_value() / 2` because the highest value is
+    /// a `u64` and the lowest value must be no bigger than half the highest.
+    LowExceedsMax,
+    /// Highest trackable value must be >= 2 * lowest discernible value for some internal
+    /// calculations to work out. In practice, high is typically much higher than 2 * low.
+    HighLessThanTwiceLow,
+    /// Number of significant digits must be in the range `[0, 5]`. It is capped at 5 because 5
+    /// significant digits is already more than almost anyone needs, and memory usage scales
+    /// exponentially as this increases.
+    SigFigExceedsMax,
+    /// Cannot represent sigfig worth of values beyond the lowest discernible value. Decrease the
+    /// significant figures, lowest discernible value, or both.
+    ///
+    /// This could happen if low is very large (like 2^60) and sigfigs is 5, which requires 18
+    /// additional bits, which would then require more bits than will fit in a u64. Specifically,
+    /// the exponent of the largest power of two that is smaller than the lowest value and the bits
+    /// needed to represent the requested significant figures must sum to 63 or less.
+    CannotRepresentSigFigBeyondLow
+}
+
+/// Errors that can occur when adding another histogram.
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
+pub enum AdditionError {
+    /// The other histogram includes values that do not fit in this histogram's range.
+    /// Only possible when auto resize is disabled.
+    OtherAddendValuesExceedRange
+}
+
+/// Errors that can occur when subtracting another histogram.
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
+pub enum SubtractionError {
+    /// The other histogram includes values that do not fit in this histogram's range.
+    /// Only possible when auto resize is disabled.
+    SubtrahendValuesExceedMinuendRange,
+    /// The other histogram includes counts that are higher than the current count for a value, and
+    /// counts cannot go negative. The subtraction may have been partially applied to some counts as
+    /// this error is returned when the first impossible subtraction is detected.
+    SubtrahendCountExceedsMinuendCount
+}
+
+
 /// Module containing the implementations of all `Histogram` iterators.
 pub mod iterators;
 
@@ -356,7 +402,7 @@ impl<T: Counter> Histogram<T> {
 
     /// Overwrite this histogram with the given histogram. All data and statistics in this
     /// histogram will be overwritten.
-    pub fn set_to<B: Borrow<Histogram<T>>>(&mut self, source: B) -> Result<(), &'static str> {
+    pub fn set_to<B: Borrow<Histogram<T>>>(&mut self, source: B) -> Result<(), AdditionError> {
         self.reset();
         self.add(source.borrow())
     }
@@ -380,15 +426,14 @@ impl<T: Counter> Histogram<T> {
     ///
     /// May fail if values in the other histogram are higher than `.high()`, and auto-resize is
     /// disabled.
-    pub fn add<B: Borrow<Histogram<T>>>(&mut self, source: B) -> Result<(), &'static str> {
+    pub fn add<B: Borrow<Histogram<T>>>(&mut self, source: B) -> Result<(), AdditionError> {
         let source = source.borrow();
 
         // make sure we can take the values in source
         let top = self.highest_equivalent(self.value_for(self.last()));
         if top < source.max() {
             if !self.auto_resize {
-                return Err("The other histogram includes values that do not fit in this \
-                            histogram's range.");
+                return Err(AdditionError::OtherAddendValuesExceedRange);
             }
             self.resize(source.max());
         }
@@ -480,15 +525,14 @@ impl<T: Counter> Histogram<T> {
     /// disabled. Or, if the count for a given value in the other histogram is higher than that of
     /// this histogram. In the latter case, some of the counts may still have been updated, which
     /// may cause data corruption.
-    pub fn subtract<B: Borrow<Histogram<T>>>(&mut self, other: B) -> Result<(), &'static str> {
+    pub fn subtract<B: Borrow<Histogram<T>>>(&mut self, other: B) -> Result<(), SubtractionError> {
         let other = other.borrow();
 
         // make sure we can take the values in source
         let top = self.highest_equivalent(self.value_for(self.last()));
         if top < other.max() {
             if !self.auto_resize {
-                return Err("The other histogram includes values that do not fit in this \
-                            histogram's range.");
+                return Err(SubtractionError::SubtrahendValuesExceedMinuendRange);
             }
             self.resize(other.max());
         }
@@ -498,8 +542,7 @@ impl<T: Counter> Histogram<T> {
             if other_count != T::zero() {
                 let other_value = other.value_for(i);
                 if self.count_at(other_value).unwrap() < other_count {
-                    return Err("The other histogram includes counts that are higher than the \
-                                current count for that value.");
+                    return Err(SubtractionError::SubtrahendCountExceedsMinuendCount);
                 }
                 self.alter_n(other_value, other_count, false).expect("value should fit by now");
             }
@@ -553,10 +596,10 @@ impl<T: Counter> Histogram<T> {
     /// auto-adjusting highest trackable value. Can auto-resize up to track values up to
     /// `(i64::max_value() / 2)`.
     ///
-    /// `sigfig` specifies the number of significant value digits to preserve in the recorded data.
-    /// This is the number of significant decimal digits to which the histogram will maintain value
-    /// resolution and separation. Must be a non-negative integer between 0 and 5.
-    pub fn new(sigfig: u8) -> Result<Histogram<T>, &'static str> {
+    /// See [`new_with_bounds`] for info on `sigfig`.
+    ///
+    /// [`new_with_bounds`]: #method.new_with_bounds
+    pub fn new(sigfig: u8) -> Result<Histogram<T>, CreationError> {
         let mut h = Self::new_with_bounds(1, 2, sigfig);
         if let Ok(ref mut h) = h {
             h.auto_resize = true;
@@ -568,41 +611,45 @@ impl<T: Counter> Histogram<T> {
     /// significant decimal digits. The histogram will be constructed to implicitly track
     /// (distinguish from 0) values as low as 1. Auto-resizing will be disabled.
     ///
-    /// `high` is the highest value to be tracked by the histogram, and must be a positive integer
-    /// that is >= 2. `sigfig` specifies the number of significant figures to maintain. This is the
-    /// number of significant decimal digits to which the histogram will maintain value resolution
-    /// and separation. Must be a non-negative integer between 0 and 5.
-    pub fn new_with_max(high: u64, sigfig: u8) -> Result<Histogram<T>, &'static str> {
+    /// See [`new_with_bounds`] for info on `high` and `sigfig`.
+    ///
+    /// [`new_with_bounds`]: #method.new_with_bounds
+    pub fn new_with_max(high: u64, sigfig: u8) -> Result<Histogram<T>, CreationError> {
         Self::new_with_bounds(1, high, sigfig)
     }
 
     /// Construct a `Histogram` with known upper and lower bounds for recorded sample values.
-    /// Providing a lowest discernible value (`low`) is useful is situations where the units used
-    /// for the histogram's values are much smaller that the minimal accuracy required. E.g. when
-    /// tracking time values stated in nanosecond units, where the minimal accuracy required is a
-    /// microsecond, the proper value for `low` would be 1000.
     ///
     /// `low` is the lowest value that can be discerned (distinguished from 0) by the histogram,
     /// and must be a positive integer that is >= 1. It may be internally rounded down to nearest
-    /// power of 2. `high` is the highest value to be tracked by the histogram, and must be a
-    /// positive integer that is `>= (2 * low)`. `sigfig` Specifies the number of significant
-    /// figures to maintain. This is the number of significant decimal digits to which the
-    /// histogram will maintain value resolution and separation. Must be a non-negative integer
-    /// between 0 and 5.
-    pub fn new_with_bounds(low: u64, high: u64, sigfig: u8) -> Result<Histogram<T>, &'static str> {
+    /// power of 2. Providing a lowest discernible value (`low`) is useful is situations where the
+    /// units used for the histogram's values are much smaller that the minimal accuracy required.
+    /// E.g. when tracking time values stated in nanosecond units, where the minimal accuracy
+    /// required is a microsecond, the proper value for `low` would be 1000. If you're not sure,
+    /// use 1.
+    ///
+    /// `high` is the highest value to be tracked by the histogram, and must be a
+    /// positive integer that is `>= (2 * low)`. If you're not sure, use `u64::max_value()`.
+    ///
+    /// `sigfig` Specifies the number of significant figures to maintain. This is the number of
+    /// significant decimal digits to which the histogram will maintain value resolution and
+    /// separation. Must be in the range [0, 5]. If you're not sure, use 3. As `sigfig` increases,
+    /// memory usage grows exponentially, so choose carefully if there will be many histograms in
+    /// memory at once or if storage is otherwise a concern.
+    pub fn new_with_bounds(low: u64, high: u64, sigfig: u8) -> Result<Histogram<T>, CreationError> {
         // Verify argument validity
         if low < 1 {
-            return Err("lowest discernible value must be >= 1");
+            return Err(CreationError::LowIsZero);
         }
         if low > u64::max_value() / 2 {
             // avoid overflow in 2 * low
-            return Err("lowest discernible value must be <= u64::max_value() / 2")
+            return Err(CreationError::LowExceedsMax)
         }
         if high < 2 * low {
-            return Err("highest trackable value must be >= 2 * lowest discernible value");
+            return Err(CreationError::HighLessThanTwiceLow);
         }
         if sigfig > 5 {
-            return Err("number of significant digits must be between 0 and 5");
+            return Err(CreationError::SigFigExceedsMax);
         }
 
         // Given a 3 decimal point accuracy, the expectation is obviously for "+/- 1 unit at 1000".
@@ -634,7 +681,7 @@ impl<T: Counter> Histogram<T> {
             // histogram vs ones whose magnitude here fits in 63 bits is debatable, and it makes
             // it harder to work through the logic. Sums larger than 64 are totally broken as
             // leading_zero_count_base would go negative.
-            return Err("Cannot represent sigfig worth of values beyond low");
+            return Err(CreationError::CannotRepresentSigFigBeyondLow);
         };
 
         let sub_bucket_half_count = sub_bucket_count / 2;
