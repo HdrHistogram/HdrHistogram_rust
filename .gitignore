@@ -9,3 +9,5 @@ Cargo.lock
 # JetBrains products
 .idea
 *.iml
+
+.criterion
