@@ -1173,10 +1173,11 @@ impl<T: Counter> Histogram<T> {
 
         // Dividing by sub bucket half count will yield 1 in top half of first bucket, 2 in
         // in the top half (i.e., the only half that's used) of the 2nd bucket, etc, so subtract 1
-        // to get 0-indexed bucket indexes.
+        // to get 0-indexed bucket indexes. This will be -1 for the bottom half of the first bucket.
         let mut bucket_index = (index >> self.sub_bucket_half_count_magnitude) as isize - 1;
-        // Mask to lower half, add in half count to always end up in top half.
-        // This will move things in lower half of first bucket into the top half.
+        // Calculate the remainder of dividing by sub_bucket_half_count, shifted into the top half
+        // of the corresponding bucket. This will (temporarily) map indexes in the lower half of
+        // first bucket into the top half.
         // The subtraction won't underflow because half count is always at least 1.
         // TODO precalculate sub_bucket_half_count mask if benchmarks show improvement
         let mut sub_bucket_index =
@@ -1230,10 +1231,7 @@ impl<T: Counter> Histogram<T> {
     ///
     /// Note that the return value is capped at `u64::max_value()`.
     pub fn next_non_equivalent(&self, value: u64) -> u64 {
-        match self.lowest_equivalent(value).overflowing_add(self.equivalent_range(value)) {
-            (_, of) if of => u64::max_value(),
-            (v, _) => v,
-        }
+        self.lowest_equivalent(value).saturating_add(self.equivalent_range(value))
     }
 
     /// Get the size (in value units) of the range of values that are equivalent to the given value
@@ -1287,6 +1285,7 @@ impl<T: Counter> Histogram<T> {
         // However, the resulting shift may overflow given bogus input, e.g. if unit magnitude is
         // large and the input sub_bucket_index is for an entry in the counts index that shouldn't
         // be used (because this calculation will overflow).
+        // TODO probably audit uses to make sure none will cause overflow
         (sub_bucket_index as u64) << (bucket_index + self.unit_magnitude)
     }
 
