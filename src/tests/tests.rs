@@ -6,6 +6,8 @@ mod helpers;
 mod init;
 #[path = "index_calculation.rs"]
 mod index_calculation;
+#[path = "value_calculation.rs"]
+mod value_calculation;
 
 #[test]
 fn new_err_high_not_double_low() {
