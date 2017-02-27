@@ -1239,16 +1239,7 @@ impl<T: Counter> Histogram<T> {
     /// any two equivalent values are counted in a common total count.
     pub fn equivalent_range(&self, value: u64) -> u64 {
         let bucket_index = self.bucket_for(value);
-        let sub_bucket_index = self.sub_bucket_for(value, bucket_index);
-        // calculate distance to next value
-        // TODO when is sub_bucket_index >= sub_bucket_count?
-        1_u64 <<
-        (self.unit_magnitude +
-         if sub_bucket_index >= self.sub_bucket_count {
-            bucket_index + 1
-        } else {
-            bucket_index
-        })
+        1_u64 << self.unit_magnitude + bucket_index
     }
 
     // ********************************************************************************************
