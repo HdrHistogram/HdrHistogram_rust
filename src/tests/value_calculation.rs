@@ -9,6 +9,7 @@ fn equivalent_range_unit_magnitude_0() {
     assert_eq!(1, h.equivalent_range(1023));
     // first in top half
     assert_eq!(1, h.equivalent_range(1024));
+    assert_eq!(1, h.equivalent_range(1025));
     // last in top half
     assert_eq!(1, h.equivalent_range(2047));
     // first in 2nd bucket
