@@ -22,9 +22,13 @@ travis-ci = { repository = "jonhoo/hdrsample" }
 [features]
 #benchmark = ["criterion"]
 benchmark = [] # for crates.io publication
+serde-serialize = ["serde", "serde_derive"]
 
 [dependencies]
 num = "0.1"
+rustc-serialize = { optional = true, version = "0.3" }
+serde = { optional = true, version = "0.9" }
+serde_derive = { optional = true, version = "0.9" }
 #criterion = { git = "https://github.com/japaric/criterion.rs.git", optional = true }
 
 [dev-dependencies]

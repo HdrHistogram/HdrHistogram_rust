@@ -150,6 +150,13 @@
 
 extern crate num;
 
+#[cfg(feature = "rustc-serialize")]
+extern crate rustc_serialize;
+
+#[cfg(feature = "serde-serialize")]
+#[macro_use]
+extern crate serde_derive;
+
 use std::borrow::Borrow;
 use std::cmp;
 use std::ops::{Index, IndexMut, AddAssign, SubAssign};
@@ -204,6 +211,8 @@ impl<T> Counter for T
 /// = 2048 * 2^(k-1)`, which is the k-1'th bucket's end. So, we would use the previous bucket
 /// for those lower values as it has better precision.
 ///
+#[cfg_attr(feature = "rustc-serialize",  derive(RustcEncodable, RustcDecodable))]
+#[cfg_attr(feature = "serde-serialize",  derive(Serialize, Deserialize))]
 #[derive(Debug)]
 pub struct Histogram<T: Counter> {
     auto_resize: bool,
