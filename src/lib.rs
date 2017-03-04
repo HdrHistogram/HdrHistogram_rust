@@ -1503,3 +1503,6 @@ impl<T: Counter, F: Counter> PartialEq<Histogram<F>> for Histogram<T>
 #[path = "tests/tests.rs"]
 #[cfg(test)]
 mod tests;
+
+#[path = "serialization/serialization.rs"]
+mod serialization;
