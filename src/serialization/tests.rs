@@ -2,69 +2,98 @@ extern crate rand;
 
 use super::*;
 use self::rand::Rng;
+use self::rand::distributions::range::Range;
+use self::rand::distributions::IndependentSample;
 use std::io::Cursor;
 
 #[test]
 fn varint_write_3_bit_value() {
-    let buf = &mut Cursor::new(Vec::<u8>::new());
-    assert_eq!(1, super::varint_write(6, buf).unwrap());
-
-    let vec = buf.get_ref();
-    assert_eq!(1, vec.len());
-    assert_eq!(0x6, vec[0]);
+    let mut buf = [0; 9];
+    let length = varint_write(6, &mut buf[..]);
+    assert_eq!(1, length);
+    assert_eq!(0x6, buf[0]);
 }
 
 #[test]
 fn varint_write_7_bit_value() {
-    let buf = &mut Cursor::new(Vec::<u8>::new());
-    assert_eq!(1, super::varint_write(127, buf).unwrap());
-
-    let vec = buf.get_ref();
-    assert_eq!(1, vec.len());
-    assert_eq!(0x7F, vec[0]);
+    let mut buf = [0; 9];
+    let length = varint_write(127, &mut buf[..]);
+    assert_eq!(1, length);
+    assert_eq!(0x7F, buf[0]);
 }
 
 #[test]
 fn varint_write_9_bit_value() {
-    let buf = &mut Cursor::new(Vec::<u8>::new());
-    assert_eq!(2, super::varint_write(256, buf).unwrap());
-
+    let mut buf = [0; 9];
+    let length = varint_write(256, &mut buf[..]);
+    assert_eq!(2, length);
     // marker high bit w/ 0's, then 9th bit (2nd bit of 2nd 7-bit group)
-    assert_eq!(&vec![0x80, 0x02], buf.get_ref());
+    assert_eq!(vec![0x80, 0x02].as_slice(), &buf[0..length]);
 }
 
 #[test]
 fn varint_write_u64_max() {
-    let buf = &mut Cursor::new(Vec::<u8>::new());
-    assert_eq!(9, super::varint_write(u64::max_value(), buf).unwrap());
-
-    assert_eq!(&vec![0xFF; 9], buf.get_ref());
+    let mut buf = [0; 9];
+    let length = varint_write(u64::max_value(), &mut buf[..]);
+    assert_eq!(9, length);
+    assert_eq!(vec![0xFF; 9].as_slice(), &buf[..]);
 }
 
 #[test]
 fn varint_read_u64_max() {
     let input = &mut Cursor::new(vec![0xFF; 9]);
-    assert_eq!(u64::max_value(), super::varint_read(input).unwrap());
+    assert_eq!(u64::max_value(), varint_read(input).unwrap());
 }
 
 #[test]
 fn varint_read_u64_zero() {
     let input = &mut Cursor::new(vec![0x00; 9]);
-    assert_eq!(0, super::varint_read(input).unwrap());
+    assert_eq!(0, varint_read(input).unwrap());
 }
 
 #[test]
-fn varint_write_read_roundtrip_rand() {
-    let mut rng = rand::weak_rng();
-    let mut vec = Vec::<u8>::new();
-    vec.reserve(9);
-    for _ in 1..1_000_000 {
-        vec.clear();
-        let int: u64 = rng.gen();
-        let bytes_written = super::varint_write(int, &mut vec).unwrap();
-        assert_eq!(vec.len(), bytes_written);
-        assert_eq!(int, super::varint_read(&mut vec.as_slice()).unwrap());
-    }
+fn varint_write_read_roundtrip_rand_1_byte() {
+    do_varint_write_read_roundtrip_rand(1);
+}
+
+#[test]
+fn varint_write_read_roundtrip_rand_2_byte() {
+    do_varint_write_read_roundtrip_rand(2);
+}
+
+#[test]
+fn varint_write_read_roundtrip_rand_3_byte() {
+    do_varint_write_read_roundtrip_rand(3);
+}
+
+#[test]
+fn varint_write_read_roundtrip_rand_4_byte() {
+    do_varint_write_read_roundtrip_rand(4);
+}
+
+#[test]
+fn varint_write_read_roundtrip_rand_5_byte() {
+    do_varint_write_read_roundtrip_rand(5);
+}
+
+#[test]
+fn varint_write_read_roundtrip_rand_6_byte() {
+    do_varint_write_read_roundtrip_rand(6);
+}
+
+#[test]
+fn varint_write_read_roundtrip_rand_7_byte() {
+    do_varint_write_read_roundtrip_rand(7);
+}
+
+#[test]
+fn varint_write_read_roundtrip_rand_8_byte() {
+    do_varint_write_read_roundtrip_rand(8);
+}
+
+#[test]
+fn varint_write_read_roundtrip_rand_9_byte() {
+    do_varint_write_read_roundtrip_rand(9);
 }
 
 #[test]
@@ -113,4 +142,22 @@ fn zig_zag_roundtrip_random() {
 
         assert_eq!(r, decoded);
     }
+}
+
+fn do_varint_write_read_roundtrip_rand(length: usize) {
+    let range = Range::new(1 << ((length - 1) * 7), 1 << (length * 7));
+    let mut rng = rand::weak_rng();
+    let mut buf = [0; 9];
+    for _ in 1..1_000_000 {
+        for i in 0..(buf.len()) {
+            buf[i] = 0;
+        };
+        let r: u64 = range.ind_sample(&mut rng);
+        let bytes_written = varint_write(r, &mut buf);
+        assert_eq!(length, bytes_written);
+        assert_eq!(r, varint_read(&mut &buf[..bytes_written]).unwrap());
+
+        // make sure the other bytes are all still 0
+        assert_eq!(vec![0; 9 - bytes_written], &buf[bytes_written..]);
+    };
 }

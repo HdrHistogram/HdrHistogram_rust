@@ -1246,6 +1246,11 @@ impl<T: Counter> Histogram<T> {
     // Internal helpers
     // ********************************************************************************************
 
+    fn count_at_index(&self, index: usize) -> T {
+        // TODO use Result?
+        self.counts[index]
+    }
+
     /// Compute the lowest (and therefore highest precision) bucket index whose sub-buckets can
     /// represent the value.
     #[inline]
@@ -1504,5 +1509,6 @@ impl<T: Counter, F: Counter> PartialEq<Histogram<F>> for Histogram<T>
 #[cfg(test)]
 mod tests;
 
+/// Serialization/deserialization support.
 #[path = "serialization/serialization.rs"]
-mod serialization;
+pub mod serialization;

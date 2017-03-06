@@ -25,6 +25,7 @@ benchmark = [] # for crates.io publication
 
 [dependencies]
 num = "0.1"
+byteorder = "1.0.0"
 #criterion = { git = "https://github.com/japaric/criterion.rs.git", optional = true }
 
 [dev-dependencies]
