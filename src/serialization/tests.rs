@@ -1,10 +1,115 @@
 extern crate rand;
 
 use super::*;
+use super::super::tests::helpers::histo64;
 use self::rand::Rng;
 use self::rand::distributions::range::Range;
 use self::rand::distributions::IndependentSample;
 use std::io::Cursor;
+
+#[test]
+fn encode_counts_all_zeros() {
+    let h = histo64(1, u64::max_value(), 3);
+    let counts_len = h.counts.len();
+    let mut vec = vec![0; V2Serializer::counts_array_max_encoded_size(counts_len)];
+
+    // because max is 0, it doesn't bother traversing the rest of the counts array
+
+    let encoded_len = encode_counts(&h, &mut vec[..]).unwrap();
+    assert_eq!(1, encoded_len);
+    assert_eq!(0, vec[0]);
+
+    let mut cursor = Cursor::new(vec);
+    assert_eq!(0, zig_zag_decode(varint_read(&mut cursor).unwrap()));
+}
+
+#[test]
+fn encode_counts_last_count_incremented() {
+    let mut h = histo64(1, 2047, 3);
+    let counts_len = h.counts.len();
+    let mut vec = vec![0; V2Serializer::counts_array_max_encoded_size(counts_len)];
+
+    assert_eq!(1, h.bucket_count);
+    assert_eq!(2048, counts_len);
+
+    // last in first (and only) bucket
+    h.record(2047).unwrap();
+    let encoded_len = encode_counts(&h, &mut vec[..]).unwrap();
+    assert_eq!(3, encoded_len);
+
+    let mut cursor = Cursor::new(vec);
+    // 2047 zeroes. 2047 is 11 bits, so 2 7-byte chunks.
+    assert_eq!(-2047, zig_zag_decode(varint_read(&mut cursor).unwrap()));
+    assert_eq!(2, cursor.position());
+
+    // then a 1
+    assert_eq!(1, zig_zag_decode(varint_read(&mut cursor).unwrap()));
+    assert_eq!(3, cursor.position());
+}
+
+#[test]
+fn encode_counts_first_count_incremented() {
+    let mut h = histo64(1, 2047, 3);
+    let counts_len = h.counts.len();
+    let mut vec = vec![0; V2Serializer::counts_array_max_encoded_size(counts_len)];
+
+    assert_eq!(1, h.bucket_count);
+    assert_eq!(2048, counts_len);
+
+    // first position
+    h.record(0).unwrap();
+    let encoded_len = encode_counts(&h, &mut vec[..]).unwrap();
+
+    assert_eq!(1, encoded_len);
+
+    let mut cursor = Cursor::new(vec);
+    // zero position has a 1
+    assert_eq!(1, zig_zag_decode(varint_read(&mut cursor).unwrap()));
+    assert_eq!(1, cursor.position());
+
+    // max is 1, so rest isn't set
+}
+
+#[test]
+fn encode_counts_first_and_last_count_incremented() {
+    let mut h = histo64(1, 2047, 3);
+    let counts_len = h.counts.len();
+    let mut vec = vec![0; V2Serializer::counts_array_max_encoded_size(counts_len)];
+
+    assert_eq!(1, h.bucket_count);
+    assert_eq!(2048, counts_len);
+
+    // first position
+    h.record(0).unwrap();
+    // last position in first (and only) bucket
+    h.record(2047).unwrap();
+    let encoded_len = encode_counts(&h, &mut vec[..]).unwrap();
+
+    assert_eq!(4, encoded_len);
+
+    let mut cursor = Cursor::new(vec);
+    // zero position has a 1
+    assert_eq!(1, zig_zag_decode(varint_read(&mut cursor).unwrap()));
+    assert_eq!(1, cursor.position());
+
+    // 2046 zeroes, then a 1.
+    assert_eq!(-2046, zig_zag_decode(varint_read(&mut cursor).unwrap()));
+    assert_eq!(3, cursor.position());
+
+    assert_eq!(1, zig_zag_decode(varint_read(&mut cursor).unwrap()));
+    assert_eq!(4, cursor.position());
+}
+
+#[test]
+fn encode_counts_count_too_big() {
+    let mut h = histo64(1, 2047, 3);
+    let mut vec = vec![0; V2Serializer::counts_array_max_encoded_size(h.counts.len())];
+
+    // first position
+    h.record_n(0, i64::max_value() as u64 + 1).unwrap();
+    assert_eq!(SerializeError::CountNotSerializable, encode_counts(&h, &mut vec[..]).unwrap_err());
+}
+
 
 #[test]
 fn varint_write_3_bit_value() {

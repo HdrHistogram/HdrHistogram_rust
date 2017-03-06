@@ -2,6 +2,7 @@ extern crate byteorder;
 
 use super::{Counter, Histogram};
 use std::io::{self, Read, Write};
+use std;
 use self::byteorder::{BigEndian, WriteBytesExt};
 
 #[path = "tests.rs"]
@@ -14,16 +15,40 @@ const V2_COOKIE: u32 = V2_COOKIE_BASE | 0x10;
 
 const V2_HEADER_SIZE: usize = 40;
 
+/// Errors that occur during serialization.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum SerializeError {
+    /// A count above i64::max_value() cannot be zig-zag encoded, and therefore cannot be
+    /// serialized.
+    CountNotSerializable,
+    /// An i/o operation failed.
+    IoError
+}
+
+impl std::convert::From<std::io::Error> for SerializeError {
+    fn from(_: std::io::Error) -> Self {
+        SerializeError::IoError
+    }
+}
+
 /// Serializer for the V2 format.
+/// Serializers are intended to be re-used.
 pub struct V2Serializer {
     buf: Vec<u8>
 }
 
 impl V2Serializer {
+    /// Create a new serializer.
+    pub fn new() -> V2Serializer {
+        V2Serializer {
+            buf: Vec::new()
+        }
+    }
 
     /// Serialize the histogram.
     /// Returns the number of bytes written, or an io error.
-    pub fn serialize<T: Counter, W: Write>(&mut self, h: &Histogram<T>, writer: &mut W) -> io::Result<usize> {
+    pub fn serialize<T: Counter, W: Write>(&mut self, h: &Histogram<T>, writer: &mut W)
+            -> Result<usize, SerializeError> {
         self.buf.clear();
         let max_size = Self::max_encoded_size(h);
         self.buf.reserve(max_size);
@@ -42,20 +67,28 @@ impl V2Serializer {
         debug_assert_eq!(V2_HEADER_SIZE, self.buf.len());
 
         unsafe {
+            // want to treat the rest of the vec as a slice, and we've already reserved this
+            // space, so this way we don't have to push() on a lot of dummy bytes.
             self.buf.set_len(max_size);
         }
 
-        let counts_len = encode_counts(h, &mut self.buf[V2_HEADER_SIZE..]);
+        let counts_len = encode_counts(h, &mut self.buf[V2_HEADER_SIZE..])?;
         let total_len = V2_HEADER_SIZE + counts_len;
 
-        writer.write_all(&mut self.buf[0..(total_len)]).map(|_| total_len)
+        // TODO benchmark fastest buffer management scheme
+        // counts is always under 2^24
+        (&mut self.buf[4..8]).write_u32::<BigEndian>(counts_len as u32)?;
+
+        writer.write_all(&mut self.buf[0..(total_len)])
+            .map(|_| total_len)
+            .map_err(|_| SerializeError::IoError)
     }
 
     fn max_encoded_size<T: Counter>(h: &Histogram<T>) -> usize {
         Self::counts_array_max_encoded_size(h.counts.len()) + V2_HEADER_SIZE
     }
 
-    fn counts_array_max_encoded_size(length: usize) -> usize{
+    fn counts_array_max_encoded_size(length: usize) -> usize {
         // LEB128-64b9B uses at most 9 bytes
         // Won't overflow (except sometimes on 16 bit systems) because largest possible counts
         // len is 47 buckets, each with 2^17 half count, for a total of 6e6. This product will
@@ -65,7 +98,7 @@ impl V2Serializer {
 }
 
 /// Encode counts array into slice.
-fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> usize {
+fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usize, SerializeError> {
     let index_limit = h.index_for(h.max()) + 1;
     let mut index = 0;
     let mut bytes_written = 0;
@@ -87,11 +120,10 @@ fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> usize {
         }
 
         let count_or_zeros: i64 = if zero_count > 1 {
-            // zero count can be at most the entire counts array, which is at most 6e6, so will fit.
+            // zero count can be at most the entire counts array, which is at most 2^24, so will fit.
             -zero_count
         } else {
-            // TODO handle count exceeding i64::max_value()
-            count.to_i64().unwrap()
+            count.to_i64().ok_or(SerializeError::CountNotSerializable)?
         };
 
         let zz = zig_zag_encode(count_or_zeros);
@@ -99,7 +131,7 @@ fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> usize {
         bytes_written += varint_write(zz, &mut buf[bytes_written..]);
     }
 
-    bytes_written
+    Ok(bytes_written)
 }
 
 /// Write a number as a LEB128-64b9B little endian base 128 varint to buf. This is not
@@ -244,7 +276,6 @@ fn read_u8<R: Read>(reader: &mut R) -> io::Result<u8> {
 }
 
 /// Map signed numbers to unsigned: 0 to 0, -1 to 1, 1 to 2, -2 to 3, etc
-#[allow(dead_code)] // TODO
 fn zig_zag_encode(num: i64) -> u64 {
     // If num < 0, num >> 63 is all 1 and vice versa.
     ((num << 1) ^ (num >> 63)) as u64
