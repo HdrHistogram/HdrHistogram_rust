@@ -220,8 +220,11 @@ fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usize, 
     let mut index = 0;
     let mut bytes_written = 0;
 
+    assert!(index_limit <= h.counts.len());
+
     while index < index_limit {
-        let count = h.count_at_index(index).expect("Internal corruption? Could not find count");
+        // index is inside h.counts because of the assert above
+        let count = unsafe { *(h.counts.get_unchecked(index)) };
         index += 1;
 
         // Non-negative values are positive counts or 1 zero, negative values are repeated zeros.
@@ -230,8 +233,8 @@ fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usize, 
         if count == T::zero() {
             zero_count = 1;
 
-            while (index < index_limit) && (h.count_at_index(index)
-                .expect("Internal corruption? Could not find count") == T::zero()) {
+            // index is inside h.counts because of the assert above
+            while (index < index_limit) && (unsafe { *(h.counts.get_unchecked(index)) } == T::zero()) {
                 zero_count += 1;
                 index += 1;
             }

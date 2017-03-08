@@ -1249,10 +1249,6 @@ impl<T: Counter> Histogram<T> {
     // Internal helpers
     // ********************************************************************************************
 
-    fn count_at_index(&self, index: usize) -> Option<T> {
-        self.counts.get(index).map(|r| *r)
-    }
-
     fn set_count_at_index(&mut self, index: usize, count: T) -> Result<(), ()> {
         let mut r = self.counts.get_mut(index).ok_or(())?;
         *r = count;
