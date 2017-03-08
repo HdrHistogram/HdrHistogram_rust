@@ -385,10 +385,12 @@ fn nth_7b_chunk_with_high_bit(input: u64, n: u8) -> u8 {
 }
 
 /// truncate byte to low 7 bits, cast to u64
+#[inline]
 fn low_7_bits(b: u8) -> u64 {
     (b & 0x7F) as u64
 }
 
+#[inline]
 fn is_high_bit_set(b: u8) -> bool {
     // TODO benchmark leading zeros rather than masking
     (b & 0x80) != 0
@@ -401,6 +403,7 @@ fn zig_zag_encode(num: i64) -> u64 {
     ((num << 1) ^ (num >> 63)) as u64
 }
 
+#[inline]
 fn zig_zag_decode(encoded: u64) -> i64 {
     ((encoded >> 1) as i64) ^ -((encoded & 1) as i64)
 }
