@@ -148,6 +148,9 @@
     warnings
 )]
 
+// Enable feature(test) is enabled so that we can have benchmarks of private code
+#![cfg_attr(all(test, feature = "bench_private"), feature(test))]
+
 extern crate num;
 
 use std::borrow::Borrow;

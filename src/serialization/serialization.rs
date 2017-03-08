@@ -10,6 +10,10 @@ use self::byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 #[cfg(test)]
 mod tests;
 
+#[path = "benchmarks.rs"]
+#[cfg(all(test, feature = "bench_private"))]
+mod benchmarks;
+
 const V2_COOKIE_BASE: u32 = 0x1c849303;
 
 const V2_COOKIE: u32 = V2_COOKIE_BASE | 0x10;
@@ -52,7 +56,7 @@ impl V2Serializer {
     /// Serialize the histogram.
     /// Returns the number of bytes written, or an io error.
     pub fn serialize<T: Counter, W: Write>(&mut self, h: &Histogram<T>, writer: &mut W)
-            -> Result<usize, SerializeError> {
+                                           -> Result<usize, SerializeError> {
         self.buf.clear();
         let max_size = Self::max_encoded_size(h).ok_or(SerializeError::UsizeTypeTooSmall)?;
         self.buf.reserve(max_size);
@@ -145,7 +149,7 @@ impl Deserializer {
 
     /// Deserialize an encoded histogram.
     pub fn deserialize<T: Counter, R: Read>(&mut self, reader: &mut R)
-            -> Result<Histogram<T>, DeserializeError> {
+                                            -> Result<Histogram<T>, DeserializeError> {
         // TODO benchmark minimizing read calls by reading into a fixed-size header buffer
 
         let cookie = reader.read_u32::<BigEndian>()?;
@@ -227,7 +231,7 @@ fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usize, 
             zero_count = 1;
 
             while (index < index_limit) && (h.count_at_index(index)
-                        .expect("Internal corruption? Could not find count") == T::zero()) {
+                .expect("Internal corruption? Could not find count") == T::zero()) {
                 zero_count += 1;
                 index += 1;
             }
@@ -255,6 +259,8 @@ fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usize, 
 fn varint_write(input: u64, buf: &mut [u8]) -> usize {
     // The loop is unrolled because the special case is awkward to express in a loop, and it
     // probably makes the branch predictor happier to do it this way.
+    // This way about twice as fast as the other "obvious" approach: a sequence of `if`s to detect
+    // size directly with each branch encoding that number completely and returning.
 
     if (input >> 7) == 0 {
         buf[0] = input as u8;

@@ -22,6 +22,7 @@ travis-ci = { repository = "jonhoo/hdrsample" }
 [features]
 #benchmark = ["criterion"]
 benchmark = [] # for crates.io publication
+bench_private = [] # for enabling nightly-only feature(test) on the main crate to allow benchmarking private code
 
 [dependencies]
 num = "0.1"
@@ -43,4 +44,7 @@ name = "busy"
 path = "benchmarks/busy.rs"
 
 [profile.release]
+debug=true
+
+[profile.bench]
 debug=true
