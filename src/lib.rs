@@ -162,12 +162,12 @@ use iterators::HistogramIterator;
 /// into an integer count. Partial ordering is used for threshholding, also usually in the context
 /// of percentiles.
 pub trait Counter
-    : num::Num + num::ToPrimitive + num::FromPrimitive + Copy + PartialOrd<Self> {
+    : num::Num + num::ToPrimitive + num::FromPrimitive + num::Bounded + Copy + PartialOrd<Self> {
 }
 
 // auto-implement marker trait
 impl<T> Counter for T
-    where T: num::Num + num::ToPrimitive + num::FromPrimitive + Copy + PartialOrd<T>
+    where T: num::Num + num::ToPrimitive + num::FromPrimitive + num::Bounded + Copy + PartialOrd<T>
 {
 }
 
@@ -1246,9 +1246,14 @@ impl<T: Counter> Histogram<T> {
     // Internal helpers
     // ********************************************************************************************
 
-    fn count_at_index(&self, index: usize) -> T {
-        // TODO use Result?
-        self.counts[index]
+    fn count_at_index(&self, index: usize) -> Option<T> {
+        self.counts.get(index).map(|r| *r)
+    }
+
+    fn set_count_at_index(&mut self, index: usize, count: T) -> Result<(), ()> {
+        let mut r = self.counts.get_mut(index).ok_or(())?;
+        *r = count;
+        Ok(())
     }
 
     /// Compute the lowest (and therefore highest precision) bucket index whose sub-buckets can
@@ -1399,8 +1404,12 @@ impl<T: Counter> Histogram<T> {
         let mut min_i = None;
         let mut total_count: u64 = 0;
         for i in 0..until {
+            // TODO can panic. May not be a sensible place to use Result, but should audit paths
+            // that can get here.
             let count = self[i];
             if count != T::zero() {
+                // TODO don't unwrap here; weird types may not work.
+                // Fix Counter types to just be u8-64?
                 total_count = total_count + count.to_u64().unwrap();
                 max_i = Some(i);
                 if min_i.is_none() && i != 0 {

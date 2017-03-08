@@ -1,9 +1,10 @@
 extern crate byteorder;
 
 use super::{Counter, Histogram};
-use std::io::{self, Read, Write};
+use std::io::{self, Cursor, Read, Write};
 use std;
-use self::byteorder::{BigEndian, WriteBytesExt};
+use super::num::ToPrimitive;
+use self::byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
 #[path = "tests.rs"]
 #[cfg(test)]
@@ -21,6 +22,9 @@ pub enum SerializeError {
     /// A count above i64::max_value() cannot be zig-zag encoded, and therefore cannot be
     /// serialized.
     CountNotSerializable,
+    /// Internal calculations cannot be represented in `usize`. Use smaller histograms or beefier
+    /// hardware.
+    UsizeTypeTooSmall,
     /// An i/o operation failed.
     IoError
 }
@@ -31,8 +35,8 @@ impl std::convert::From<std::io::Error> for SerializeError {
     }
 }
 
-/// Serializer for the V2 format.
-/// Serializers are intended to be re-used.
+/// Serializer for the V2 binary format.
+/// Serializers are intended to be re-used for many histograms.
 pub struct V2Serializer {
     buf: Vec<u8>
 }
@@ -50,7 +54,7 @@ impl V2Serializer {
     pub fn serialize<T: Counter, W: Write>(&mut self, h: &Histogram<T>, writer: &mut W)
             -> Result<usize, SerializeError> {
         self.buf.clear();
-        let max_size = Self::max_encoded_size(h);
+        let max_size = Self::max_encoded_size(h).ok_or(SerializeError::UsizeTypeTooSmall)?;
         self.buf.reserve(max_size);
 
         self.buf.write_u32::<BigEndian>(V2_COOKIE)?;
@@ -68,7 +72,7 @@ impl V2Serializer {
 
         unsafe {
             // want to treat the rest of the vec as a slice, and we've already reserved this
-            // space, so this way we don't have to push() on a lot of dummy bytes.
+            // space, so this way we don't have to resize() on a lot of dummy bytes.
             self.buf.set_len(max_size);
         }
 
@@ -84,16 +88,125 @@ impl V2Serializer {
             .map_err(|_| SerializeError::IoError)
     }
 
-    fn max_encoded_size<T: Counter>(h: &Histogram<T>) -> usize {
-        Self::counts_array_max_encoded_size(h.counts.len()) + V2_HEADER_SIZE
+    fn max_encoded_size<T: Counter>(h: &Histogram<T>) -> Option<usize> {
+        Self::counts_array_max_encoded_size(h.index_for(h.max()) + 1)
+            .and_then(|x| x.checked_add(V2_HEADER_SIZE))
     }
 
-    fn counts_array_max_encoded_size(length: usize) -> usize {
+    fn counts_array_max_encoded_size(length: usize) -> Option<usize> {
         // LEB128-64b9B uses at most 9 bytes
         // Won't overflow (except sometimes on 16 bit systems) because largest possible counts
         // len is 47 buckets, each with 2^17 half count, for a total of 6e6. This product will
         // therefore be about 5e7 (50 million) at most.
-        length * 9
+        length.checked_mul(9)
+    }
+}
+
+/// Errors that can happen during deserialization.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum DeserializeError {
+    /// An i/o operation failed.
+    IoError,
+    /// The cookie (first 4 bytes) did not match that for any supported format.
+    InvalidCookie,
+    /// The histogram uses features that this implementation doesn't support (yet), so it cannot
+    /// be deserialized correctly.
+    UnsupportedFeature,
+    /// A count exceeded what can be represented in the chosen counter type.
+    UnsuitableCounterType,
+    /// The histogram instance could not be created because the serialized parameters were invalid
+    /// (e.g. lowest value, highest value, etc.)
+    InvalidParameters,
+    /// The current system's pointer width cannot represent the encoded histogram.
+    UsizeTypeTooSmall,
+    /// The encoded array is longer than it should be for the histogram's value range.
+    EncodedArrayTooLong
+}
+
+impl std::convert::From<std::io::Error> for DeserializeError {
+    fn from(_: std::io::Error) -> Self {
+        DeserializeError::IoError
+    }
+}
+
+/// Deserializer for all supported formats.
+/// Deserializers are intended to be re-used for many histograms.
+pub struct Deserializer {
+    payload_buf: Vec<u8>
+}
+
+impl Deserializer {
+    /// Create a new deserializer.
+    pub fn new() -> Deserializer {
+        Deserializer {
+            payload_buf: Vec::new()
+        }
+    }
+
+    /// Deserialize an encoded histogram.
+    pub fn deserialize<T: Counter, R: Read>(&mut self, reader: &mut R)
+            -> Result<Histogram<T>, DeserializeError> {
+        // TODO benchmark minimizing read calls by reading into a fixed-size header buffer
+
+        let cookie = reader.read_u32::<BigEndian>()?;
+
+        if cookie != V2_COOKIE {
+            return Err(DeserializeError::InvalidCookie);
+        }
+
+        let payload_len = reader.read_u32::<BigEndian>()?.to_usize()
+            .ok_or(DeserializeError::UsizeTypeTooSmall)?;
+        let normalizing_offset = reader.read_u32::<BigEndian>()?;
+        if normalizing_offset != 0 {
+            return Err(DeserializeError::UnsupportedFeature);
+        }
+        let num_digits = reader.read_u32::<BigEndian>()?.to_u8()
+            .ok_or(DeserializeError::InvalidParameters)?;
+        let low = reader.read_u64::<BigEndian>()?;
+        let high = reader.read_u64::<BigEndian>()?;
+        let int_double_ratio = reader.read_f64::<BigEndian>()?;
+        if int_double_ratio != 1.0 {
+            return Err(DeserializeError::UnsupportedFeature);
+        }
+
+        let mut h = Histogram::new_with_bounds(low, high, num_digits)
+            .map_err(|_| DeserializeError::InvalidParameters)?;
+
+        if payload_len > self.payload_buf.len() {
+            self.payload_buf.resize(payload_len, 0);
+        }
+
+        let mut payload_slice = &mut self.payload_buf[0..payload_len];
+        reader.read_exact(&mut payload_slice)?;
+
+        let mut cursor = Cursor::new(&payload_slice);
+        let mut dest_index: usize = 0;
+        while cursor.position() < payload_slice.len() as u64 {
+            let num = zig_zag_decode(varint_read(&mut cursor)?);
+
+            if num < 0 {
+                let zero_count = (-num).to_usize()
+                    .ok_or(DeserializeError::UsizeTypeTooSmall)?;
+                // skip the zeros
+                dest_index = dest_index.checked_add(zero_count)
+                    .ok_or(DeserializeError::UsizeTypeTooSmall)?;
+                continue;
+            } else {
+                let count: T = T::from_i64(num)
+                    .ok_or(DeserializeError::UnsuitableCounterType)?;
+
+                h.set_count_at_index(dest_index, count)
+                    .map_err(|_| DeserializeError::EncodedArrayTooLong)?;
+
+                dest_index = dest_index.checked_add(1)
+                    .ok_or(DeserializeError::UsizeTypeTooSmall)?;
+            }
+        }
+
+        // dest_index is one past the last written index, and is therefore the length to scan
+        h.restat(dest_index);
+
+        Ok(h)
     }
 }
 
@@ -104,7 +217,7 @@ fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usize, 
     let mut bytes_written = 0;
 
     while index < index_limit {
-        let count = h.count_at_index(index);
+        let count = h.count_at_index(index).expect("Internal corruption? Could not find count");
         index += 1;
 
         // Non-negative values are positive counts or 1 zero, negative values are repeated zeros.
@@ -113,7 +226,8 @@ fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usize, 
         if count == T::zero() {
             zero_count = 1;
 
-            while (index < index_limit) && (h.count_at_index(index) == T::zero()) {
+            while (index < index_limit) && (h.count_at_index(index)
+                        .expect("Internal corruption? Could not find count") == T::zero()) {
                 zero_count += 1;
                 index += 1;
             }
@@ -198,37 +312,36 @@ fn varint_write(input: u64, buf: &mut [u8]) -> usize {
 }
 
 /// Read a LEB128-64b9B from the buffer
-#[allow(dead_code)]
 fn varint_read<R: Read>(reader: &mut R) -> io::Result<u64> {
-    let mut b = read_u8(reader)?;
+    let mut b = reader.read_u8()?;
 
     // take low 7 bits
     let mut value: u64 = low_7_bits(b);
 
     if is_high_bit_set(b) {
         // high bit set, keep reading
-        b = read_u8(reader)?;
+        b = reader.read_u8()?;
         value |= low_7_bits(b) << 7;
         if is_high_bit_set(b) {
-            b = read_u8(reader)?;
+            b = reader.read_u8()?;
             value |= low_7_bits(b) << 7 * 2;
             if is_high_bit_set(b) {
-                b = read_u8(reader)?;
+                b = reader.read_u8()?;
                 value |= low_7_bits(b) << 7 * 3;
                 if is_high_bit_set(b) {
-                    b = read_u8(reader)?;
+                    b = reader.read_u8()?;
                     value |= low_7_bits(b) << 7 * 4;
                     if is_high_bit_set(b) {
-                        b = read_u8(reader)?;
+                        b = reader.read_u8()?;
                         value |= low_7_bits(b) << 7 * 5;
                         if is_high_bit_set(b) {
-                            b = read_u8(reader)?;
+                            b = reader.read_u8()?;
                             value |= low_7_bits(b) << 7 * 6;
                             if is_high_bit_set(b) {
-                                b = read_u8(reader)?;
+                                b = reader.read_u8()?;
                                 value |= low_7_bits(b) << 7 * 7;
                                 if is_high_bit_set(b) {
-                                    b = read_u8(reader)?;
+                                    b = reader.read_u8()?;
                                     // special case: use last byte as is
                                     value |= (b as u64) << 7 * 8;
                                 }
@@ -269,19 +382,12 @@ fn is_high_bit_set(b: u8) -> bool {
     (b & 0x80) != 0
 }
 
-fn read_u8<R: Read>(reader: &mut R) -> io::Result<u8> {
-    let mut buf = [0; 1];
-    reader.read_exact(&mut buf)?;
-    Ok(buf[0])
-}
-
 /// Map signed numbers to unsigned: 0 to 0, -1 to 1, 1 to 2, -2 to 3, etc
 fn zig_zag_encode(num: i64) -> u64 {
     // If num < 0, num >> 63 is all 1 and vice versa.
     ((num << 1) ^ (num >> 63)) as u64
 }
 
-#[allow(dead_code)] // TODO
 fn zig_zag_decode(encoded: u64) -> i64 {
     ((encoded >> 1) as i64) ^ -((encoded & 1) as i64)
 }
