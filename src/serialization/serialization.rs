@@ -259,6 +259,7 @@ fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usize, 
 /// quite the same as Protobuf's LEB128 as it encodes 64 bit values in a max of 9 bytes, not 10.
 /// The first 8 7-bit chunks are encoded normally (up through the first 7 bytes of input). The last
 /// byte is added to the buf as-is. This limits the input to 8 bytes, but that's all we need.
+#[inline]
 fn varint_write(input: u64, buf: &mut [u8]) -> usize {
     // The loop is unrolled because the special case is awkward to express in a loop, and it
     // probably makes the branch predictor happier to do it this way.
@@ -369,6 +370,7 @@ fn varint_read<R: Read>(reader: &mut R) -> io::Result<u64> {
 /// n: >0, how many 7-bit shifts to do
 /// Returns the n'th chunk (starting from least significant) of 7 bits as a byte with the the high
 /// bit unchanged.
+#[inline]
 fn nth_7b_chunk(input: u64, n: u8) -> u8 {
     (input >> 7 * n) as u8
 }
@@ -377,6 +379,7 @@ fn nth_7b_chunk(input: u64, n: u8) -> u8 {
 /// n: >0, how many 7-bit shifts to do
 /// Returns the n'th chunk (starting from least significant) of 7 bits as a byte.
 /// The high bit in the byte will be set (not one of the 7 bits that map to input bits).
+#[inline]
 fn nth_7b_chunk_with_high_bit(input: u64, n: u8) -> u8 {
     nth_7b_chunk(input, n) | 0x80
 }
@@ -392,6 +395,7 @@ fn is_high_bit_set(b: u8) -> bool {
 }
 
 /// Map signed numbers to unsigned: 0 to 0, -1 to 1, 1 to 2, -2 to 3, etc
+#[inline]
 fn zig_zag_encode(num: i64) -> u64 {
     // If num < 0, num >> 63 is all 1 and vice versa.
     ((num << 1) ^ (num >> 63)) as u64
