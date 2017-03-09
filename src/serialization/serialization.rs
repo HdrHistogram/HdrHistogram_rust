@@ -207,7 +207,7 @@ impl Deserializer {
             }
         }
 
-        // TODO destat is expensive; should accumulate the necessary state while deserializing
+        // TODO restat is expensive; should accumulate the necessary state while deserializing
         // dest_index is one past the last written index, and is therefore the length to scan
         h.restat(dest_index);
 
@@ -269,6 +269,7 @@ fn varint_write(input: u64, buf: &mut [u8]) -> usize {
     // This way about twice as fast as the other "obvious" approach: a sequence of `if`s to detect
     // size directly with each branch encoding that number completely and returning.
 
+    // TODO try bitwise and instead of shift
     if (input >> 7) == 0 {
         buf[0] = input as u8;
         return 1;

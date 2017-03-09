@@ -165,12 +165,12 @@ use iterators::HistogramIterator;
 /// into an integer count. Partial ordering is used for threshholding, also usually in the context
 /// of percentiles.
 pub trait Counter
-    : num::Num + num::ToPrimitive + num::FromPrimitive + num::Bounded + Copy + PartialOrd<Self> {
+    : num::Num + num::ToPrimitive + num::FromPrimitive + Copy + PartialOrd<Self> {
 }
 
 // auto-implement marker trait
 impl<T> Counter for T
-    where T: num::Num + num::ToPrimitive + num::FromPrimitive + num::Bounded + Copy + PartialOrd<T>
+    where T: num::Num + num::ToPrimitive + num::FromPrimitive + Copy + PartialOrd<T>
 {
 }
 
