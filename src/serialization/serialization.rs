@@ -207,6 +207,7 @@ impl Deserializer {
             }
         }
 
+        // TODO destat is expensive; should accumulate the necessary state while deserializing
         // dest_index is one past the last written index, and is therefore the length to scan
         h.restat(dest_index);
 
@@ -215,6 +216,7 @@ impl Deserializer {
 }
 
 /// Encode counts array into slice.
+/// The slice must be at least 9 * the number of counts that will be encoded.
 fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usize, SerializeError> {
     let index_limit = h.index_for(h.max()) + 1;
     let mut index = 0;
@@ -259,6 +261,7 @@ fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usize, 
 /// quite the same as Protobuf's LEB128 as it encodes 64 bit values in a max of 9 bytes, not 10.
 /// The first 8 7-bit chunks are encoded normally (up through the first 7 bytes of input). The last
 /// byte is added to the buf as-is. This limits the input to 8 bytes, but that's all we need.
+/// Returns the number of bytes written (in [1, 9]).
 #[inline]
 fn varint_write(input: u64, buf: &mut [u8]) -> usize {
     // The loop is unrolled because the special case is awkward to express in a loop, and it
