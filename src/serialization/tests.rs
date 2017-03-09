@@ -1,7 +1,10 @@
 extern crate rand;
 
-use super::*;
+use super::{V2_COOKIE, V2_HEADER_SIZE};
+use super::v2_serializer::{V2Serializer, SerializeError, counts_array_max_encoded_size, encode_counts, varint_write, zig_zag_encode};
+use super::deserializer::{Deserializer, varint_read, zig_zag_decode};
 use super::byteorder::{BigEndian, ReadBytesExt};
+use super::super::{Counter, Histogram};
 use super::super::tests::helpers::histo64;
 use std::io::Cursor;
 use std::fmt::Debug;
@@ -143,7 +146,7 @@ fn serialize_roundtrip_random_u8() {
 fn encode_counts_all_zeros() {
     let h = histo64(1, u64::max_value(), 3);
     let counts_len = h.counts.len();
-    let mut vec = vec![0; V2Serializer::counts_array_max_encoded_size(counts_len).unwrap()];
+    let mut vec = vec![0; counts_array_max_encoded_size(counts_len).unwrap()];
 
     // because max is 0, it doesn't bother traversing the rest of the counts array
 
@@ -159,7 +162,7 @@ fn encode_counts_all_zeros() {
 fn encode_counts_last_count_incremented() {
     let mut h = histo64(1, 2047, 3);
     let counts_len = h.counts.len();
-    let mut vec = vec![0; V2Serializer::counts_array_max_encoded_size(counts_len).unwrap()];
+    let mut vec = vec![0; counts_array_max_encoded_size(counts_len).unwrap()];
 
     assert_eq!(1, h.bucket_count);
     assert_eq!(2048, counts_len);
@@ -183,7 +186,7 @@ fn encode_counts_last_count_incremented() {
 fn encode_counts_first_count_incremented() {
     let mut h = histo64(1, 2047, 3);
     let counts_len = h.counts.len();
-    let mut vec = vec![0; V2Serializer::counts_array_max_encoded_size(counts_len).unwrap()];
+    let mut vec = vec![0; counts_array_max_encoded_size(counts_len).unwrap()];
 
     assert_eq!(1, h.bucket_count);
     assert_eq!(2048, counts_len);
@@ -206,7 +209,7 @@ fn encode_counts_first_count_incremented() {
 fn encode_counts_first_and_last_count_incremented() {
     let mut h = histo64(1, 2047, 3);
     let counts_len = h.counts.len();
-    let mut vec = vec![0; V2Serializer::counts_array_max_encoded_size(counts_len).unwrap()];
+    let mut vec = vec![0; counts_array_max_encoded_size(counts_len).unwrap()];
 
     assert_eq!(1, h.bucket_count);
     assert_eq!(2048, counts_len);
@@ -235,7 +238,7 @@ fn encode_counts_first_and_last_count_incremented() {
 #[test]
 fn encode_counts_count_too_big() {
     let mut h = histo64(1, 2047, 3);
-    let mut vec = vec![0; V2Serializer::counts_array_max_encoded_size(h.counts.len()).unwrap()];
+    let mut vec = vec![0; counts_array_max_encoded_size(h.counts.len()).unwrap()];
 
     // first position
     h.record_n(0, i64::max_value() as u64 + 1).unwrap();

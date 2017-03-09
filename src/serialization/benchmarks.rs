@@ -1,7 +1,9 @@
 extern crate rand;
 extern crate test;
 
-use super::*;
+use super::v2_serializer::varint_write;
+use super::deserializer::varint_read;
+use std::io::Cursor;
 use self::rand::Rng;
 use self::test::Bencher;
 
