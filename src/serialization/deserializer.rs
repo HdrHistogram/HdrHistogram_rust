@@ -1,7 +1,7 @@
 use super::V2_COOKIE;
 use super::super::{Counter, Histogram};
 use super::super::num::ToPrimitive;
-use std::io::{self, Cursor, Read};
+use std::io::{self, Cursor, ErrorKind, Read};
 use std;
 use super::byteorder::{BigEndian, ReadBytesExt};
 
@@ -9,7 +9,7 @@ use super::byteorder::{BigEndian, ReadBytesExt};
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum DeserializeError {
     /// An i/o operation failed.
-    IoError,
+    IoError(ErrorKind),
     /// The cookie (first 4 bytes) did not match that for any supported format.
     InvalidCookie,
     /// The histogram uses features that this implementation doesn't support (yet), so it cannot
@@ -27,8 +27,8 @@ pub enum DeserializeError {
 }
 
 impl std::convert::From<std::io::Error> for DeserializeError {
-    fn from(_: std::io::Error) -> Self {
-        DeserializeError::IoError
+    fn from(e: std::io::Error) -> Self {
+        DeserializeError::IoError(e.kind())
     }
 }
 

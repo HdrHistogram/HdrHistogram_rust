@@ -1,12 +1,12 @@
 use super::{V2_COOKIE, V2_HEADER_SIZE};
 use super::super::{Counter, Histogram};
-use std::io::Write;
+use std::io::{ErrorKind, Write};
 use std;
 use super::byteorder::{BigEndian, WriteBytesExt};
 
 /// Errors that occur during serialization.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum SerializeError {
+pub enum V2SerializeError {
     /// A count above i64::max_value() cannot be zig-zag encoded, and therefore cannot be
     /// serialized.
     CountNotSerializable,
@@ -14,12 +14,12 @@ pub enum SerializeError {
     /// hardware.
     UsizeTypeTooSmall,
     /// An i/o operation failed.
-    IoError
+    IoError(ErrorKind)
 }
 
-impl std::convert::From<std::io::Error> for SerializeError {
-    fn from(_: std::io::Error) -> Self {
-        SerializeError::IoError
+impl std::convert::From<std::io::Error> for V2SerializeError {
+    fn from(e: std::io::Error) -> Self {
+        V2SerializeError::IoError(e.kind())
     }
 }
 
@@ -40,9 +40,9 @@ impl V2Serializer {
     /// Serialize the histogram.
     /// Returns the number of bytes written, or an io error.
     pub fn serialize<T: Counter, W: Write>(&mut self, h: &Histogram<T>, writer: &mut W)
-                                           -> Result<usize, SerializeError> {
+                                           -> Result<usize, V2SerializeError> {
         self.buf.clear();
-        let max_size = max_encoded_size(h).ok_or(SerializeError::UsizeTypeTooSmall)?;
+        let max_size = max_encoded_size(h).ok_or(V2SerializeError::UsizeTypeTooSmall)?;
         self.buf.reserve(max_size);
 
         self.buf.write_u32::<BigEndian>(V2_COOKIE)?;
@@ -73,7 +73,7 @@ impl V2Serializer {
 
         writer.write_all(&mut self.buf[0..(total_len)])
             .map(|_| total_len)
-            .map_err(|_| SerializeError::IoError)
+            .map_err(|e| V2SerializeError::IoError(e.kind()))
     }
 }
 
@@ -92,7 +92,7 @@ pub fn counts_array_max_encoded_size(length: usize) -> Option<usize> {
 
 /// Encode counts array into slice.
 /// The slice must be at least 9 * the number of counts that will be encoded.
-pub fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usize, SerializeError> {
+pub fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usize, V2SerializeError> {
     let index_limit = h.index_for(h.max()) + 1;
     let mut index = 0;
     let mut bytes_written = 0;
@@ -121,7 +121,7 @@ pub fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usi
             // zero count can be at most the entire counts array, which is at most 2^24, so will fit.
             -zero_count
         } else {
-            count.to_i64().ok_or(SerializeError::CountNotSerializable)?
+            count.to_i64().ok_or(V2SerializeError::CountNotSerializable)?
         };
 
         let zz = zig_zag_encode(count_or_zeros);

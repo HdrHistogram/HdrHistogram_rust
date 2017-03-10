@@ -10,7 +10,7 @@ mod benchmarks;
 
 #[path = "v2_serializer.rs"]
 mod v2_serializer;
-pub use self::v2_serializer::{V2Serializer, SerializeError};
+pub use self::v2_serializer::{V2Serializer, V2SerializeError};
 
 #[path = "deserializer.rs"]
 mod deserializer;

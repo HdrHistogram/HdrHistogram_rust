@@ -1,7 +1,7 @@
 extern crate rand;
 
 use super::{V2_COOKIE, V2_HEADER_SIZE};
-use super::v2_serializer::{V2Serializer, SerializeError, counts_array_max_encoded_size, encode_counts, varint_write, zig_zag_encode};
+use super::v2_serializer::{V2Serializer, V2SerializeError, counts_array_max_encoded_size, encode_counts, varint_write, zig_zag_encode};
 use super::deserializer::{Deserializer, varint_read, zig_zag_decode};
 use super::byteorder::{BigEndian, ReadBytesExt};
 use super::super::{Counter, Histogram};
@@ -242,7 +242,7 @@ fn encode_counts_count_too_big() {
 
     // first position
     h.record_n(0, i64::max_value() as u64 + 1).unwrap();
-    assert_eq!(SerializeError::CountNotSerializable, encode_counts(&h, &mut vec[..]).unwrap_err());
+    assert_eq!(V2SerializeError::CountNotSerializable, encode_counts(&h, &mut vec[..]).unwrap_err());
 }
 
 
