@@ -33,7 +33,9 @@ impl std::convert::From<std::io::Error> for DeserializeError {
 }
 
 /// Deserializer for all supported formats.
-/// Deserializers are intended to be re-used for many histograms.
+///
+/// Since the serialization formats all include some magic bytes that allow reliable identification
+/// of the different formats, only one Deserializer implementation is needed.
 pub struct Deserializer {
     payload_buf: Vec<u8>
 }
@@ -114,6 +116,7 @@ impl Deserializer {
     }
 }
 
+// Only public for testing.
 /// Read a LEB128-64b9B from the buffer
 pub fn varint_read<R: Read>(reader: &mut R) -> io::Result<u64> {
     let mut b = reader.read_u8()?;
@@ -171,6 +174,7 @@ fn is_high_bit_set(b: u8) -> bool {
     (b & 0x80) != 0
 }
 
+// Only public for testing.
 #[inline]
 pub fn zig_zag_decode(encoded: u64) -> i64 {
     ((encoded >> 1) as i64) ^ -((encoded & 1) as i64)

@@ -130,7 +130,6 @@ not (yet) been implemented:
    `DoubleHistogram` features are supported.
  - The `Recorder` feature of HdrHistogram.
  - Value shifting ("normalization").
- - Histogram serialization and encoding/decoding.
  - Timestamps and tags.
  - Textual output methods. These seem almost orthogonal to HdrSample, though it might be
    convenient if we implemented some relevant traits (CSV, JSON, and possibly simple

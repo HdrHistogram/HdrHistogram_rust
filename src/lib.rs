@@ -124,7 +124,6 @@
 //!    `DoubleHistogram` features are supported.
 //!  - The `Recorder` feature of HdrHistogram.
 //!  - Value shifting ("normalization").
-//!  - Histogram serialization and encoding/decoding.
 //!  - Timestamps and tags.
 //!  - Textual output methods. These seem almost orthogonal to HdrSample, though it might be
 //!    convenient if we implemented some relevant traits (CSV, JSON, and possibly simple
@@ -1517,6 +1516,5 @@ impl<T: Counter, F: Counter> PartialEq<Histogram<F>> for Histogram<T>
 #[cfg(test)]
 mod tests;
 
-/// Serialization/deserialization support.
 #[path = "serialization/serialization.rs"]
 pub mod serialization;

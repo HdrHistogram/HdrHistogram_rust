@@ -24,7 +24,6 @@ impl std::convert::From<std::io::Error> for V2SerializeError {
 }
 
 /// Serializer for the V2 binary format.
-/// Serializers are intended to be re-used for many histograms.
 pub struct V2Serializer {
     buf: Vec<u8>
 }
@@ -82,6 +81,7 @@ fn max_encoded_size<T: Counter>(h: &Histogram<T>) -> Option<usize> {
         .and_then(|x| x.checked_add(V2_HEADER_SIZE))
 }
 
+// Only public for testing.
 pub fn counts_array_max_encoded_size(length: usize) -> Option<usize> {
     // LEB128-64b9B uses at most 9 bytes
     // Won't overflow (except sometimes on 16 bit systems) because largest possible counts
@@ -90,6 +90,7 @@ pub fn counts_array_max_encoded_size(length: usize) -> Option<usize> {
     length.checked_mul(9)
 }
 
+// Only public for testing.
 /// Encode counts array into slice.
 /// The slice must be at least 9 * the number of counts that will be encoded.
 pub fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usize, V2SerializeError> {
@@ -132,6 +133,7 @@ pub fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usi
     Ok(bytes_written)
 }
 
+// Only public for testing.
 /// Write a number as a LEB128-64b9B little endian base 128 varint to buf. This is not
 /// quite the same as Protobuf's LEB128 as it encodes 64 bit values in a max of 9 bytes, not 10.
 /// The first 8 7-bit chunks are encoded normally (up through the first 7 bytes of input). The last
@@ -216,6 +218,7 @@ fn nth_7b_chunk_with_high_bit(input: u64, n: u8) -> u8 {
     (shift_by_7s(input, n) as u8) | 0x80
 }
 
+// Only public for testing.
 /// Map signed numbers to unsigned: 0 to 0, -1 to 1, 1 to 2, -2 to 3, etc
 #[inline]
 pub fn zig_zag_encode(num: i64) -> u64 {
