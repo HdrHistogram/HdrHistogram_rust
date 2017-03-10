@@ -144,46 +144,45 @@ pub fn varint_write(input: u64, buf: &mut [u8]) -> usize {
     // This way about twice as fast as the other "obvious" approach: a sequence of `if`s to detect
     // size directly with each branch encoding that number completely and returning.
 
-    // TODO try bitwise and instead of shift
     if (input >> 7) == 0 {
         buf[0] = input as u8;
         return 1;
     } else {
         // set high bit because more bytes are coming, then next 7 bits of value.
         buf[0] = 0x80 | ((input & 0x7F) as u8);
-        if (input >> 7 * 2) == 0 {
-            // nothing above bottom 2 chunks, this is the last byte, so no high bit
-            buf[1] = nth_7b_chunk(input, 1);
+        if shift_by_7s(input, 2) == 0 {
+            // All zero above bottom 2 chunks, this is the last byte, so no high bit
+            buf[1] = shift_by_7s(input, 1) as u8;
             return 2;
         } else {
             buf[1] = nth_7b_chunk_with_high_bit(input, 1);
-            if (input >> 7 * 3) == 0 {
-                buf[2] = nth_7b_chunk(input, 2);
+            if shift_by_7s(input, 3) == 0 {
+                buf[2] = shift_by_7s(input, 2) as u8;
                 return 3;
             } else {
                 buf[2] = nth_7b_chunk_with_high_bit(input, 2);
-                if (input >> 7 * 4) == 0 {
-                    buf[3] = nth_7b_chunk(input, 3);
+                if shift_by_7s(input, 4) == 0 {
+                    buf[3] = shift_by_7s(input, 3) as u8;
                     return 4;
                 } else {
                     buf[3] = nth_7b_chunk_with_high_bit(input, 3);
-                    if (input >> 7 * 5) == 0 {
-                        buf[4] = nth_7b_chunk(input, 4);
+                    if shift_by_7s(input, 5) == 0 {
+                        buf[4] = shift_by_7s(input, 4) as u8;
                         return 5;
                     } else {
                         buf[4] = nth_7b_chunk_with_high_bit(input, 4);
-                        if (input >> 7 * 6) == 0 {
-                            buf[5] = nth_7b_chunk(input, 5);
+                        if shift_by_7s(input, 6) == 0 {
+                            buf[5] = shift_by_7s(input, 5) as u8;
                             return 6;
                         } else {
                             buf[5] = nth_7b_chunk_with_high_bit(input, 5);
-                            if (input >> 7 * 7) == 0 {
-                                buf[6] = nth_7b_chunk(input, 6);
+                            if shift_by_7s(input, 7) == 0 {
+                                buf[6] = shift_by_7s(input, 6) as u8;
                                 return 7;
                             } else {
                                 buf[6] = nth_7b_chunk_with_high_bit(input, 6);
-                                if (input >> 7 * 8) == 0 {
-                                    buf[7] = nth_7b_chunk(input, 7);
+                                if shift_by_7s(input, 8) == 0 {
+                                    buf[7] = shift_by_7s(input, 7) as u8;
                                     return 8;
                                 } else {
                                     buf[7] = nth_7b_chunk_with_high_bit(input, 7);
@@ -202,11 +201,10 @@ pub fn varint_write(input: u64, buf: &mut [u8]) -> usize {
 
 /// input: a u64
 /// n: >0, how many 7-bit shifts to do
-/// Returns the n'th chunk (starting from least significant) of 7 bits as a byte with the the high
-/// bit unchanged.
+/// Returns the input shifted over by `n` groups of 7 bits.
 #[inline]
-fn nth_7b_chunk(input: u64, n: u8) -> u8 {
-    (input >> 7 * n) as u8
+fn shift_by_7s(input: u64, n: u8) -> u64 {
+    input >> (7 * n)
 }
 
 /// input: a u64
@@ -215,7 +213,7 @@ fn nth_7b_chunk(input: u64, n: u8) -> u8 {
 /// The high bit in the byte will be set (not one of the 7 bits that map to input bits).
 #[inline]
 fn nth_7b_chunk_with_high_bit(input: u64, n: u8) -> u8 {
-    nth_7b_chunk(input, n) | 0x80
+    (shift_by_7s(input, n) as u8) | 0x80
 }
 
 /// Map signed numbers to unsigned: 0 to 0, -1 to 1, 1 to 2, -2 to 3, etc
