@@ -130,7 +130,6 @@ not (yet) been implemented:
    `DoubleHistogram` features are supported.
  - The `Recorder` feature of HdrHistogram.
  - Value shifting ("normalization").
- - Histogram serialization and encoding/decoding.
  - Timestamps and tags.
  - Textual output methods. These seem almost orthogonal to HdrSample, though it might be
    convenient if we implemented some relevant traits (CSV, JSON, and possibly simple
@@ -157,6 +156,45 @@ and this to your crate root:
 ```rust
 extern crate hdrsample;
 ```
+
+## Benchmarking
+
+Both Rust's built-in benchmarking and [Criterion](https://github.com/japaric/criterion.rs) are used.
+
+For the benchmarks in `benches`:
+
+```
+rustup run nightly cargo bench
+```
+
+There are also some benchmarks inside `src` for directly benchmarking non-public code. To enable using nightly features (like benchmark support) in the main tree, another feature must be enabled to access those benchmarks:
+
+```
+rustup run nightly cargo bench --features=bench_private
+```
+
+For Criterion, you will need to manually edit Cargo.toml like this diff output (commenting and uncommenting lines as needed):
+
+```
+ [features]
+-#benchmark = ["criterion"]
+-benchmark = [] # for crates.io publication
++benchmark = ["criterion"]
++#benchmark = [] # for crates.io publication
+
+ [dependencies]
+ num = "0.1"
+-#criterion = { git = "https://github.com/japaric/criterion.rs.git", optional = true }
++criterion = { git = "https://github.com/japaric/criterion.rs.git", optional = true }
+```
+
+Then run:
+
+```
+rustup run nightly cargo run --bin perf --release --features benchmark
+```
+
+
 
 ## License
 

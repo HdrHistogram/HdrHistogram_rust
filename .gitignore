@@ -11,3 +11,4 @@ Cargo.lock
 *.iml
 
 .criterion
+perf.data*

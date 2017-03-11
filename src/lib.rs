@@ -124,7 +124,6 @@
 //!    `DoubleHistogram` features are supported.
 //!  - The `Recorder` feature of HdrHistogram.
 //!  - Value shifting ("normalization").
-//!  - Histogram serialization and encoding/decoding.
 //!  - Timestamps and tags.
 //!  - Textual output methods. These seem almost orthogonal to HdrSample, though it might be
 //!    convenient if we implemented some relevant traits (CSV, JSON, and possibly simple
@@ -147,6 +146,9 @@
     variant_size_differences,
     warnings
 )]
+
+// Enable feature(test) is enabled so that we can have benchmarks of private code
+#![cfg_attr(all(test, feature = "bench_private"), feature(test))]
 
 extern crate num;
 
@@ -1246,6 +1248,12 @@ impl<T: Counter> Histogram<T> {
     // Internal helpers
     // ********************************************************************************************
 
+    fn set_count_at_index(&mut self, index: usize, count: T) -> Result<(), ()> {
+        let mut r = self.counts.get_mut(index).ok_or(())?;
+        *r = count;
+        Ok(())
+    }
+
     /// Compute the lowest (and therefore highest precision) bucket index whose sub-buckets can
     /// represent the value.
     #[inline]
@@ -1394,8 +1402,12 @@ impl<T: Counter> Histogram<T> {
         let mut min_i = None;
         let mut total_count: u64 = 0;
         for i in 0..until {
+            // TODO can panic. May not be a sensible place to use Result, but should audit paths
+            // that can get here.
             let count = self[i];
             if count != T::zero() {
+                // TODO don't unwrap here; weird types may not work.
+                // Fix Counter types to just be u8-64?
                 total_count = total_count + count.to_u64().unwrap();
                 max_i = Some(i);
                 if min_i.is_none() && i != 0 {
@@ -1503,3 +1515,6 @@ impl<T: Counter, F: Counter> PartialEq<Histogram<F>> for Histogram<T>
 #[path = "tests/tests.rs"]
 #[cfg(test)]
 mod tests;
+
+#[path = "serialization/serialization.rs"]
+pub mod serialization;

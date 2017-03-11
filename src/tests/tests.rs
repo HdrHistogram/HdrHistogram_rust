@@ -1,7 +1,7 @@
 use super::{CreationError, Histogram};
 
 #[path = "helpers.rs"]
-mod helpers;
+pub mod helpers;
 #[path = "init.rs"]
 mod init;
 #[path = "index_calculation.rs"]
