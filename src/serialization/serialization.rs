@@ -31,7 +31,7 @@
 //! # API
 //!
 //! Each serialization format has its own serializer struct, but since each format is reliably
-//! distinguishable from each othere, there is only one `Deserializer` struct that will work for
+//! distinguishable from each other, there is only one `Deserializer` struct that will work for
 //! any of the formats this library implements. For now there is only one serializer
 //! (`V2Serializer`) but more will be added.
 //!
