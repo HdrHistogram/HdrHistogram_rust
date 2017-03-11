@@ -97,7 +97,23 @@
 //!
 //! # Examples
 //!
-//! This example shows serializing several histograms into a `Vec<u8>` and deserializing them again.
+//! Creating, serializing, and deserializing a single histogram using a `Vec<u8>` as a `Write` and a
+//! `&[u8]` slice from the vec as a `Read`.
+//! 
+//! ```
+//! use hdrsample::Histogram;
+//! use hdrsample::serialization::{Deserializer, V2Serializer};
+//!
+//! let mut vec = Vec::new();
+//! let orig_histogram = Histogram::<u64>::new(1).unwrap();
+//! V2Serializer::new().serialize(&orig_histogram, &mut vec).unwrap();
+//!
+//! let histogram: Histogram<u64> = Deserializer::new()
+//!     .deserialize(&mut vec.as_slice()).unwrap();
+//! ```
+//! 
+//! This example shows serializing several histograms into a `Vec<u8>` and deserializing them again,
+//! at which point they are summed into one histogram (for further hypothetical analysis).
 //!
 //! ```
 //! use hdrsample::Histogram;
@@ -112,7 +128,7 @@
 //! // Make some histograms
 //! for _ in 0..num_histograms {
 //!     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
-//!     h.record(42);
+//!     h.record_n(42, 7);
 //!     histograms.push(h);
 //! }
 //!
@@ -127,13 +143,22 @@
 //! // Read them back out again
 //! let mut deserializer = Deserializer::new();
 //! let mut cursor = Cursor::new(&buf);
+//!
+//! let mut accumulator =
+//!     Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+//!
 //! for _ in 0..num_histograms {
 //!     let h: Histogram<u64> = deserializer.deserialize(&mut cursor).unwrap();
 //!
 //!     // behold, they are restored as they were originally
-//!     assert_eq!(1, h.count_at(42).unwrap());
+//!     assert_eq!(7, h.count_at(42).unwrap());
 //!     assert_eq!(0, h.count_at(1000).unwrap());
+//!
+//!     accumulator.add(h).unwrap();
 //! }
+//!
+//! // all the counts are there
+//! assert_eq!(num_histograms * 7, accumulator.count_at(42).unwrap());
 //! ```
 //!
 

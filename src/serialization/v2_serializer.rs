@@ -36,8 +36,10 @@ impl V2Serializer {
         }
     }
 
-    /// Serialize the histogram.
+    /// Serialize the histogram into the provided writer.
     /// Returns the number of bytes written, or an io error.
+    ///
+    /// Note that `Vec<u8>` is a reasonable `Write` implementation for simple usage.
     pub fn serialize<T: Counter, W: Write>(&mut self, h: &Histogram<T>, writer: &mut W)
                                            -> Result<usize, V2SerializeError> {
         self.buf.clear();

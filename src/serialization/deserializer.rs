@@ -48,7 +48,10 @@ impl Deserializer {
         }
     }
 
-    /// Deserialize an encoded histogram.
+    /// Deserialize an encoded histogram from the provided reader.
+    ///
+    /// Note that `&[u8]` and `Cursor` are convenient implementations of `Read` if you have some
+    /// bytes already in slice or `Vec` form.
     pub fn deserialize<T: Counter, R: Read>(&mut self, reader: &mut R)
                                             -> Result<Histogram<T>, DeserializeError> {
         // TODO benchmark minimizing read calls by reading into a fixed-size header buffer
