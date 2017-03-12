@@ -160,6 +160,7 @@ use iterators::HistogramIterator;
 
 /// Min value of a new histogram.
 /// Equivalent to u64::max_value(), but const functions aren't allowed (yet).
+/// See https://github.com/rust-lang/rust/issues/24111
 const ORIGINAL_MIN: u64 = (-1_i64 >> 63) as u64;
 /// Max value of a new histogram.
 const ORIGINAL_MAX: u64 = 0;
@@ -455,6 +456,7 @@ impl<T: Counter> Histogram<T> {
                 let other_count = source[i];
                 if other_count != T::zero() {
                     self[i] = self[i] + other_count;
+                    // TODO unwrapping .to_u64()
                     observed_other_total_count = observed_other_total_count + other_count.to_u64().unwrap();
                 }
             }
@@ -1034,7 +1036,7 @@ impl<T: Counter> Histogram<T> {
     /// If the histogram has no recorded values, the value returned is undefined.
     pub fn max(&self) -> u64 {
         if self.max_value == ORIGINAL_MAX {
-            0
+            ORIGINAL_MAX
         } else {
             self.highest_equivalent(self.max_value)
         }
@@ -1044,7 +1046,7 @@ impl<T: Counter> Histogram<T> {
     /// If the histogram has no recorded values, the value returned is `u64::max_value()`.
     pub fn min_nz(&self) -> u64 {
         if self.min_non_zero_value == ORIGINAL_MIN {
-            u64::max_value()
+            ORIGINAL_MIN
         } else {
             self.lowest_equivalent(self.min_non_zero_value)
         }
@@ -1454,7 +1456,7 @@ impl <T: Counter> RestatState<T> {
 
     /// Write updated min, max, etc into histogram.
     /// Called once all counts have been iterated across.
-    fn update_histogram(&self, h: &mut Histogram<T>) {
+    fn update_histogram(self, h: &mut Histogram<T>) {
         if let Some(max_i) = self.max_index {
             let max = h.highest_equivalent(h.value_for(max_i));
             h.update_max(max);
