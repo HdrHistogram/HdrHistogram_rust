@@ -1,5 +1,5 @@
 use super::V2_COOKIE;
-use super::super::{Counter, Histogram};
+use super::super::{Counter, Histogram, RestatState};
 use super::super::num::ToPrimitive;
 use std::io::{self, Cursor, ErrorKind, Read};
 use std;
@@ -89,6 +89,7 @@ impl Deserializer {
 
         let mut cursor = Cursor::new(&payload_slice);
         let mut dest_index: usize = 0;
+        let mut restat_state = RestatState::new();
         while cursor.position() < payload_slice.len() as u64 {
             let num = zig_zag_decode(varint_read(&mut cursor)?);
 
@@ -106,14 +107,14 @@ impl Deserializer {
                 h.set_count_at_index(dest_index, count)
                     .map_err(|_| DeserializeError::EncodedArrayTooLong)?;
 
+                restat_state.on_nonzero_count(dest_index, count);
+
                 dest_index = dest_index.checked_add(1)
                     .ok_or(DeserializeError::UsizeTypeTooSmall)?;
             }
         }
 
-        // TODO restat is expensive; should accumulate the necessary state while deserializing
-        // dest_index is one past the last written index, and is therefore the length to scan
-        h.restat(dest_index);
+        restat_state.update_histogram(&mut h);
 
         Ok(h)
     }

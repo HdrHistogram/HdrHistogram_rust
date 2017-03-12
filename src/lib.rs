@@ -158,6 +158,12 @@ use std::ops::{Index, IndexMut, AddAssign, SubAssign};
 
 use iterators::HistogramIterator;
 
+/// Min value of a new histogram.
+/// Equivalent to u64::max_value(), but const functions aren't allowed (yet).
+const ORIGINAL_MIN: u64 = (-1_i64 >> 63) as u64;
+/// Max value of a new histogram.
+const ORIGINAL_MAX: u64 = 0;
+
 /// This auto-implemented marker trait represents the operations a histogram must be able to
 /// perform on the underlying counter type. The `ToPrimitive` trait is needed to perform floating
 /// point operations on the counts (usually for percentiles). The `FromPrimitive` to convert back
@@ -576,8 +582,8 @@ impl<T: Counter> Histogram<T> {
     pub fn reset(&mut self) {
         self.clear();
 
-        self.reset_max(0);
-        self.reset_min(u64::max_value());
+        self.reset_max(ORIGINAL_MAX);
+        self.reset_min(ORIGINAL_MIN);
         // self.normalizing_index_offset = 0;
         // self.start_time = time::Instant::now();
         // self.end_time = time::Instant::now();
@@ -713,8 +719,8 @@ impl<T: Counter> Histogram<T> {
             sub_bucket_mask: sub_bucket_mask,
 
             unit_magnitude_mask: unit_magnitude_mask,
-            max_value: 0,
-            min_non_zero_value: u64::max_value(),
+            max_value: ORIGINAL_MAX,
+            min_non_zero_value: ORIGINAL_MIN,
 
             total_count: 0,
             // set by alloc() below
@@ -1027,7 +1033,7 @@ impl<T: Counter> Histogram<T> {
     /// Get the highest recorded value level in the histogram.
     /// If the histogram has no recorded values, the value returned is undefined.
     pub fn max(&self) -> u64 {
-        if self.max_value == 0 {
+        if self.max_value == ORIGINAL_MAX {
             0
         } else {
             self.highest_equivalent(self.max_value)
@@ -1037,7 +1043,7 @@ impl<T: Counter> Histogram<T> {
     /// Get the lowest recorded non-zero value level in the histogram.
     /// If the histogram has no recorded values, the value returned is `u64::max_value()`.
     pub fn min_nz(&self) -> u64 {
-        if self.min_non_zero_value == u64::max_value() {
+        if self.min_non_zero_value == ORIGINAL_MIN {
             u64::max_value()
         } else {
             self.lowest_equivalent(self.min_non_zero_value)
@@ -1395,37 +1401,70 @@ impl<T: Counter> Histogram<T> {
     }
 
     fn restat(&mut self, until: usize) {
-        self.reset_max(0);
-        self.reset_min(u64::max_value());
+        self.reset_max(ORIGINAL_MAX);
+        self.reset_min(ORIGINAL_MIN);
 
-        let mut max_i = None;
-        let mut min_i = None;
-        let mut total_count: u64 = 0;
+        let mut restat_state = RestatState::new();
+
         for i in 0..until {
             // TODO can panic. May not be a sensible place to use Result, but should audit paths
             // that can get here.
             let count = self[i];
             if count != T::zero() {
-                // TODO don't unwrap here; weird types may not work.
-                // Fix Counter types to just be u8-64?
-                total_count = total_count + count.to_u64().unwrap();
-                max_i = Some(i);
-                if min_i.is_none() && i != 0 {
-                    min_i = Some(i);
-                }
+                restat_state.on_nonzero_count(i, count);
             }
         }
 
-        if let Some(max_i) = max_i {
-            let max = self.highest_equivalent(self.value_for(max_i));
-            self.update_max(max);
+        restat_state.update_histogram(self);
+    }
+}
+
+/// Stores the state to calculate the max, min, etc for a histogram by iterating across the counts
+struct RestatState<T: Counter> {
+    max_index: Option<usize>,
+    min_index: Option<usize>,
+    total_count: u64,
+    phantom: std::marker::PhantomData<T>
+}
+
+impl <T: Counter> RestatState<T> {
+    fn new() -> RestatState<T> {
+        RestatState {
+            max_index: None,
+            min_index: None,
+            total_count: 0,
+            phantom: std::marker::PhantomData
         }
-        if let Some(min_i) = min_i {
-            let min = self.value_for(min_i);
-            self.update_min(min);
+    }
+
+    /// Should be called on every non-zero count found
+    #[inline]
+    fn on_nonzero_count(&mut self, index: usize, count: T) {
+        // TODO don't unwrap here; weird user Counter types may not work.
+        // Fix Counter types to just be u8-64?
+        // TODO this can wrap, but not sure there's much we can do about that. Saturating add maybe?
+        self.total_count += count.to_u64().unwrap();
+
+        self.max_index = Some(index);
+
+        if self.min_index.is_none() && index != 0 {
+            self.min_index = Some(index);
+        }
+    }
+
+    /// Write updated min, max, etc into histogram.
+    /// Called once all counts have been iterated across.
+    fn update_histogram(&self, h: &mut Histogram<T>) {
+        if let Some(max_i) = self.max_index {
+            let max = h.highest_equivalent(h.value_for(max_i));
+            h.update_max(max);
+        }
+        if let Some(min_i) = self.min_index {
+            let min = h.value_for(min_i);
+            h.update_min(min);
         }
 
-        self.total_count = total_count;
+        h.total_count = self.total_count;
     }
 }
 
