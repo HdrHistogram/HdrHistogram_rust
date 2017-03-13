@@ -2,14 +2,16 @@ extern crate rand;
 
 use super::{V2_COOKIE, V2_HEADER_SIZE};
 use super::v2_serializer::{V2Serializer, V2SerializeError, counts_array_max_encoded_size, encode_counts, varint_write, zig_zag_encode};
-use super::deserializer::{Deserializer, varint_read, zig_zag_decode};
+use super::deserializer::{Deserializer, varint_read, varint_read_slice, zig_zag_decode};
 use super::byteorder::{BigEndian, ReadBytesExt};
 use super::super::{Counter, Histogram};
+use super::super::num::traits::{Saturating, ToPrimitive};
 use super::super::tests::helpers::histo64;
 use std::io::Cursor;
-use std::fmt::Debug;
-use self::rand::Rng;
-use self::rand::distributions::range::Range;
+use std::fmt::{Debug, Display};
+use std::iter::once;
+use self::rand::{Rand, Rng};
+use self::rand::distributions::range::{Range, SampleRange};
 use self::rand::distributions::IndependentSample;
 
 #[test]
@@ -123,22 +125,22 @@ fn serialize_roundtrip_1_count_for_every_value_2_buckets() {
 
 #[test]
 fn serialize_roundtrip_random_u64() {
-    do_serialize_roundtrip_random::<u64>();
+    do_serialize_roundtrip_random::<u64>(i64::max_value() as u64);
 }
 
 #[test]
 fn serialize_roundtrip_random_u32() {
-    do_serialize_roundtrip_random::<u32>();
+    do_serialize_roundtrip_random::<u32>(u32::max_value());
 }
 
 #[test]
 fn serialize_roundtrip_random_u16() {
-    do_serialize_roundtrip_random::<u16>();
+    do_serialize_roundtrip_random::<u16>(u16::max_value());
 }
 
 #[test]
 fn serialize_roundtrip_random_u8() {
-    do_serialize_roundtrip_random::<u8>();
+    do_serialize_roundtrip_random::<u8>(u8::max_value());
 }
 
 #[test]
@@ -336,6 +338,51 @@ fn varint_write_read_roundtrip_rand_9_byte() {
 }
 
 #[test]
+fn varint_write_read_slice_roundtrip_rand_1_byte() {
+    do_varint_write_read_slice_roundtrip_rand(1);
+}
+
+#[test]
+fn varint_write_read_slice_roundtrip_rand_2_byte() {
+    do_varint_write_read_slice_roundtrip_rand(2);
+}
+
+#[test]
+fn varint_write_read_slice_roundtrip_rand_3_byte() {
+    do_varint_write_read_slice_roundtrip_rand(3);
+}
+
+#[test]
+fn varint_write_read_slice_roundtrip_rand_4_byte() {
+    do_varint_write_read_slice_roundtrip_rand(4);
+}
+
+#[test]
+fn varint_write_read_slice_roundtrip_rand_5_byte() {
+    do_varint_write_read_slice_roundtrip_rand(5);
+}
+
+#[test]
+fn varint_write_read_slice_roundtrip_rand_6_byte() {
+    do_varint_write_read_slice_roundtrip_rand(6);
+}
+
+#[test]
+fn varint_write_read_slice_roundtrip_rand_7_byte() {
+    do_varint_write_read_slice_roundtrip_rand(7);
+}
+
+#[test]
+fn varint_write_read_slice_roundtrip_rand_8_byte() {
+    do_varint_write_read_slice_roundtrip_rand(8);
+}
+
+#[test]
+fn varint_write_read_slice_roundtrip_rand_9_byte() {
+    do_varint_write_read_slice_roundtrip_rand(9);
+}
+
+#[test]
 fn zig_zag_encode_0() {
     assert_eq!(0, zig_zag_encode(0));
 }
@@ -351,6 +398,21 @@ fn zig_zag_encode_1() {
 }
 
 #[test]
+fn zig_zag_decode_0() {
+    assert_eq!(0, zig_zag_decode(0));
+}
+
+#[test]
+fn zig_zag_decode_1() {
+    assert_eq!(-1, zig_zag_decode(1));
+}
+
+#[test]
+fn zig_zag_decode_2() {
+    assert_eq!(1, zig_zag_decode(2));
+}
+
+#[test]
 fn zig_zag_encode_i64_max() {
     assert_eq!(u64::max_value() - 1, zig_zag_encode(i64::max_value()));
 }
@@ -361,12 +423,12 @@ fn zig_zag_encode_i64_min() {
 }
 
 #[test]
-fn zig_zag_decode_i64_min() {
+fn zig_zag_decode_u64_max_to_i64_min() {
     assert_eq!(i64::min_value(), zig_zag_decode(u64::max_value()))
 }
 
 #[test]
-fn zig_zag_decode_i64_max() {
+fn zig_zag_decode_u64_max_penultimate_to_i64_max() {
     assert_eq!(i64::max_value(), zig_zag_decode(u64::max_value() - 1))
 }
 
@@ -383,37 +445,97 @@ fn zig_zag_roundtrip_random() {
     }
 }
 
-fn do_varint_write_read_roundtrip_rand(length: usize) {
-    let range = Range::new(1 << ((length - 1) * 7), 1 << (length * 7));
-    let mut rng = rand::weak_rng();
+// Test that varint test helpers are correct
+
+#[test]
+fn largest_number_in_7_bit_chunk_correct() {
+    // 8 chunks (indices 0-7) of 7 bits gets you to 56 bits. Last byte in varint is handled
+    // differently, so we don't test that here.
+    for i in 0..8 {
+        let largest = largest_number_in_7_bit_chunk(i);
+        assert_eq!((i as u32 + 1) * 7, largest.count_ones());
+
+        assert_eq!(64 - ((i as u32) + 1) * 7, largest.leading_zeros());
+        // any larger and it will be in the next chunk
+        assert_eq!(largest.leading_zeros() - 1, (largest + 1).leading_zeros());
+    };
+}
+
+fn do_varint_write_read_roundtrip_rand(byte_length: usize) {
+    assert!(byte_length <= 9 && byte_length >= 1);
+
+    let smallest_in_range = smallest_number_in_n_byte_varint(byte_length);
+    let largest_in_range = largest_number_in_n_byte_varint(byte_length);
+
     let mut buf = [0; 9];
-    for _ in 1..100_000 {
+    // Bunch of random numbers, plus the start and end of the range
+    let range = Range::new(smallest_in_range, largest_in_range);
+    for i in RandomRangeIter::new(rand::weak_rng(), range).take(100_000)
+        .chain(once(smallest_in_range))
+        .chain(once(largest_in_range)) {
         for i in 0..(buf.len()) {
             buf[i] = 0;
         };
-        let r: u64 = range.ind_sample(&mut rng);
-        let bytes_written = varint_write(r, &mut buf);
-        assert_eq!(length, bytes_written);
-        assert_eq!(r, varint_read(&mut &buf[..bytes_written]).unwrap());
+        let bytes_written = varint_write(i, &mut buf);
+        assert_eq!(byte_length, bytes_written);
+        assert_eq!(i, varint_read(&mut &buf[..bytes_written]).unwrap());
 
         // make sure the other bytes are all still 0
         assert_eq!(vec![0; 9 - bytes_written], &buf[bytes_written..]);
     };
 }
 
-fn do_serialize_roundtrip_random<T: Counter + Debug> () {
+fn do_varint_write_read_slice_roundtrip_rand(byte_length: usize) {
+    assert!(byte_length <= 9 && byte_length >= 1);
+
+    let smallest_in_range = smallest_number_in_n_byte_varint(byte_length);
+    let largest_in_range = largest_number_in_n_byte_varint(byte_length);
+
+    let mut buf = [0; 9];
+
+    // Bunch of random numbers, plus the start and end of the range
+    let range = Range::new(smallest_in_range, largest_in_range);
+    for i in RandomRangeIter::new(rand::weak_rng(), range).take(100_000)
+        .chain(once(smallest_in_range))
+        .chain(once(largest_in_range)) {
+        for i in 0..(buf.len()) {
+            buf[i] = 0;
+        };
+        let bytes_written = varint_write(i, &mut buf);
+        assert_eq!(byte_length, bytes_written);
+        assert_eq!((i, bytes_written), varint_read_slice(&mut &buf[..bytes_written]));
+
+        // make sure the other bytes are all still 0
+        assert_eq!(vec![0; 9 - bytes_written], &buf[bytes_written..]);
+    }
+}
+
+fn do_serialize_roundtrip_random<T>(max_count: T)
+    where T: Counter + Debug + Display + Rand + Saturating + ToPrimitive + SampleRange {
     let mut s = V2Serializer::new();
     let mut d = Deserializer::new();
     let mut vec = Vec::new();
+    let mut rng = rand::weak_rng();
 
+    let range = Range::<T>::new(T::one(), max_count);
     for _ in 0..100 {
         vec.clear();
         let mut h = Histogram::<T>::new_with_bounds(1, u64::max_value(), 3).unwrap();
 
-        let mut rng = rand::weak_rng();
-        for _ in 0..100 {
-            h.record(rng.gen()).unwrap();
-        };
+        for _ in 0..1000 {
+            let count = range.ind_sample(&mut rng);
+            let value = rng.gen();
+            // don't let accumulated per-value count exceed max_count
+            let existing_count = h.count_at(value).unwrap();
+            let sum = existing_count.saturating_add(count);
+            if sum >= max_count {
+                // cap it to max count
+                h.record_n(value, max_count - existing_count).unwrap();
+            } else {
+                // sum won't exceed max_count
+                h.record_n(value, count).unwrap();
+            }
+        }
 
         let bytes_written = s.serialize(&h, &mut vec).unwrap();
         assert_eq!(bytes_written, vec.len());
@@ -442,6 +564,72 @@ fn assert_deserialized_histogram_matches_orig<T: Counter + Debug>(orig: Histogra
     assert_eq!(orig.highest_equivalent(orig.max_value), deser.max_value);
     assert_eq!(orig.lowest_equivalent(orig.min_non_zero_value), deser.min_non_zero_value);
 
-    assert_eq!(orig.total_count, deser.total_count);
     assert_eq!(orig.counts, deser.counts);
+
+    // total counts will not equal if any individual count has saturated at a point where that did
+    // *not* saturate the total count: the deserialized one will have missed the lost increments.
+    assert!(orig.total_count >= deser.total_count);
+    assert_eq!(deser.total_count,
+    deser.counts.iter().fold(0_u64, |acc, &i| acc.saturating_add(i.to_u64().unwrap())));
+}
+
+/// Smallest number in our varint encoding that takes the given number of bytes
+fn smallest_number_in_n_byte_varint(byte_length: usize) -> u64 {
+    assert!(byte_length <= 9 && byte_length >= 1);
+
+    match byte_length {
+        1 => 0,
+        // one greater than the largest of the previous length
+        _ => largest_number_in_n_byte_varint(byte_length - 1) + 1
+    }
+}
+
+/// Largest number in our varint encoding that takes the given number of bytes
+fn largest_number_in_n_byte_varint(byte_length: usize) -> u64 {
+    assert!(byte_length <= 9 && byte_length >= 1);
+
+    match byte_length {
+        9 => u64::max_value(),
+        _ => largest_number_in_7_bit_chunk(byte_length - 1)
+    }
+}
+
+/// The largest in the set of numbers that have at least 1 bit set in the n'th chunk of 7 bits.
+fn largest_number_in_7_bit_chunk(chunk_index: usize) -> u64 {
+    // Our 9-byte varints do different encoding in the last byte, so we don't handle them here
+    assert!(chunk_index <= 7);
+
+    // 1 in every bit below the lowest bit in this chunk
+    let lower_bits = match chunk_index {
+        0 => 0,
+        _ => largest_number_in_7_bit_chunk(chunk_index - 1)
+    };
+
+    // 1 in every bit in this chunk
+    let this_chunk = 0x7F_u64 << (chunk_index * 7);
+
+    lower_bits | this_chunk
+}
+
+
+struct RandomRangeIter<T: SampleRange, R: Rng> {
+    range: Range<T>,
+    rng: R
+}
+
+impl<T: SampleRange, R: Rng> RandomRangeIter<T, R> {
+    fn new(rng: R, range: Range<T>) -> RandomRangeIter<T, R> {
+        RandomRangeIter {
+            rng: rng,
+            range: range
+        }
+    }
+}
+
+impl<T: SampleRange, R: Rng> Iterator for RandomRangeIter<T, R> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.range.ind_sample(&mut self.rng))
+    }
 }

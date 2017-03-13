@@ -2,7 +2,7 @@ extern crate rand;
 extern crate test;
 
 use super::v2_serializer::varint_write;
-use super::deserializer::varint_read;
+use super::deserializer::{varint_read, varint_read_slice};
 use std::io::Cursor;
 use self::rand::distributions::range::Range;
 use self::rand::distributions::IndependentSample;
@@ -10,37 +10,52 @@ use self::test::Bencher;
 
 #[bench]
 fn varint_write_rand(b: &mut Bencher) {
-    do_varint_write_rand(b, 1000_000, Range::new(0, u64::max_value()))
+    do_varint_write_rand(b, Range::new(0, u64::max_value()))
 }
 
 #[bench]
 fn varint_write_rand_1_byte(b: &mut Bencher) {
-    do_varint_write_rand(b, 1000_000, Range::new(0, 128))
+    do_varint_write_rand(b, Range::new(0, 128))
 }
 
 #[bench]
 fn varint_write_rand_9_bytes(b: &mut Bencher) {
-    do_varint_write_rand(b, 1000_000, Range::new(1 << 56, u64::max_value()))
+    do_varint_write_rand(b, Range::new(1 << 56, u64::max_value()))
 }
 
 #[bench]
 fn varint_read_rand(b: &mut Bencher) {
-    do_varint_read_rand(b, 1000_000, Range::new(0, u64::max_value()))
+    do_varint_read_rand(b, Range::new(0, u64::max_value()))
 }
 
 #[bench]
 fn varint_read_rand_1_byte(b: &mut Bencher) {
-    do_varint_read_rand(b, 1000_000, Range::new(0, 128))
+    do_varint_read_rand(b, Range::new(0, 128))
 }
 
 #[bench]
 fn varint_read_rand_9_byte(b: &mut Bencher) {
-    do_varint_read_rand(b, 1000_000, Range::new(1 << 56, u64::max_value()))
+    do_varint_read_rand(b, Range::new(1 << 56, u64::max_value()))
 }
 
-fn do_varint_write_rand(b: &mut Bencher, num: usize, range: Range<u64>) {
-    let mut rng = rand::weak_rng();
+#[bench]
+fn varint_read_slice_rand(b: &mut Bencher) {
+    do_varint_read_slice_rand(b, Range::new(0, u64::max_value()))
+}
 
+#[bench]
+fn varint_read_slice_rand_1_byte(b: &mut Bencher) {
+    do_varint_read_slice_rand(b, Range::new(0, 128))
+}
+
+#[bench]
+fn varint_read_slice_rand_9_byte(b: &mut Bencher) {
+    do_varint_read_slice_rand(b, Range::new(1 << 56, u64::max_value()))
+}
+
+fn do_varint_write_rand(b: &mut Bencher, range: Range<u64>) {
+    let mut rng = rand::weak_rng();
+    let num = 1000_000;
     let mut vec: Vec<u64> = Vec::new();
 
     for _ in 0..num {
@@ -55,9 +70,9 @@ fn do_varint_write_rand(b: &mut Bencher, num: usize, range: Range<u64>) {
     });
 }
 
-fn do_varint_read_rand(b: &mut Bencher, num: usize, range: Range<u64>) {
+fn do_varint_read_rand(b: &mut Bencher, range: Range<u64>) {
     let mut rng = rand::weak_rng();
-
+    let num = 1000_000;
     let mut vec = Vec::new();
     vec.resize(9 * num, 0);
     let mut bytes_written = 0;
@@ -70,6 +85,29 @@ fn do_varint_read_rand(b: &mut Bencher, num: usize, range: Range<u64>) {
         let mut cursor = Cursor::new(&vec);
         for _ in 0..num {
             let _ = varint_read(&mut cursor);
+        }
+    });
+}
+
+fn do_varint_read_slice_rand(b: &mut Bencher, range: Range<u64>) {
+    let mut rng = rand::weak_rng();
+    let num = 1000_000;
+    let mut vec = Vec::new();
+
+    vec.resize(9 * num, 0);
+    let mut bytes_written = 0;
+
+    for _ in 0..num {
+        bytes_written += varint_write(range.ind_sample(&mut rng), &mut vec[bytes_written..]);
+    }
+
+    b.iter(|| {
+        let mut input_index = 0;
+        // cheat a little bit: this will skip the last couple numbers, but that's why we do a
+        // million numbers. Losing the last few won't be measurable.
+        while input_index < bytes_written - 9 {
+            let (_, bytes_read) = varint_read_slice(&vec[input_index..(input_index + 9)]);
+            input_index += bytes_read;
         }
     });
 }

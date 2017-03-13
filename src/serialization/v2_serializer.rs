@@ -124,6 +124,11 @@ pub fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usi
             // zero count can be at most the entire counts array, which is at most 2^24, so will fit.
             -zero_count
         } else {
+            // TODO while writing tests that serialize random counts, this was annoying.
+            // Don't want to silently cap them at i64::max_value() for users that, say, aren't
+            // serializing. Don't want to silently eat counts beyond i63 max when serializing.
+            // Perhaps we should provide some sort of pluggability here -- choose whether you want
+            // to truncate counts to i63 max, or report errors if you need maximum fidelity?
             count.to_i64().ok_or(V2SerializeError::CountNotSerializable)?
         };
 
@@ -148,7 +153,7 @@ pub fn varint_write(input: u64, buf: &mut [u8]) -> usize {
     // This way about twice as fast as the other "obvious" approach: a sequence of `if`s to detect
     // size directly with each branch encoding that number completely and returning.
 
-    if (input >> 7) == 0 {
+    if shift_by_7s(input, 1) == 0 {
         buf[0] = input as u8;
         return 1;
     }
