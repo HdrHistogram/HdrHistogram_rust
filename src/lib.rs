@@ -1252,11 +1252,9 @@ impl<T: Counter> Histogram<T> {
     ///
     /// Note that the return value is capped at `u64::max_value()`.
     pub fn median_equivalent(&self, value: u64) -> u64 {
-        // TODO isn't this just saturating?
-        match self.lowest_equivalent(value).overflowing_add(self.equivalent_range(value) >> 1) {
-            (_, of) if of => u64::max_value(),
-            (v, _) => v,
-        }
+        // adding half of the range to the bottom of the range shouldn't overflow
+        self.lowest_equivalent(value).checked_add(self.equivalent_range(value) >> 1)
+            .expect("median equivalent should not overflow")
     }
 
     /// Get the next value that is *not* equivalent to the given value within the histogram's

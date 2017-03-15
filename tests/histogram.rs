@@ -301,6 +301,15 @@ fn median_equivalent() {
 }
 
 #[test]
+fn median_equivalent_doesnt_panic_at_extremes() {
+    let h = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
+    let _ = h.median_equivalent(u64::max_value());
+    let _ = h.median_equivalent(u64::max_value() - 1);
+    let _ = h.median_equivalent(0);
+    let _ = h.median_equivalent(1);
+}
+
+#[test]
 fn scaled_median_equivalent() {
     let h = Histogram::<u64>::new_with_bounds(1024, TRACKABLE_MAX, SIGFIG).unwrap();
     assert_eq!(h.median_equivalent(1024 * 4), 1024 * 4 + 512);
