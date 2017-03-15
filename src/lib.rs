@@ -171,12 +171,14 @@ const ORIGINAL_MAX: u64 = 0;
 /// into an integer count. Partial ordering is used for threshholding, also usually in the context
 /// of percentiles.
 pub trait Counter
-    : num::Num + num::ToPrimitive + num::FromPrimitive + Copy + PartialOrd<Self> {
+    : num::Num + num::ToPrimitive + num::FromPrimitive + num::Saturating + num::CheckedSub
+    + num::CheckedAdd + Copy + PartialOrd<Self>{
 }
 
 // auto-implement marker trait
 impl<T> Counter for T
-    where T: num::Num + num::ToPrimitive + num::FromPrimitive + Copy + PartialOrd<T>
+    where T: num::Num + num::ToPrimitive + num::FromPrimitive + num::Saturating + num::CheckedSub
+    + num::CheckedAdd + Copy + PartialOrd<T>
 {
 }
 
@@ -455,13 +457,14 @@ impl<T: Counter> Histogram<T> {
             for i in 0..source.len() {
                 let other_count = source[i];
                 if other_count != T::zero() {
-                    self[i] = self[i] + other_count;
+                    self[i] = self[i].saturating_add(other_count);
                     // TODO unwrapping .to_u64()
-                    observed_other_total_count = observed_other_total_count + other_count.to_u64().unwrap();
+                    observed_other_total_count = observed_other_total_count
+                        .saturating_add(other_count.to_u64().unwrap());
                 }
             }
 
-            self.total_count = self.total_count + observed_other_total_count;
+            self.total_count = self.total_count.saturating_add(observed_other_total_count);
             let mx = source.max();
             if mx > self.max() {
                 self.update_max(mx);
@@ -552,6 +555,9 @@ impl<T: Counter> Histogram<T> {
             if other_count != T::zero() {
                 let other_value = other.value_for(i);
                 if self.count_at(other_value).unwrap() < other_count {
+                    // TODO Perhaps we should saturating sub here? Or expose some form of
+                    // pluggability so users could choose to error or saturate? Both seem useful.
+                    // It's also sort of inconsistent with overflow, which now saturates.
                     return Err(SubtractionError::SubtrahendCountExceedsMinuendCount);
                 }
                 self.alter_n(other_value, other_count, false).expect("value should fit by now");
@@ -777,11 +783,19 @@ impl<T: Counter> Histogram<T> {
     }
 
     fn alter_n(&mut self, value: u64, count: T, add: bool) -> Result<(), ()> {
+        // TODO consider split out addition and subtraction cases; this isn't gaining much by
+        // unifying since we have to test all the cases anyway, and the TODO below is marking a case
+        // that might well be impossible but seems needed because of the (possibly false) symmetry
+        // with addition
+
+        // add=false is used by subtract(), which should have already aborted if underflow was
+        // possible
+
         let success = if let Some(c) = self.mut_at(value) {
             if add {
-                *c = *c + count;
+                *c = (*c).saturating_add(count);
             } else {
-                *c = *c - count;
+                *c = (*c).checked_sub(&count).expect("count underflow on subtraction");
             }
             true
         } else {
@@ -798,9 +812,14 @@ impl<T: Counter> Histogram<T> {
             {
                 let c = self.mut_at(value).expect("value should fit after resize");
                 if add {
-                    *c = *c + count;
+                    // after resize, should be no possibility of overflow because this is a new slot
+                    *c = (*c).checked_add(&count).expect("count overflow after resize");
                 } else {
-                    *c = *c - count;
+                    // TODO Not sure this code path can ever be hit: if subtraction requires minuend
+                    // count to exceed subtrahend count for a given value, we shouldn't ever need
+                    // to resize to subtract.
+                    // Anyway, at the very least, we know it shouldn't underflow.
+                    *c = (*c).checked_sub(&count).expect("count underflow after resize");
                 }
             }
 
@@ -809,9 +828,10 @@ impl<T: Counter> Histogram<T> {
 
         self.update_min_max(value);
         if add {
-            self.total_count = self.total_count + count.to_u64().unwrap();
+            self.total_count = self.total_count.saturating_add(count.to_u64().unwrap());
         } else {
-            self.total_count = self.total_count - count.to_u64().unwrap();
+            self.total_count = self.total_count.checked_sub(count.to_u64().unwrap())
+                .expect("total count underflow on subtraction");
         }
         Ok(())
     }
@@ -1113,6 +1133,7 @@ impl<T: Counter> Histogram<T> {
 
         let mut total_to_current_index: u64 = 0;
         for i in 0..self.len() {
+            // TODO overflow
             total_to_current_index = total_to_current_index + self[i].to_u64().unwrap();
             if total_to_current_index >= count_at_percentile {
                 let value_at_index = self.value_for(i);
@@ -1139,6 +1160,7 @@ impl<T: Counter> Histogram<T> {
         }
 
         let target_index = cmp::min(self.index_for(value), self.last());
+        // TODO overflow
         let total_to_current_index =
             (0..(target_index + 1)).map(|i| self[i]).fold(T::zero(), |t, v| t + v);
         100.0 * total_to_current_index.to_f64().unwrap() / self.total_count as f64
@@ -1157,6 +1179,7 @@ impl<T: Counter> Histogram<T> {
     pub fn count_between(&self, low: u64, high: u64) -> Result<T, ()> {
         let low_index = self.index_for(low);
         let high_index = cmp::min(self.index_for(high), self.last());
+        // TODO overflow
         Ok((low_index..(high_index + 1)).map(|i| self[i]).fold(T::zero(), |t, v| t + v))
     }
 
@@ -1229,6 +1252,7 @@ impl<T: Counter> Histogram<T> {
     ///
     /// Note that the return value is capped at `u64::max_value()`.
     pub fn median_equivalent(&self, value: u64) -> u64 {
+        // TODO isn't this just saturating?
         match self.lowest_equivalent(value).overflowing_add(self.equivalent_range(value) >> 1) {
             (_, of) if of => u64::max_value(),
             (v, _) => v,
@@ -1444,8 +1468,7 @@ impl <T: Counter> RestatState<T> {
     fn on_nonzero_count(&mut self, index: usize, count: T) {
         // TODO don't unwrap here; weird user Counter types may not work.
         // Fix Counter types to just be u8-64?
-        // TODO this can wrap, but not sure there's much we can do about that. Saturating add maybe?
-        self.total_count += count.to_u64().unwrap();
+        self.total_count = self.total_count.saturating_add(count.to_u64().unwrap());
 
         self.max_index = Some(index);
 
@@ -1533,6 +1556,7 @@ impl<T: Counter, F: Counter> PartialEq<Histogram<F>> for Histogram<T>
         if self.min_nz() != other.min_nz() {
             return false;
         }
+        // TODO may panic? Does the above guarantee that the other array is at least as long?
         (0..self.len()).all(|i| self[i] == other[i])
     }
 }
