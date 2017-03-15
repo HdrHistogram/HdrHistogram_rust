@@ -159,6 +159,7 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
                     }
 
                     // maintain total count so we can yield percentiles
+                    // TODO overflow
                     self.total_count_to_index = self.total_count_to_index + count.to_u64().unwrap();
 
                     // make sure we don't add this index again

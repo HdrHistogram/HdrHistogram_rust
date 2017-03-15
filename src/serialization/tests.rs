@@ -70,7 +70,6 @@ fn serialize_roundtrip_all_zeros() {
 
     assert_eq!(orig.total_count, deser.total_count);
     assert_eq!(orig.counts, deser.counts);
-
 }
 
 #[test]
