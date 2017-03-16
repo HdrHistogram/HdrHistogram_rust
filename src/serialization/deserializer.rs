@@ -2,6 +2,7 @@ use super::V2_COOKIE;
 use super::super::{Counter, Histogram, RestatState};
 use super::super::num::ToPrimitive;
 use std::io::{self, Cursor, ErrorKind, Read};
+use std::marker::PhantomData;
 use std;
 use super::byteorder::{BigEndian, ReadBytesExt};
 
@@ -54,8 +55,6 @@ impl Deserializer {
     /// bytes already in slice or `Vec` form.
     pub fn deserialize<T: Counter, R: Read>(&mut self, reader: &mut R)
                                             -> Result<Histogram<T>, DeserializeError> {
-        // TODO benchmark minimizing read calls by reading into a fixed-size header buffer
-
         let cookie = reader.read_u32::<BigEndian>()?;
 
         if cookie != V2_COOKIE {
@@ -87,37 +86,92 @@ impl Deserializer {
         let mut payload_slice = &mut self.payload_buf[0..payload_len];
         reader.read_exact(&mut payload_slice)?;
 
-        let mut cursor = Cursor::new(&payload_slice);
-        let mut dest_index: usize = 0;
+        let mut payload_index: usize = 0;
         let mut restat_state = RestatState::new();
-        while cursor.position() < payload_slice.len() as u64 {
-            let num = zig_zag_decode(varint_read(&mut cursor)?);
+        let mut decode_state = DecodeLoopState::new();
 
-            if num < 0 {
-                let zero_count = (-num).to_usize()
-                    .ok_or(DeserializeError::UsizeTypeTooSmall)?;
-                // skip the zeros
-                dest_index = dest_index.checked_add(zero_count)
-                    .ok_or(DeserializeError::UsizeTypeTooSmall)?;
-                continue;
-            } else {
-                let count: T = T::from_i64(num)
-                    .ok_or(DeserializeError::UnsuitableCounterType)?;
+        while payload_index < payload_len.saturating_sub(9) {
+            // Read with fast loop until we are within 9 of the end. Fast loop can't handle EOF,
+            // so bail to slow version for the last few bytes.
 
-                h.set_count_at_index(dest_index, count)
-                    .map_err(|_| DeserializeError::EncodedArrayTooLong)?;
+            let (zz_num, bytes_read) = varint_read_slice(
+                &payload_slice[payload_index..(payload_index + 9)]);
+            payload_index += bytes_read;
 
-                restat_state.on_nonzero_count(dest_index, count);
+            let count_or_zeros = zig_zag_decode(zz_num);
 
-                dest_index = dest_index.checked_add(1)
-                    .ok_or(DeserializeError::UsizeTypeTooSmall)?;
-            }
+            decode_state.on_decoded_num(count_or_zeros, &mut restat_state, &mut h)?;
+        }
+
+        // Now read the leftovers
+        let leftover_slice = &payload_slice[payload_index..];
+        let mut cursor = Cursor::new(&leftover_slice);
+        while cursor.position() < leftover_slice.len() as u64 {
+            let count_or_zeros = zig_zag_decode(varint_read(&mut cursor)?);
+
+            decode_state.on_decoded_num(count_or_zeros, &mut restat_state, &mut h)?;
         }
 
         restat_state.update_histogram(&mut h);
 
         Ok(h)
     }
+}
+
+// Only public for testing.
+/// Read from a slice that must be 9 bytes long or longer. Returns the decoded number and how many
+/// bytes were consumed.
+#[inline]
+pub fn varint_read_slice(slice: &[u8]) -> (u64, usize) {
+    let mut b = slice[0];
+
+    // take low 7 bits
+    let mut value: u64 = low_7_bits(b);
+    if !is_high_bit_set(b) {
+        return (value, 1);
+    }
+    // high bit set, keep reading
+    b = slice[1];
+    value |= low_7_bits(b) << 7;
+    if !is_high_bit_set(b) {
+        return (value, 2);
+    }
+    b = slice[2];
+    value |= low_7_bits(b) << 7 * 2;
+    if !is_high_bit_set(b) {
+        return (value, 3);
+    }
+    b = slice[3];
+    value |= low_7_bits(b) << 7 * 3;
+    if !is_high_bit_set(b) {
+        return (value, 4);
+    }
+    b = slice[4];
+    value |= low_7_bits(b) << 7 * 4;
+    if !is_high_bit_set(b) {
+        return (value, 5);
+    }
+    b = slice[5];
+    value |= low_7_bits(b) << 7 * 5;
+    if !is_high_bit_set(b) {
+        return (value, 6);
+    }
+    b = slice[6];
+    value |= low_7_bits(b) << 7 * 6;
+    if !is_high_bit_set(b) {
+        return (value, 7);
+    }
+    b = slice[7];
+    value |= low_7_bits(b) << 7 * 7;
+    if !is_high_bit_set(b) {
+        return (value, 8);
+    }
+
+    b = slice[8];
+    // special case: use last byte as is
+    value |= (b as u64) << 7 * 8;
+
+    (value, 9)
 }
 
 // Only public for testing.
@@ -174,7 +228,6 @@ fn low_7_bits(b: u8) -> u64 {
 
 #[inline]
 fn is_high_bit_set(b: u8) -> bool {
-    // TODO benchmark leading zeros rather than masking
     (b & 0x80) != 0
 }
 
@@ -182,4 +235,46 @@ fn is_high_bit_set(b: u8) -> bool {
 #[inline]
 pub fn zig_zag_decode(encoded: u64) -> i64 {
     ((encoded >> 1) as i64) ^ -((encoded & 1) as i64)
+}
+
+/// We need to perform the same logic in two different decode loops while carrying over a modicum
+/// of state.
+struct DecodeLoopState<T: Counter> {
+    dest_index:usize,
+    phantom: PhantomData<T>
+}
+
+impl <T: Counter> DecodeLoopState<T> {
+
+    fn new() -> DecodeLoopState<T> {
+        DecodeLoopState {
+            dest_index: 0,
+            phantom: PhantomData
+        }
+    }
+
+    #[inline]
+    fn on_decoded_num(&mut self, count_or_zeros: i64, restat_state: &mut RestatState<T>,
+                      h: &mut Histogram<T>) -> Result<(), DeserializeError> {
+        if count_or_zeros < 0 {
+            let zero_count = (-count_or_zeros).to_usize()
+                .ok_or(DeserializeError::UsizeTypeTooSmall)?;
+            // skip the zeros
+            self.dest_index = self.dest_index.checked_add(zero_count)
+                .ok_or(DeserializeError::UsizeTypeTooSmall)?;
+        } else {
+            let count: T = T::from_i64(count_or_zeros)
+                .ok_or(DeserializeError::UnsuitableCounterType)?;
+
+            h.set_count_at_index(self.dest_index, count)
+                .map_err(|_| DeserializeError::EncodedArrayTooLong)?;
+
+            restat_state.on_nonzero_count(self.dest_index, count);
+
+            self.dest_index = self.dest_index.checked_add(1)
+                .ok_or(DeserializeError::UsizeTypeTooSmall)?;
+        }
+
+        Ok(())
+    }
 }

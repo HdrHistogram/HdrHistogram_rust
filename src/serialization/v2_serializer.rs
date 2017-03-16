@@ -124,6 +124,11 @@ pub fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usi
             // zero count can be at most the entire counts array, which is at most 2^24, so will fit.
             -zero_count
         } else {
+            // TODO while writing tests that serialize random counts, this was annoying.
+            // Don't want to silently cap them at i64::max_value() for users that, say, aren't
+            // serializing. Don't want to silently eat counts beyond i63 max when serializing.
+            // Perhaps we should provide some sort of pluggability here -- choose whether you want
+            // to truncate counts to i63 max, or report errors if you need maximum fidelity?
             count.to_i64().ok_or(V2SerializeError::CountNotSerializable)?
         };
 
@@ -148,59 +153,52 @@ pub fn varint_write(input: u64, buf: &mut [u8]) -> usize {
     // This way about twice as fast as the other "obvious" approach: a sequence of `if`s to detect
     // size directly with each branch encoding that number completely and returning.
 
-    if (input >> 7) == 0 {
+    if shift_by_7s(input, 1) == 0 {
         buf[0] = input as u8;
         return 1;
-    } else {
-        // set high bit because more bytes are coming, then next 7 bits of value.
-        buf[0] = 0x80 | ((input & 0x7F) as u8);
-        if shift_by_7s(input, 2) == 0 {
-            // All zero above bottom 2 chunks, this is the last byte, so no high bit
-            buf[1] = shift_by_7s(input, 1) as u8;
-            return 2;
-        } else {
-            buf[1] = nth_7b_chunk_with_high_bit(input, 1);
-            if shift_by_7s(input, 3) == 0 {
-                buf[2] = shift_by_7s(input, 2) as u8;
-                return 3;
-            } else {
-                buf[2] = nth_7b_chunk_with_high_bit(input, 2);
-                if shift_by_7s(input, 4) == 0 {
-                    buf[3] = shift_by_7s(input, 3) as u8;
-                    return 4;
-                } else {
-                    buf[3] = nth_7b_chunk_with_high_bit(input, 3);
-                    if shift_by_7s(input, 5) == 0 {
-                        buf[4] = shift_by_7s(input, 4) as u8;
-                        return 5;
-                    } else {
-                        buf[4] = nth_7b_chunk_with_high_bit(input, 4);
-                        if shift_by_7s(input, 6) == 0 {
-                            buf[5] = shift_by_7s(input, 5) as u8;
-                            return 6;
-                        } else {
-                            buf[5] = nth_7b_chunk_with_high_bit(input, 5);
-                            if shift_by_7s(input, 7) == 0 {
-                                buf[6] = shift_by_7s(input, 6) as u8;
-                                return 7;
-                            } else {
-                                buf[6] = nth_7b_chunk_with_high_bit(input, 6);
-                                if shift_by_7s(input, 8) == 0 {
-                                    buf[7] = shift_by_7s(input, 7) as u8;
-                                    return 8;
-                                } else {
-                                    buf[7] = nth_7b_chunk_with_high_bit(input, 7);
-                                    // special case: write last whole byte as is
-                                    buf[8] = (input >> 56) as u8;
-                                    return 9;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
+    // set high bit because more bytes are coming, then next 7 bits of value.
+    buf[0] = 0x80 | ((input & 0x7F) as u8);
+    if shift_by_7s(input, 2) == 0 {
+        // All zero above bottom 2 chunks, this is the last byte, so no high bit
+        buf[1] = shift_by_7s(input, 1) as u8;
+        return 2;
+    }
+    buf[1] = nth_7b_chunk_with_high_bit(input, 1);
+    if shift_by_7s(input, 3) == 0 {
+        buf[2] = shift_by_7s(input, 2) as u8;
+        return 3;
+    }
+    buf[2] = nth_7b_chunk_with_high_bit(input, 2);
+    if shift_by_7s(input, 4) == 0 {
+        buf[3] = shift_by_7s(input, 3) as u8;
+        return 4;
+    }
+    buf[3] = nth_7b_chunk_with_high_bit(input, 3);
+    if shift_by_7s(input, 5) == 0 {
+        buf[4] = shift_by_7s(input, 4) as u8;
+        return 5;
+    }
+    buf[4] = nth_7b_chunk_with_high_bit(input, 4);
+    if shift_by_7s(input, 6) == 0 {
+        buf[5] = shift_by_7s(input, 5) as u8;
+        return 6;
+    }
+    buf[5] = nth_7b_chunk_with_high_bit(input, 5);
+    if shift_by_7s(input, 7) == 0 {
+        buf[6] = shift_by_7s(input, 6) as u8;
+        return 7;
+    }
+    buf[6] = nth_7b_chunk_with_high_bit(input, 6);
+    if shift_by_7s(input, 8) == 0 {
+        buf[7] = shift_by_7s(input, 7) as u8;
+        return 8;
+    }
+    buf[7] = nth_7b_chunk_with_high_bit(input, 7);
+    // special case: write last whole byte as is
+    buf[8] = (input >> 56) as u8;
+    return 9;
+
 }
 
 /// input: a u64
