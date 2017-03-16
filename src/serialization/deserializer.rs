@@ -55,8 +55,6 @@ impl Deserializer {
     /// bytes already in slice or `Vec` form.
     pub fn deserialize<T: Counter, R: Read>(&mut self, reader: &mut R)
                                             -> Result<Histogram<T>, DeserializeError> {
-        // TODO benchmark minimizing read calls by reading into a fixed-size header buffer
-
         let cookie = reader.read_u32::<BigEndian>()?;
 
         if cookie != V2_COOKIE {
