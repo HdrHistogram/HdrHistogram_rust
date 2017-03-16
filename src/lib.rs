@@ -155,6 +155,7 @@ extern crate num;
 use std::borrow::Borrow;
 use std::cmp;
 use std::ops::{Index, IndexMut, AddAssign, SubAssign};
+use num::ToPrimitive;
 
 use iterators::HistogramIterator;
 
@@ -736,9 +737,9 @@ impl<T: Counter> Histogram<T> {
         };
 
         // determine exponent range needed to support the trackable value with no overflow:
-        let len = h.cover(high);
-
-        h.alloc(len as usize);
+        // TODO usize safety
+        let len = h.cover(high).to_usize().unwrap();
+        h.counts.resize(len, T::zero());
         Ok(h)
     }
 
@@ -748,18 +749,13 @@ impl<T: Counter> Histogram<T> {
         let mut h = Self::new_with_bounds(source.lowest_discernible_value,
                                           source.highest_trackable_value,
                                           source.significant_value_digits)
-            .unwrap();
+            .expect("Using another histogram's parameters failed");
 
         // h.start_time = source.start_time;
         // h.end_time = source.end_time;
         h.auto_resize = source.auto_resize;
-        h.alloc(source.len());
+        h.counts.resize(source.len(), T::zero());
         h
-    }
-
-    /// Allocate a counts array of the given size.
-    fn alloc(&mut self, len: usize) {
-        self.counts = std::iter::repeat(T::zero()).take(len).collect();
     }
 
     // ********************************************************************************************
