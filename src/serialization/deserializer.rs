@@ -230,7 +230,6 @@ fn low_7_bits(b: u8) -> u64 {
 
 #[inline]
 fn is_high_bit_set(b: u8) -> bool {
-    // TODO benchmark leading zeros rather than masking
     (b & 0x80) != 0
 }
 
