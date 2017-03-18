@@ -240,12 +240,11 @@ pub fn zig_zag_decode(encoded: u64) -> i64 {
 /// We need to perform the same logic in two different decode loops while carrying over a modicum
 /// of state.
 struct DecodeLoopState<T: Counter> {
-    dest_index:usize,
+    dest_index: usize,
     phantom: PhantomData<T>
 }
 
-impl <T: Counter> DecodeLoopState<T> {
-
+impl<T: Counter> DecodeLoopState<T> {
     fn new() -> DecodeLoopState<T> {
         DecodeLoopState {
             dest_index: 0,
@@ -266,10 +265,12 @@ impl <T: Counter> DecodeLoopState<T> {
             let count: T = T::from_i64(count_or_zeros)
                 .ok_or(DeserializeError::UnsuitableCounterType)?;
 
-            h.set_count_at_index(self.dest_index, count)
-                .map_err(|_| DeserializeError::EncodedArrayTooLong)?;
+            if count > T::zero() {
+                h.set_count_at_index(self.dest_index, count)
+                    .map_err(|_| DeserializeError::EncodedArrayTooLong)?;
 
-            restat_state.on_nonzero_count(self.dest_index, count);
+                restat_state.on_nonzero_count(self.dest_index, count);
+            }
 
             self.dest_index = self.dest_index.checked_add(1)
                 .ok_or(DeserializeError::UsizeTypeTooSmall)?;

@@ -515,16 +515,15 @@ fn do_serialize_roundtrip_random<T>(max_count: T)
     let mut s = V2Serializer::new();
     let mut d = Deserializer::new();
     let mut vec = Vec::new();
-    let mut rng = rand::weak_rng();
+    let mut count_rng = rand::weak_rng();
 
     let range = Range::<T>::new(T::one(), max_count);
     for _ in 0..100 {
         vec.clear();
         let mut h = Histogram::<T>::new_with_bounds(1, u64::max_value(), 3).unwrap();
 
-        for _ in 0..1000 {
-            let count = range.ind_sample(&mut rng);
-            let value = rng.gen();
+        for value in RandomVarintEncodedLengthIter::new(rand::weak_rng()).take(1000) {
+            let count = range.ind_sample(&mut count_rng);
             // don't let accumulated per-value count exceed max_count
             let existing_count = h.count_at(value).unwrap();
             let sum = existing_count.saturating_add(count);
@@ -631,5 +630,47 @@ impl<T: SampleRange, R: Rng> Iterator for RandomRangeIter<T, R> {
 
     fn next(&mut self) -> Option<Self::Item> {
         Some(self.range.ind_sample(&mut self.rng))
+    }
+}
+
+// Evenly distributed random numbers end up biased heavily towards longer encoded byte lengths:
+// there are a lot more large numbers than there are small (duh), but for exercising serialization
+// code paths, we'd like many at all byte lengths. This is also arguably more representative of
+// real data. This should emit values whose varint lengths are uniformly distributed across the
+// whole length range (1 to 9).
+struct RandomVarintEncodedLengthIter<R: Rng> {
+    ranges: [Range<u64>; 9],
+    range_for_picking_range: Range<usize>,
+    rng: R
+}
+
+impl<R: Rng> RandomVarintEncodedLengthIter<R> {
+    fn new(rng: R) -> RandomVarintEncodedLengthIter<R> {
+        RandomVarintEncodedLengthIter {
+            ranges: [
+                Range::new(smallest_number_in_n_byte_varint(1), largest_number_in_n_byte_varint(1) + 1),
+                Range::new(smallest_number_in_n_byte_varint(2), largest_number_in_n_byte_varint(2) + 1),
+                Range::new(smallest_number_in_n_byte_varint(3), largest_number_in_n_byte_varint(3) + 1),
+                Range::new(smallest_number_in_n_byte_varint(4), largest_number_in_n_byte_varint(4) + 1),
+                Range::new(smallest_number_in_n_byte_varint(5), largest_number_in_n_byte_varint(5) + 1),
+                Range::new(smallest_number_in_n_byte_varint(6), largest_number_in_n_byte_varint(6) + 1),
+                Range::new(smallest_number_in_n_byte_varint(7), largest_number_in_n_byte_varint(7) + 1),
+                Range::new(smallest_number_in_n_byte_varint(8), largest_number_in_n_byte_varint(8) + 1),
+                Range::new(smallest_number_in_n_byte_varint(9), largest_number_in_n_byte_varint(9)),
+            ],
+            range_for_picking_range: Range::new(0, 9),
+            rng: rng
+        }
+    }
+}
+
+impl<R: Rng> Iterator for RandomVarintEncodedLengthIter<R> {
+    type Item = u64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // pick the range we'll use
+        let value_range = self.ranges[self.range_for_picking_range.ind_sample(&mut self.rng)];
+
+        Some(value_range.ind_sample(&mut self.rng))
     }
 }
