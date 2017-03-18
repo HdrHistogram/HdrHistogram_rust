@@ -173,7 +173,7 @@ const ORIGINAL_MAX: u64 = 0;
 /// of percentiles.
 pub trait Counter
     : num::Num + num::ToPrimitive + num::FromPrimitive + num::Saturating + num::CheckedSub
-    + num::CheckedAdd + Copy + PartialOrd<Self>{
+    + num::CheckedAdd + Copy + PartialOrd<Self> {
 }
 
 // auto-implement marker trait

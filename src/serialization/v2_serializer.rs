@@ -107,7 +107,8 @@ pub fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usi
         let count = unsafe { *(h.counts.get_unchecked(index)) };
         index += 1;
 
-        // Non-negative values are positive counts or 1 zero, negative values are repeated zeros.
+        // Non-negative values are counts for the respective value, negative values are skipping
+        // that many (absolute value) zero-count values.
 
         let mut zero_count = 0;
         if count == T::zero() {
