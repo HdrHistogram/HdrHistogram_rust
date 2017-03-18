@@ -1,13 +1,13 @@
 extern crate rand;
 
-use super::{V2_COOKIE, V2_HEADER_SIZE};
-use super::v2_serializer::{V2Serializer, V2SerializeError, counts_array_max_encoded_size, encode_counts, varint_write, zig_zag_encode};
+use super::{V2_COOKIE, V2_HEADER_SIZE, V2Serializer, V2SerializeError, V2DeflateSerializer, V2DeflateSerializeError};
+use super::v2_serializer::{counts_array_max_encoded_size, encode_counts, varint_write, zig_zag_encode};
 use super::deserializer::{Deserializer, varint_read, varint_read_slice, zig_zag_decode};
 use super::byteorder::{BigEndian, ReadBytesExt};
 use super::super::{Counter, Histogram};
 use super::super::num::traits::{Saturating, ToPrimitive};
 use super::super::tests::helpers::histo64;
-use std::io::Cursor;
+use std::io::{Cursor, Write};
 use std::fmt::{Debug, Display};
 use std::iter::once;
 use self::rand::{Rand, Rng};
@@ -124,23 +124,43 @@ fn serialize_roundtrip_1_count_for_every_value_2_buckets() {
 }
 
 #[test]
-fn serialize_roundtrip_random_u64() {
-    do_serialize_roundtrip_random::<u64>(i64::max_value() as u64);
+fn serialize_roundtrip_random_v2_u64() {
+    do_serialize_roundtrip_random(V2Serializer::new(), i64::max_value() as u64);
 }
 
 #[test]
-fn serialize_roundtrip_random_u32() {
-    do_serialize_roundtrip_random::<u32>(u32::max_value());
+fn serialize_roundtrip_random_v2_u32() {
+    do_serialize_roundtrip_random(V2Serializer::new(), u32::max_value());
 }
 
 #[test]
-fn serialize_roundtrip_random_u16() {
-    do_serialize_roundtrip_random::<u16>(u16::max_value());
+fn serialize_roundtrip_random_v2_u16() {
+    do_serialize_roundtrip_random(V2Serializer::new(), u16::max_value());
 }
 
 #[test]
-fn serialize_roundtrip_random_u8() {
-    do_serialize_roundtrip_random::<u8>(u8::max_value());
+fn serialize_roundtrip_random_v2_u8() {
+    do_serialize_roundtrip_random(V2Serializer::new(), u8::max_value());
+}
+
+#[test]
+fn serialize_roundtrip_random_v2_deflate_u64() {
+    do_serialize_roundtrip_random(V2DeflateSerializer::new(), i64::max_value() as u64);
+}
+
+#[test]
+fn serialize_roundtrip_random_v2_deflate_u32() {
+    do_serialize_roundtrip_random(V2DeflateSerializer::new(), u32::max_value());
+}
+
+#[test]
+fn serialize_roundtrip_random_v2_deflate_u16() {
+    do_serialize_roundtrip_random(V2DeflateSerializer::new(), u16::max_value());
+}
+
+#[test]
+fn serialize_roundtrip_random_v2_deflate_u8() {
+    do_serialize_roundtrip_random(V2DeflateSerializer::new(), u8::max_value());
 }
 
 #[test]
@@ -510,9 +530,9 @@ fn do_varint_write_read_slice_roundtrip_rand(byte_length: usize) {
     }
 }
 
-fn do_serialize_roundtrip_random<T>(max_count: T)
-    where T: Counter + Debug + Display + Rand + Saturating + ToPrimitive + SampleRange {
-    let mut s = V2Serializer::new();
+fn do_serialize_roundtrip_random<S, T>(mut serializer: S, max_count: T)
+    where S: TestOnlyHypotheticalSerializerInterface,
+          T: Counter + Debug + Display + Rand + Saturating + ToPrimitive + SampleRange {
     let mut d = Deserializer::new();
     let mut vec = Vec::new();
     let mut count_rng = rand::weak_rng();
@@ -536,7 +556,7 @@ fn do_serialize_roundtrip_random<T>(max_count: T)
             }
         }
 
-        let bytes_written = s.serialize(&h, &mut vec).unwrap();
+        let bytes_written = serializer.serialize(&h, &mut vec).unwrap();
         assert_eq!(bytes_written, vec.len());
 
         let mut cursor = Cursor::new(&vec);
@@ -672,5 +692,32 @@ impl<R: Rng> Iterator for RandomVarintEncodedLengthIter<R> {
         let value_range = self.ranges[self.range_for_picking_range.ind_sample(&mut self.rng)];
 
         Some(value_range.ind_sample(&mut self.rng))
+    }
+}
+
+// Maybe someday there will be an obvious right answer for what serialization should look like, at
+// least to the user, but for now we'll only take an easily reversible step towards that. There are
+// still several ways the serializer interfaces could change to achieve better performance, so
+// committing to anything right now would be premature.
+trait TestOnlyHypotheticalSerializerInterface {
+    type SerializeError: Debug;
+
+    fn serialize<T: Counter, W: Write>(&mut self, h: &Histogram<T>, writer: &mut W)
+                                       -> Result<usize, Self::SerializeError>;
+}
+
+impl TestOnlyHypotheticalSerializerInterface for V2Serializer {
+    type SerializeError = V2SerializeError;
+
+    fn serialize<T: Counter, W: Write>(&mut self, h: &Histogram<T>, writer: &mut W) -> Result<usize, Self::SerializeError> {
+        self.serialize(h, writer)
+    }
+}
+
+impl TestOnlyHypotheticalSerializerInterface for V2DeflateSerializer {
+    type SerializeError = V2DeflateSerializeError;
+
+    fn serialize<T: Counter, W: Write>(&mut self, h: &Histogram<T>, writer: &mut W) -> Result<usize, Self::SerializeError> {
+        self.serialize(h, writer)
     }
 }
