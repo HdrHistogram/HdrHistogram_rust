@@ -159,8 +159,6 @@ extern crate hdrsample;
 
 ## Benchmarking
 
-Both Rust's built-in benchmarking and [Criterion](https://github.com/japaric/criterion.rs) are used.
-
 For the benchmarks in `benches`:
 
 ```
@@ -172,29 +170,6 @@ There are also some benchmarks inside `src` for directly benchmarking non-public
 ```
 rustup run nightly cargo bench --features=bench_private
 ```
-
-For Criterion, you will need to manually edit Cargo.toml like this diff output (commenting and uncommenting lines as needed):
-
-```
- [features]
--#benchmark = ["criterion"]
--benchmark = [] # for crates.io publication
-+benchmark = ["criterion"]
-+#benchmark = [] # for crates.io publication
-
- [dependencies]
- num = "0.1"
--#criterion = { git = "https://github.com/japaric/criterion.rs.git", optional = true }
-+criterion = { git = "https://github.com/japaric/criterion.rs.git", optional = true }
-```
-
-Then run:
-
-```
-rustup run nightly cargo run --bin perf --release --features benchmark
-```
-
-
 
 ## License
 
