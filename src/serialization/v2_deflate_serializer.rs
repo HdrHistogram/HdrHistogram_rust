@@ -58,6 +58,11 @@ impl V2DeflateSerializer {
             .map_err(|e| V2DeflateSerializeError::InternalSerializationError(e))?;
 
         debug_assert_eq!(self.uncompressed_buf.len(), uncompressed_len);
+        // On randomized test histograms we get about 10% compression, but of course random data
+        // doesn't compress well. Real-world data may compress better, so let's assume a more
+        // optimistic 50% compression as a baseline to reserve. If we're overly optimistic that's
+        // still only one more allocation the first time it's needed.
+        self.compressed_buf.reserve(self.uncompressed_buf.len() / 2);
 
         self.compressed_buf.write_u32::<BigEndian>(V2_COMPRESSED_COOKIE)?;
         // placeholder for length
@@ -71,7 +76,7 @@ impl V2DeflateSerializer {
             let mut compressor = DeflateEncoder::new(&mut self.compressed_buf, Compression::Default);
             compressor.write_all(&self.uncompressed_buf[0..uncompressed_len])?;
             let _ = compressor.finish()?;
-        };
+        }
 
         // fill in length placeholder. Won't underflow since length is always at least 8, and won't
         // overflow u32 as the largest array is about 6 million entries, so about 54MiB encoded (if

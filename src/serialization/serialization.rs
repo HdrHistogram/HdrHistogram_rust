@@ -31,7 +31,9 @@
 //!
 //! V2 + DEFLATE is significantly slower to serialize (around 10x) but only a little bit slower to
 //! deserialize (less than 2x). YMMV depending on the compressibility of your histogram data, the
-//! speed of the underlying storage medium, etc.
+//! speed of the underlying storage medium, etc. Naturally, you can always compress at a later time:
+//! there's no reason why you couldn't serialize as V2 and then later re-serialize it as V2 +
+//! DEFLATE on another system (perhaps as a batch job) for better archival storage density.
 //!
 //! # API
 //!
@@ -88,11 +90,11 @@
 //!
 //! impl Serialize for V2HistogramWrapper {
 //!     fn serialize<S: Serializer>(&self, serializer: S) -> Result<(), ()> {
-//!         // not optimal to not re-use the vec and serializer, but it'll work
+//!         // Not optimal to not re-use the vec and serializer, but it'll work
 //!         let mut vec = Vec::new();
-//!         // pick the format you want to use
-//!
-//!         // map errors as appropriate for your use case
+//!         // Pick the serialization format you want to use. Here, we use plain V2, but V2 +
+//!         // DEFLATE is also available.
+//!         // Map errors as appropriate for your use case.
 //!         V2Serializer::new().serialize(&self.histogram, &mut vec)
 //!             .map_err(|_| ())?;
 //!         serializer.serialize_bytes(&vec)?;
