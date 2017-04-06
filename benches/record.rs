@@ -12,10 +12,12 @@ use self::test::Bencher;
 fn record_precalc_random_values_with_1_count_u64(b: &mut Bencher) {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
     let mut indices = Vec::<u64>::new();
+    // TODO improve this and similar benchmarks to use a non-uniform distribution (like that used
+    // in serialization tests) so we're not always recording in the top few buckets
     let mut rng = rand::weak_rng();
 
-    // same value approach as record_precalc_random_values_with_max_count_u64 so that
-    // they are comparable
+    // same value approach as record_precalc_random_values_with_max_count_u64 so that they are
+    // comparable
 
     for _ in 0..1000_000 {
         indices.push(rng.gen());
@@ -47,6 +49,24 @@ fn record_precalc_random_values_with_max_count_u64(b: &mut Bencher) {
         for i in indices.iter() {
             // all values are already at u64
             h.record(*i).unwrap()
+        }
+    })
+}
+
+#[bench]
+fn record_correct_precalc_random_values_with_1_count_u64(b: &mut Bencher) {
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut indices = Vec::<u64>::new();
+    let mut rng = rand::weak_rng();
+
+    for _ in 0..10_000 {
+        indices.push(rng.gen());
+    }
+
+    b.iter(|| {
+        for i in indices.iter() {
+            // using a fairly big number so it doesn't have to fill in TOO many intervening counts
+            h.record_correct(*i, 1 << 54).unwrap()
         }
     })
 }
