@@ -42,6 +42,8 @@ impl V2Serializer {
     /// Note that `Vec<u8>` is a reasonable `Write` implementation for simple usage.
     pub fn serialize<T: Counter, W: Write>(&mut self, h: &Histogram<T>, writer: &mut W)
                                            -> Result<usize, V2SerializeError> {
+        // TODO benchmark encoding directly into target Vec
+
         self.buf.clear();
         let max_size = max_encoded_size(h).ok_or(V2SerializeError::UsizeTypeTooSmall)?;
         self.buf.reserve(max_size);

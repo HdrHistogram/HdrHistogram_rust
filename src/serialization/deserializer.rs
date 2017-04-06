@@ -1,10 +1,11 @@
-use super::V2_COOKIE;
+use super::{V2_COOKIE, V2_COMPRESSED_COOKIE};
 use super::super::{Counter, Histogram, RestatState};
 use super::super::num::ToPrimitive;
 use std::io::{self, Cursor, ErrorKind, Read};
 use std::marker::PhantomData;
 use std;
 use super::byteorder::{BigEndian, ReadBytesExt};
+use super::flate2::read::DeflateDecoder;
 
 /// Errors that can happen during deserialization.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -57,10 +58,29 @@ impl Deserializer {
                                             -> Result<Histogram<T>, DeserializeError> {
         let cookie = reader.read_u32::<BigEndian>()?;
 
-        if cookie != V2_COOKIE {
+        return match cookie {
+            V2_COOKIE => self.deser_v2(reader),
+            V2_COMPRESSED_COOKIE => self.deser_v2_compressed(reader),
+            _ => Err(DeserializeError::InvalidCookie)
+        }
+    }
+
+    fn deser_v2_compressed<T: Counter, R: Read>(&mut self, reader: &mut R) -> Result<Histogram<T>, DeserializeError> {
+        let payload_len = reader.read_u32::<BigEndian>()?.to_usize()
+            .ok_or(DeserializeError::UsizeTypeTooSmall)?;
+
+        // TODO reuse deflate buf, or switch to lower-level flate2::Decompress
+        let mut deflate_reader = DeflateDecoder::new(reader.take(payload_len as u64));
+        let inner_cookie = deflate_reader.read_u32::<BigEndian>()?;
+        if inner_cookie != V2_COOKIE {
             return Err(DeserializeError::InvalidCookie);
         }
 
+        self.deser_v2(&mut deflate_reader)
+    }
+
+
+    fn deser_v2<T: Counter, R: Read>(&mut self, reader: &mut R) -> Result<Histogram<T>, DeserializeError> {
         let payload_len = reader.read_u32::<BigEndian>()?.to_usize()
             .ok_or(DeserializeError::UsizeTypeTooSmall)?;
         let normalizing_offset = reader.read_u32::<BigEndian>()?;

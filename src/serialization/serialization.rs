@@ -1,11 +1,12 @@
 //! # Serialization/deserialization
 //!
 //! The upstream Java project has established several different types of serialization. We have
-//! currently implemented one (the "V2" format, following the names used by the Java
-//! implementation), and will add others as time goes on. These formats are compact binary
-//! representations of the state of the histogram. They are intended to be used
-//! for archival or transmission to other systems for further analysis. A typical use case would be
-//! to periodically serialize a histogram, save it somewhere, and reset the histogram.
+//! currently implemented V2 and V2 + DEFLATE (following the names used by the Java implementation).
+//!
+//! These formats are compact binary representations of the state of the histogram. They are
+//! intended to be used for archival or transmission to other systems for further analysis. A
+//! typical use case would be to periodically serialize a histogram, save it somewhere, and reset
+//! the histogram.
 //!
 //! Histograms are designed to be added, subtracted, and otherwise manipulated, and an efficient
 //! storage format facilitates this. As an example, you might be capturing histograms once a minute
@@ -18,22 +19,27 @@
 //!
 //! # Performance concerns
 //!
-//! Serialization is quite fast; serializing a histogram that represents 1 to `u64::max_value()`
-//! with 3 digits of precision with tens of thousands of recorded counts takes about 40
-//! microseconds on an E5-1650v3 Xeon. Deserialization is about 3x slower, but that will improve as
-//! there are still some optimizations to perform.
+//! Serialization is quite fast; serializing a histogram in V2 format that represents 1 to
+//! `u64::max_value()` with 3 digits of precision with tens of thousands of recorded counts takes
+//! about 40 microseconds on an E5-1650v3 Xeon. Deserialization is about 3x slower, but that will
+//! improve as there are still some optimizations to perform.
 //!
 //! For the V2 format, the space used for a histogram will depend mainly on precision since higher
 //! precision will reduce the extent to which different values are grouped into the same bucket.
 //! Having a large value range (e.g. 1 to `u64::max_value()`) will not directly impact the size if
 //! there are many zero counts as zeros are compressed away.
 //!
+//! V2 + DEFLATE is significantly slower to serialize (around 10x) but only a little bit slower to
+//! deserialize (less than 2x). YMMV depending on the compressibility of your histogram data, the
+//! speed of the underlying storage medium, etc. Naturally, you can always compress at a later time:
+//! there's no reason why you couldn't serialize as V2 and then later re-serialize it as V2 +
+//! DEFLATE on another system (perhaps as a batch job) for better archival storage density.
+//!
 //! # API
 //!
 //! Each serialization format has its own serializer struct, but since each format is reliably
 //! distinguishable from each other, there is only one `Deserializer` struct that will work for
-//! any of the formats this library implements. For now there is only one serializer
-//! (`V2Serializer`) but more will be added.
+//! any of the formats this library implements.
 //!
 //! Serializers and deserializers are intended to be re-used for many histograms. You can use them
 //! for one histogram and throw them away; it will just be less efficient as the cost of their
@@ -84,9 +90,11 @@
 //!
 //! impl Serialize for V2HistogramWrapper {
 //!     fn serialize<S: Serializer>(&self, serializer: S) -> Result<(), ()> {
-//!         // not optimal to not re-use the vec and serializer, but it'll work
+//!         // Not optimal to not re-use the vec and serializer, but it'll work
 //!         let mut vec = Vec::new();
-//!         // map errors as appropriate for your use case
+//!         // Pick the serialization format you want to use. Here, we use plain V2, but V2 +
+//!         // DEFLATE is also available.
+//!         // Map errors as appropriate for your use case.
 //!         V2Serializer::new().serialize(&self.histogram, &mut vec)
 //!             .map_err(|_| ())?;
 //!         serializer.serialize_bytes(&vec)?;
@@ -163,6 +171,7 @@
 //!
 
 extern crate byteorder;
+extern crate flate2;
 
 #[path = "tests.rs"]
 #[cfg(test)]
@@ -176,13 +185,19 @@ mod benchmarks;
 mod v2_serializer;
 pub use self::v2_serializer::{V2Serializer, V2SerializeError};
 
+#[path = "v2_deflate_serializer.rs"]
+mod v2_deflate_serializer;
+pub use self::v2_deflate_serializer::{V2DeflateSerializer, V2DeflateSerializeError};
+
 #[path = "deserializer.rs"]
 mod deserializer;
 pub use self::deserializer::{Deserializer, DeserializeError};
 
 const V2_COOKIE_BASE: u32 = 0x1c849303;
+const V2_COMPRESSED_COOKIE_BASE: u32 = 0x1c849304;
 
 const V2_COOKIE: u32 = V2_COOKIE_BASE | 0x10;
+const V2_COMPRESSED_COOKIE: u32 = V2_COMPRESSED_COOKIE_BASE | 0x10;
 
 const V2_HEADER_SIZE: usize = 40;
 
