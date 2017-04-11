@@ -128,15 +128,16 @@ fn do_subtract_benchmark<F: Fn() -> Histogram<u64>>(b: &mut Bencher, count_at_ea
             let r = rng.gen();
             h.record_n(r, count_at_each_addend_value).unwrap();
             // ensure there's a count to subtract from
-            accum.record_n(r, u64::max_value()).unwrap();
+            accum.record_n(r, count_at_each_addend_value).unwrap();
         }
 
         subtrahends.push(h);
     }
 
     b.iter(|| {
+        let mut clone = accum.clone();
         for h in subtrahends.iter() {
-            accum.subtract(h).unwrap();
+            clone.subtract(h).unwrap();
         }
     })
 }
