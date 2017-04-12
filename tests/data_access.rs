@@ -417,7 +417,7 @@ fn iter_all() {
 
 #[test]
 fn linear_iter_steps() {
-    let mut histogram = Histogram::<isize>::new(2).unwrap();
+    let mut histogram = Histogram::<u64>::new(2).unwrap();
     histogram += 193;
     histogram += 0;
     histogram += 1;
