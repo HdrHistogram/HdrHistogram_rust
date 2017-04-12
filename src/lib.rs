@@ -567,30 +567,49 @@ impl<T: Counter> Histogram<T> {
 
         // make sure we can take the values in source
         let top = self.highest_equivalent(self.value_for(self.last()));
-        if top < other.max() {
-            if !self.auto_resize {
-                return Err(SubtractionError::SubtrahendValuesExceedMinuendRange);
-            }
-            self.resize(other.max());
+        if top < self.highest_equivalent(other.max()) {
+            return Err(SubtractionError::SubtrahendValuesExceedMinuendRange);
         }
+
+        let old_min_highest_equiv = self.highest_equivalent(self.min());
+        let old_max_lowest_equiv = self.lowest_equivalent(self.max());
+
+        // If total_count is at the max value, it may have saturated, so we must restat
+        let mut needs_restat = self.total_count == u64::max_value();
 
         for i in 0..other.len() {
             let other_count = other[i];
             if other_count != T::zero() {
                 let other_value = other.value_for(i);
-                if self.count_at(other_value).unwrap() < other_count {
-                    // TODO Perhaps we should saturating sub here? Or expose some form of
-                    // pluggability so users could choose to error or saturate? Both seem useful.
-                    // It's also sort of inconsistent with overflow, which now saturates.
-                    return Err(SubtractionError::SubtrahendCountExceedsMinuendCount);
+                {
+                    let mut_count = self.mut_at(other_value);
+
+                    if let Some(c) = mut_count {
+                        // TODO Perhaps we should saturating sub here? Or expose some form of
+                        // pluggability so users could choose to error or saturate? Both seem useful.
+                        // It's also sort of inconsistent with overflow, which now saturates.
+                        *c = (*c).checked_sub(&other_count)
+                            .ok_or(SubtractionError::SubtrahendCountExceedsMinuendCount)?;
+                    } else {
+                        panic!("Tried to subtract value outside of range: {}", other_value);
+                    }
                 }
-                self.alter_n(other_value, other_count, false).expect("value should fit by now");
+
+                // we might have just set the min / max to have zero count.
+                if other_value <= old_min_highest_equiv || other_value >= old_max_lowest_equiv {
+                    needs_restat = true;
+                }
+
+                if !needs_restat {
+                    // if we're not already going to recalculate everything, subtract from
+                    // total_count
+                    self.total_count = self.total_count.checked_sub(other_count.to_u64().unwrap())
+                        .expect("total count underflow on subtraction");
+                }
             }
         }
 
-        // With subtraction, the max and min_non_zero values could have changed:
-        if self.count_at(self.max()).unwrap() == T::zero() ||
-           self.count_at(self.min_nz()).unwrap() == T::zero() {
+        if needs_restat{
             let l = self.len();
             self.restat(l);
         }
@@ -798,60 +817,30 @@ impl<T: Counter> Histogram<T> {
     /// `count` is the number of occurrences of this value to record. Returns an error if `value`
     /// exceeds the highest trackable value and auto-resize is disabled.
     pub fn record_n(&mut self, value: u64, count: T) -> Result<(), ()> {
-        self.alter_n(value, count, true)
-    }
-
-    fn alter_n(&mut self, value: u64, count: T, add: bool) -> Result<(), ()> {
-        // TODO consider split out addition and subtraction cases; this isn't gaining much by
-        // unifying since we have to test all the cases anyway, and the TODO below is marking a case
-        // that might well be impossible but seems needed because of the (possibly false) symmetry
-        // with addition
-
-        // add=false is used by subtract(), which should have already aborted if underflow was
-        // possible
-
-        let success = if let Some(c) = self.mut_at(value) {
-            if add {
-                *c = (*c).saturating_add(count);
-            } else {
-                *c = (*c).checked_sub(&count).expect("count underflow on subtraction");
-            }
+        let recorded_without_resize = if let Some(c) = self.mut_at(value) {
+            *c = (*c).saturating_add(count);
             true
         } else {
             false
         };
 
-        if !success {
+        if !recorded_without_resize {
             if !self.auto_resize {
                 return Err(());
             }
 
             self.resize(value);
+            self.highest_trackable_value = self.highest_equivalent(self.value_for(self.last()));
 
             {
                 let c = self.mut_at(value).expect("value should fit after resize");
-                if add {
-                    // after resize, should be no possibility of overflow because this is a new slot
-                    *c = (*c).checked_add(&count).expect("count overflow after resize");
-                } else {
-                    // TODO Not sure this code path can ever be hit: if subtraction requires minuend
-                    // count to exceed subtrahend count for a given value, we shouldn't ever need
-                    // to resize to subtract.
-                    // Anyway, at the very least, we know it shouldn't underflow.
-                    *c = (*c).checked_sub(&count).expect("count underflow after resize");
-                }
+                // after resize, should be no possibility of overflow because this is a new slot
+                *c = (*c).checked_add(&count).expect("count overflow after resize");
             }
-
-            self.highest_trackable_value = self.highest_equivalent(self.value_for(self.last()));
         }
 
         self.update_min_max(value);
-        if add {
-            self.total_count = self.total_count.saturating_add(count.as_u64());
-        } else {
-            self.total_count = self.total_count.checked_sub(count.as_u64())
-                .expect("total count underflow on subtraction");
-        }
+        self.total_count = self.total_count.saturating_add(count.as_u64());
         Ok(())
     }
 
