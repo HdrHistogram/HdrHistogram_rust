@@ -589,7 +589,7 @@ fn assert_deserialized_histogram_matches_orig<T: Counter + Debug>(orig: Histogra
     // *not* saturate the total count: the deserialized one will have missed the lost increments.
     assert!(orig.total_count >= deser.total_count);
     assert_eq!(deser.total_count,
-    deser.counts.iter().fold(0_u64, |acc, &i| acc.saturating_add(i.to_u64().unwrap())));
+    deser.counts.iter().fold(0_u64, |acc, &i| acc.saturating_add(i.as_u64())));
 }
 
 /// Smallest number in our varint encoding that takes the given number of bytes
