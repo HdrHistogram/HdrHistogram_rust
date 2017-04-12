@@ -57,7 +57,7 @@
 //! dataset is encountered. `new_with_max` sets an upper bound on the values to be recorded, and
 //! disables auto-resizing, thus preventing any re-allocation during recording. If the application
 //! attempts to record a larger value than this maximum bound, the record call will fail. Finally,
-//! `new_with_bounds` restricts the lowest representible value of the dataset, such that a smaller
+//! `new_with_bounds` restricts the lowest representable value of the dataset, such that a smaller
 //! range needs to be covered (thus reducing the overall allocation size).
 //!
 //! For example the example below shows how to create a `Histogram` that can count values in the
@@ -81,8 +81,8 @@
 //! hist.record_correct(54321, 10).expect("value 54321 should be in range");
 //! ```
 //!
-//! Note the `u64` annotation. This type can be changed to reduce the storage overhead for all the
-//! histogram bins, at the cost of a risk of overflowing if a large number of samples end up in the
+//! Note the `u64` type. This type can be changed to reduce the storage overhead for all the
+//! histogram bins, at the cost of a risk of saturating if a large number of samples end up in the
 //! same bin.
 //!
 //! ## Querying samples
@@ -120,8 +120,7 @@
 //! not (yet) been implemented:
 //!
 //!  - Concurrency support (`AtomicHistogram`, `ConcurrentHistogram`, …).
-//!  - `DoubleHistogram`. You can use `f64` as the counter type, but none of the "special"
-//!    `DoubleHistogram` features are supported.
+//!  - `DoubleHistogram`.
 //!  - The `Recorder` feature of HdrHistogram.
 //!  - Value shifting ("normalization").
 //!  - Timestamps and tags.
@@ -166,21 +165,46 @@ const ORIGINAL_MIN: u64 = (-1_i64 >> 63) as u64;
 /// Max value of a new histogram.
 const ORIGINAL_MAX: u64 = 0;
 
-/// This auto-implemented marker trait represents the operations a histogram must be able to
-/// perform on the underlying counter type. The `ToPrimitive` trait is needed to perform floating
-/// point operations on the counts (usually for percentiles). The `FromPrimitive` to convert back
-/// into an integer count. Partial ordering is used for threshholding, also usually in the context
-/// of percentiles.
+/// This trait represents the operations a histogram must be able to perform on the underlying
+/// counter type. The `ToPrimitive` trait is needed to perform floating point operations on the
+/// counts (usually for percentiles). The `FromPrimitive` to convert back into an integer count.
+/// Partial ordering is used for threshholding, also usually in the context of percentiles.
 pub trait Counter
     : num::Num + num::ToPrimitive + num::FromPrimitive + num::Saturating + num::CheckedSub
     + num::CheckedAdd + Copy + PartialOrd<Self> {
+
+    /// Counter as a f64.
+    fn as_f64(&self) -> f64;
+    /// Counter as a u64.
+    fn as_u64(&self) -> u64;
 }
 
-// auto-implement marker trait
-impl<T> Counter for T
-    where T: num::Num + num::ToPrimitive + num::FromPrimitive + num::Saturating + num::CheckedSub
-    + num::CheckedAdd + Copy + PartialOrd<T>
-{
+impl Counter for u8 {
+    #[inline]
+    fn as_f64(&self) -> f64 { *self as f64 }
+    #[inline]
+    fn as_u64(&self) -> u64 { *self as u64 }
+}
+
+impl Counter for u16 {
+    #[inline]
+    fn as_f64(&self) -> f64 { *self as f64 }
+    #[inline]
+    fn as_u64(&self) -> u64 { *self as u64 }
+}
+
+impl Counter for u32 {
+    #[inline]
+    fn as_f64(&self) -> f64 { *self as f64 }
+    #[inline]
+    fn as_u64(&self) -> u64 { *self as u64 }
+}
+
+impl Counter for u64 {
+    #[inline]
+    fn as_f64(&self) -> f64 { *self as f64 }
+    #[inline]
+    fn as_u64(&self) -> u64 { *self }
 }
 
 /// `Histogram` is the core data structure in HdrSample. It records values, and performs analytics.
@@ -459,9 +483,8 @@ impl<T: Counter> Histogram<T> {
                 let other_count = source[i];
                 if other_count != T::zero() {
                     self[i] = self[i].saturating_add(other_count);
-                    // TODO unwrapping .to_u64()
                     observed_other_total_count = observed_other_total_count
-                        .saturating_add(other_count.to_u64().unwrap());
+                        .saturating_add(other_count.as_u64());
                 }
             }
 
@@ -824,9 +847,9 @@ impl<T: Counter> Histogram<T> {
 
         self.update_min_max(value);
         if add {
-            self.total_count = self.total_count.saturating_add(count.to_u64().unwrap());
+            self.total_count = self.total_count.saturating_add(count.as_u64());
         } else {
-            self.total_count = self.total_count.checked_sub(count.to_u64().unwrap())
+            self.total_count = self.total_count.checked_sub(count.as_u64())
                 .expect("total count underflow on subtraction");
         }
         Ok(())
@@ -1083,7 +1106,7 @@ impl<T: Counter> Histogram<T> {
 
         self.iter_recorded().fold(0.0_f64, |total, v| {
             total +
-                self.median_equivalent(v.value()) as f64 * v.count_at_value().to_f64().unwrap()
+                self.median_equivalent(v.value()) as f64 * v.count_at_value().as_f64()
                     / self.total_count as f64
         })
     }
@@ -1130,7 +1153,7 @@ impl<T: Counter> Histogram<T> {
         let mut total_to_current_index: u64 = 0;
         for i in 0..self.len() {
             // TODO overflow
-            total_to_current_index = total_to_current_index + self[i].to_u64().unwrap();
+            total_to_current_index = total_to_current_index + self[i].as_u64();
             if total_to_current_index >= count_at_percentile {
                 let value_at_index = self.value_for(i);
                 return if percentile == 0.0 {
@@ -1159,7 +1182,7 @@ impl<T: Counter> Histogram<T> {
         // TODO overflow
         let total_to_current_index =
             (0..(target_index + 1)).map(|i| self[i]).fold(T::zero(), |t, v| t + v);
-        100.0 * total_to_current_index.to_f64().unwrap() / self.total_count as f64
+        100.0 * total_to_current_index.as_f64() / self.total_count as f64
     }
 
     /// Get the count of recorded values within a range of value levels (inclusive to within the
@@ -1460,9 +1483,7 @@ impl <T: Counter> RestatState<T> {
     /// Should be called on every non-zero count found
     #[inline]
     fn on_nonzero_count(&mut self, index: usize, count: T) {
-        // TODO don't unwrap here; weird user Counter types may not work.
-        // Fix Counter types to just be u8-64?
-        self.total_count = self.total_count.saturating_add(count.to_u64().unwrap());
+        self.total_count = self.total_count.saturating_add(count.as_u64());
 
         self.max_index = Some(index);
 
