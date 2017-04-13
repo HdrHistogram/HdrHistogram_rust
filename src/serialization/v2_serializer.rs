@@ -68,6 +68,7 @@ impl V2Serializer {
         }
 
         let counts_len = encode_counts(h, &mut self.buf[V2_HEADER_SIZE..])?;
+        // addition should be safe as max_size is already a usize
         let total_len = V2_HEADER_SIZE + counts_len;
 
         // TODO benchmark fastest buffer management scheme
@@ -81,7 +82,8 @@ impl V2Serializer {
 }
 
 fn max_encoded_size<T: Counter>(h: &Histogram<T>) -> Option<usize> {
-    counts_array_max_encoded_size(h.index_for(h.max()) + 1)
+    h.index_for(h.max())
+        .and_then(|i| counts_array_max_encoded_size(i + 1))
         .and_then(|x| x.checked_add(V2_HEADER_SIZE))
 }
 
@@ -98,13 +100,13 @@ pub fn counts_array_max_encoded_size(length: usize) -> Option<usize> {
 /// Encode counts array into slice.
 /// The slice must be at least 9 * the number of counts that will be encoded.
 pub fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usize, V2SerializeError> {
-    let index_limit = h.index_for(h.max()) + 1;
+    let index_limit = h.index_for(h.max()).expect("Index for max value must exist");
     let mut index = 0;
     let mut bytes_written = 0;
 
     assert!(index_limit <= h.counts.len());
 
-    while index < index_limit {
+    while index <= index_limit {
         // index is inside h.counts because of the assert above
         let count = unsafe { *(h.counts.get_unchecked(index)) };
         index += 1;
@@ -117,7 +119,7 @@ pub fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usi
             zero_count = 1;
 
             // index is inside h.counts because of the assert above
-            while (index < index_limit) && (unsafe { *(h.counts.get_unchecked(index)) } == T::zero()) {
+            while (index <= index_limit) && (unsafe { *(h.counts.get_unchecked(index)) } == T::zero()) {
                 zero_count += 1;
                 index += 1;
             }
@@ -137,6 +139,7 @@ pub fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usi
 
         let zz = zig_zag_encode(count_or_zeros);
 
+        // this can't be longer than the length of `buf`, so this won't overflow `usize`
         bytes_written += varint_write(zz, &mut buf[bytes_written..]);
     }
 

@@ -201,9 +201,9 @@ fn large_percentile() {
 #[test]
 fn percentile_atorbelow() {
     let Loaded { hist, raw, .. } = load_histograms();
-    assert_near!(99.99, raw.percentile_below(5000), 0.0001);
-    assert_near!(50.0, hist.percentile_below(5000), 0.0001);
-    assert_near!(100.0, hist.percentile_below(100000000_u64), 0.0001);
+    assert_near!(99.99, raw.percentile_below(5000).unwrap(), 0.0001);
+    assert_near!(50.0, hist.percentile_below(5000).unwrap(), 0.0001);
+    assert_near!(100.0, hist.percentile_below(100000000_u64).unwrap(), 0.0001);
 }
 
 #[test]
