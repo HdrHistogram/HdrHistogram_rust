@@ -81,7 +81,7 @@ fn empty_histogram() {
     assert_eq!(h.max(), 0);
     assert_near!(h.mean(), 0.0, 0.0000000000001);
     assert_near!(h.stdev(), 0.0, 0.0000000000001);
-    assert_near!(h.percentile_below(0), 100.0, 0.0000000000001);
+    assert_near!(h.percentile_below(0).unwrap(), 100.0, 0.0000000000001);
     assert!(verify_max(h));
 }
 
@@ -271,7 +271,7 @@ fn subtract_subtrahend_values_outside_minuend_range_error() {
     big += 1000 * TEST_VALUE_LEVEL;
     big += 2 * TRACKABLE_MAX;
 
-    assert_eq!(SubtractionError::SubtrahendValuesExceedMinuendRange, h1.subtract(&big).unwrap_err());
+    assert_eq!(SubtractionError::SubtrahendValueExceedsMinuendRange, h1.subtract(&big).unwrap_err());
 
     assert_min_max_count(h1);
     assert_min_max_count(big);

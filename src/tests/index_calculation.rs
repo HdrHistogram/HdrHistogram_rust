@@ -328,44 +328,44 @@ fn sub_bucket_for_value_above_biggest_still_works() {
 #[test]
 fn index_for_first_bucket_first_entry() {
     let h = histo64(1, 100_000, 3);
-    assert_eq!(0, h.index_for(0));
+    assert_eq!(0, h.index_for(0).unwrap());
 }
 
 #[test]
 fn index_for_first_bucket_first_distinguishable_entry() {
     let h = histo64(1, 100_000, 3);
-    assert_eq!(1, h.index_for(1));
+    assert_eq!(1, h.index_for(1).unwrap());
 }
 
 #[test]
 fn index_for_first_bucket_last_entry() {
     let h = histo64(1, 100_000, 3);
-    assert_eq!(2047, h.index_for(2047));
+    assert_eq!(2047, h.index_for(2047).unwrap());
 }
 
 #[test]
 fn index_for_second_bucket_last_entry() {
     let h = histo64(1, 100_000, 3);
-    assert_eq!(2048 + 1023, h.index_for(2048 + 2047));
+    assert_eq!(2048 + 1023, h.index_for(2048 + 2047).unwrap());
 }
 
 #[test]
 fn index_for_second_bucket_last_entry_indistinguishable() {
     let h = histo64(1, 100_000, 3);
-    assert_eq!(2048 + 1023, h.index_for(2048 + 2046));
+    assert_eq!(2048 + 1023, h.index_for(2048 + 2046).unwrap());
 }
 
 #[test]
 fn index_for_second_bucket_first_entry() {
     let h = histo64(1, 100_000, 3);
-    assert_eq!(2048, h.index_for(2048));
+    assert_eq!(2048, h.index_for(2048).unwrap());
 }
 
 #[test]
 fn index_for_below_smallest() {
     let h = histo64(1024, 100_000, 3);
 
-    assert_eq!(0, h.index_for(512));
+    assert_eq!(0, h.index_for(512).unwrap());
 }
 
 #[test]
@@ -377,5 +377,5 @@ fn index_for_way_past_largest_value_exceeds_length() {
 
     // 2^39 = 1024 * 2^29, so this should be the start of the 30th bucket.
     // Start index is (bucket index + 1) * 1024.
-    assert_eq!(1024 * (30 + 1), h.index_for(1 << 40));
+    assert_eq!(1024 * (30 + 1), h.index_for(1 << 40).unwrap());
 }

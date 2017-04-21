@@ -19,9 +19,9 @@ pub mod all;
 /// A trait for designing an subset iterator over values in a `Histogram`.
 pub trait PickyIterator<T: Counter> {
     /// should an item be yielded for the given index?
-    fn pick(&mut self, usize, u64) -> bool;
+    fn pick(&mut self, index: usize, total_count_to_index: u64) -> bool;
     /// should we keep iterating even though all future indices are zeros?
-    fn more(&mut self, usize) -> bool;
+    fn more(&mut self, index: usize) -> bool;
 }
 
 /// `HistogramIterator` provides a base iterator for a `Histogram`.

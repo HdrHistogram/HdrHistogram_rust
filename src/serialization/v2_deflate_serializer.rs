@@ -70,6 +70,9 @@ impl V2DeflateSerializer {
 
         // TODO pluggable compressors? configurable compression levels?
         // TODO benchmark https://github.com/sile/libflate
+        // TODO if uncompressed_len is near the limit of 16-bit usize, and compression grows the
+        // data instead of shrinking it (which we cannot really predict), writing to compressed_buf
+        // could panic as Vec overflows its internal `usize`.
 
         {
             // TODO reuse deflate buf, or switch to lower-level flate2::Compress
@@ -80,7 +83,7 @@ impl V2DeflateSerializer {
 
         // fill in length placeholder. Won't underflow since length is always at least 8, and won't
         // overflow u32 as the largest array is about 6 million entries, so about 54MiB encoded (if
-        // counter is u64)
+        // counter is u64).
         let total_compressed_len = self.compressed_buf.len();
         (&mut self.compressed_buf[4..8]).write_u32::<BigEndian>((total_compressed_len as u32) - 8)?;
 

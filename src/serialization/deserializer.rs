@@ -114,6 +114,7 @@ impl Deserializer {
             // Read with fast loop until we are within 9 of the end. Fast loop can't handle EOF,
             // so bail to slow version for the last few bytes.
 
+            // payload_index math is safe because payload_len is a usize
             let (zz_num, bytes_read) = varint_read_slice(
                 &payload_slice[payload_index..(payload_index + 9)]);
             payload_index += bytes_read;
