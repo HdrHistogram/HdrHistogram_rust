@@ -1,4 +1,5 @@
 use tests::helpers::histo64;
+use std::cmp;
 
 #[test]
 fn equivalent_range_unit_magnitude_0() {
@@ -351,4 +352,79 @@ fn value_for_unit_magnitude_2() {
     // second bucket
     assert_eq!(2048 * 4, h.value_for(2048));
     assert_eq!((4096 - 2) * 4, h.value_for(3071));
+}
+
+#[test]
+fn value_for_at_each_index() {
+    let mut h = histo64(1, u64::max_value(), 3);
+
+    let max = 1_000_000;
+
+    for i in 1..(max + 1) {
+        h.record(i).unwrap();
+    }
+
+    // 3 sigfigs = 2048 sub bucket count
+
+    // first bucket is double size
+    for i in 1..2048 {
+        assert_eq!(i as u64, h.value_for(i));
+        assert_eq!(1, h.count_at(i as u64));
+    }
+
+    let mut index: usize = 2048;
+    let mut value_increment: u64 = 2;
+    // how many values will be bucketed to this slot
+    let mut expected_count: u64 = 2;
+    let mut expected_value: u64 = 2048;
+    let mut remaining_count: u64 = max - 2047;
+
+    while expected_value <= max {
+        for _ in 0..1024 {
+            assert_eq!(expected_value, h.value_for(index));
+
+            // if we're at the last slot, count will be different
+            let effective_count = cmp::min(remaining_count, expected_count);
+            assert_eq!(effective_count, h.count_at(expected_value),
+                       "index {} value {}", index, expected_value);
+
+            index += 1;
+            remaining_count = remaining_count.saturating_sub(expected_count);
+            expected_value += value_increment;
+
+            if expected_value > max {
+                // we're done
+                break;
+            }
+        }
+
+        value_increment *= 2;
+        expected_count *= 2;
+    }
+}
+
+#[test]
+fn value_for_beyond_histogram_max_still_works() {
+    // this is unsupported behavior but it would be good to know if it changes.
+    let max = 1_000_000_000;
+    let h = histo64(1, max, 3);
+
+    let bucket = h.bucket_for(max);
+
+    let bigger_bucket = h.bucket_for(2 * max);
+
+    assert_eq!(bucket + 1, bigger_bucket);
+}
+
+#[test]
+fn value_for_impossible_index() {
+    // this is unsupported behavior but it would be good to know if it changes.
+    let max = u64::max_value();
+    let h = histo64(1, max, 3);
+
+    let max_index = h.index_for(max).unwrap();
+
+    assert_eq!(h.lowest_equivalent(max), h.value_for(max_index));
+    // too many left shifts; index is shifted off the high end
+    assert_eq!(0, h.value_for(max_index + 1));
 }

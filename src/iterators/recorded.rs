@@ -22,9 +22,11 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
 impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
     fn pick(&mut self, index: usize, _: u64) -> bool {
         // is the count non-zero?
-        if self.hist[index] != T::zero() {
+        let count = self.hist.count_at_index(index)
+            .expect("index must be valid by PickyIterator contract");
+        if count != T::zero() {
             // have we visited before?
-            if self.visited.is_none() || self.visited.unwrap() != index {
+            if self.visited.map(|i| i != index).unwrap_or(true) {
                 self.visited = Some(index);
                 return true;
             }
