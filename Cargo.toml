@@ -26,6 +26,7 @@ bench_private = [] # for enabling nightly-only feature(test) on the main crate t
 num = "0.1"
 byteorder = "1.0.0"
 flate2 = "0.2.17"
+ieee754 = "0.2.2"
 
 [dev-dependencies]
 rand = "0.3.15"
