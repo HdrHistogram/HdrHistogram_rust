@@ -3,6 +3,7 @@
 extern crate hdrsample;
 extern crate num;
 extern crate rand;
+extern crate ieee754;
 
 use self::rand::Rng;
 
@@ -12,6 +13,7 @@ use std::borrow::Borrow;
 use std::cmp;
 use std::fmt;
 use num::Saturating;
+use ieee754::Ieee754;
 
 macro_rules! assert_near {
     ($a: expr, $b: expr, $tolerance: expr) => {{
@@ -929,9 +931,15 @@ fn quantile_2_values() {
 
     assert_eq!(1, h.value_at_quantile(0.25));
     assert_eq!(1, h.value_at_quantile(0.5));
-    // ideally this would return 2
-    assert_eq!(1, h.value_at_quantile(0.5000000000000001));
-    assert_eq!(2, h.value_at_quantile(0.5000000000000002));
+
+    let almost_half = 0.5000000000000001;
+    let next = 0.5000000000000002;
+    // one ulp apart
+    assert_eq!(next, almost_half.next());
+
+    // ideally this would return 2, not 1
+    assert_eq!(1, h.value_at_quantile(almost_half));
+    assert_eq!(2, h.value_at_quantile(next));
 }
 
 #[test]
