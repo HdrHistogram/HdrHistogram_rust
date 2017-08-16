@@ -1001,3 +1001,26 @@ fn value_at_quantile_matches_pctile_iter() {
         }
     }
 }
+
+#[test]
+fn value_at_quantile_matches_pctile() {
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+
+    let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000];
+
+    for length in lengths {
+        h.reset();
+
+        for i in 1..(length + 1) {
+            h.record(i).unwrap();
+        }
+
+        assert_eq!(length, h.count());
+
+        for v in 1..(length + 1) {
+            let quantile = v as f64 / length as f64;
+            let calculated_value = h.value_at_quantile(quantile);
+            assert!(h.equivalent(v, calculated_value), "len {} quantile {}", length, quantile);
+        }
+    }
+}
