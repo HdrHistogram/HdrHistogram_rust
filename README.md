@@ -101,7 +101,7 @@ use hdrsample::Histogram;
 let hist = Histogram::<u64>::new(2).unwrap();
 // ...
 println!("# of samples: {}", hist.count());
-println!("99.9'th percentile: {}", hist.value_at_percentile(99.9));
+println!("99.9'th percentile: {}", hist.value_at_quantile(0.999));
 ```
 
 Several useful iterators are also provided for quickly getting an overview of the dataset. The

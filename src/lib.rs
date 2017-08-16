@@ -95,7 +95,7 @@
 //! let hist = Histogram::<u64>::new(2).unwrap();
 //! // ...
 //! println!("# of samples: {}", hist.count());
-//! println!("99.9'th percentile: {}", hist.value_at_percentile(99.9));
+//! println!("99.9'th percentile: {}", hist.value_at_quantile(0.999));
 //! ```
 //!
 //! Several useful iterators are also provided for quickly getting an overview of the dataset. The
@@ -954,17 +954,17 @@ impl<T: Counter> Histogram<T> {
     ///
     /// println!("{:?}", hist.iter_percentiles(1).collect::<Vec<_>>());
     ///
-    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_percentile(0.01), 0.01, 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.0001), 0.0001, 1, 1)));
     /// // step size = 50
-    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_percentile(50.0), 50.0, 1, 5000 - 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.5), 0.5, 1, 5000 - 1)));
     /// // step size = 25
-    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_percentile(75.0), 75.0, 1, 2500)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.75), 0.75, 1, 2500)));
     /// // step size = 12.5
-    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_percentile(87.5), 87.5, 1, 1250)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.875), 0.875, 1, 1250)));
     /// // step size = 6.25
-    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_percentile(93.75), 93.75, 1, 625)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.9375), 0.9375, 1, 625)));
     /// // step size = 3.125
-    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_percentile(96.88), 96.88, 1, 313)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.9688), 0.9688, 1, 313)));
     /// // etc...
     /// ```
     pub fn iter_percentiles<'a>(&'a self, percentile_ticks_per_half_distance: u32)
@@ -990,15 +990,15 @@ impl<T: Counter> Histogram<T> {
     /// hist += 850;
     ///
     /// let mut perc = hist.iter_linear(100);
-    /// assert_eq!(perc.next(), Some(IterationValue::new(99, hist.percentile_below(99).unwrap(), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(199, hist.percentile_below(199).unwrap(), 0, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(299, hist.percentile_below(299).unwrap(), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(399, hist.percentile_below(399).unwrap(), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(499, hist.percentile_below(499).unwrap(), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(599, hist.percentile_below(599).unwrap(), 0, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(699, hist.percentile_below(699).unwrap(), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(799, hist.percentile_below(799).unwrap(), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(899, hist.percentile_below(899).unwrap(), 0, 2)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(99, hist.quantile_below(99).unwrap(), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(199, hist.quantile_below(199).unwrap(), 0, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(299, hist.quantile_below(299).unwrap(), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(399, hist.quantile_below(399).unwrap(), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(499, hist.quantile_below(499).unwrap(), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(599, hist.quantile_below(599).unwrap(), 0, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(699, hist.quantile_below(699).unwrap(), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(799, hist.quantile_below(799).unwrap(), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(899, hist.quantile_below(899).unwrap(), 0, 2)));
     /// assert_eq!(perc.next(), None);
     /// ```
     pub fn iter_linear<'a>(&'a self, step: u64)
@@ -1022,10 +1022,10 @@ impl<T: Counter> Histogram<T> {
     /// hist += 850;
     ///
     /// let mut perc = hist.iter_log(1, 10.0);
-    /// assert_eq!(perc.next(), Some(IterationValue::new(0, hist.percentile_below(0).unwrap(), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(9, hist.percentile_below(9).unwrap(), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(99, hist.percentile_below(99).unwrap(), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(999, hist.percentile_below(999).unwrap(), 0, 4)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(0, hist.quantile_below(0).unwrap(), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(9, hist.quantile_below(9).unwrap(), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(99, hist.quantile_below(99).unwrap(), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(999, hist.quantile_below(999).unwrap(), 0, 4)));
     /// assert_eq!(perc.next(), None);
     /// ```
     pub fn iter_log<'a>(&'a self, start: u64, exp: f64)
@@ -1049,10 +1049,10 @@ impl<T: Counter> Histogram<T> {
     /// hist += 850;
     ///
     /// let mut perc = hist.iter_recorded();
-    /// assert_eq!(perc.next(), Some(IterationValue::new(100, hist.percentile_below(100).unwrap(), 1, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(500, hist.percentile_below(500).unwrap(), 1, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(800, hist.percentile_below(800).unwrap(), 1, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(850, hist.percentile_below(850).unwrap(), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(100, hist.quantile_below(100).unwrap(), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(500, hist.quantile_below(500).unwrap(), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(800, hist.quantile_below(800).unwrap(), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(850, hist.quantile_below(850).unwrap(), 1, 1)));
     /// assert_eq!(perc.next(), None);
     /// ```
     pub fn iter_recorded<'a>(&'a self)
@@ -1077,16 +1077,16 @@ impl<T: Counter> Histogram<T> {
     ///
     /// let mut perc = hist.iter_all();
     /// assert_eq!(perc.next(), Some(IterationValue::new(0, 0.0, 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(1, hist.percentile_below(1).unwrap(), 1, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(2, hist.percentile_below(2).unwrap(), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(3, hist.percentile_below(3).unwrap(), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(4, hist.percentile_below(4).unwrap(), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(5, hist.percentile_below(5).unwrap(), 1, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(6, hist.percentile_below(6).unwrap(), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(7, hist.percentile_below(7).unwrap(), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(8, hist.percentile_below(8).unwrap(), 1, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(9, hist.percentile_below(9).unwrap(), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(10, 100.0, 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(1, hist.quantile_below(1).unwrap(), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(2, hist.quantile_below(2).unwrap(), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(3, hist.quantile_below(3).unwrap(), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(4, hist.quantile_below(4).unwrap(), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(5, hist.quantile_below(5).unwrap(), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(6, hist.quantile_below(6).unwrap(), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(7, hist.quantile_below(7).unwrap(), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(8, hist.quantile_below(8).unwrap(), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(9, hist.quantile_below(9).unwrap(), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(10, 1.0, 0, 0)));
     /// ```
     pub fn iter_all<'a>(&'a self) -> HistogramIterator<'a, T, iterators::all::Iter> {
         iterators::all::Iter::new(self)
@@ -1170,32 +1170,34 @@ impl<T: Counter> Histogram<T> {
     ///
     /// Two values are considered "equivalent" if `self.equivalent` would return true.
     pub fn value_at_percentile(&self, percentile: f64) -> u64 {
-        // Truncate down to 100%
-        let percentile = if percentile > 100.0 {
-            100.0
+        self.value_at_quantile(percentile / 100.0)
+    }
+
+    /// Get the value at a given quantile.
+    pub fn value_at_quantile(&self, quantile: f64) -> u64 {
+        // Truncate down to 1.0
+        let quantile = if quantile > 1.0 {
+            1.0
         } else {
-            percentile
+            quantile
         };
 
         // round to nearest
-        let fractional_count = percentile / 100.0 * self.total_count as f64;
-        let mut count_at_percentile =fractional_count.prev().ceil() as u64;
-        println!("fractional count {}, prev {}, count {}, highest equiv {}",
-                 fractional_count, fractional_count.prev(), count_at_percentile,
-                 self.highest_equivalent(count_at_percentile));
+        let fractional_count = quantile * self.total_count as f64;
+        let mut count_at_quantile =fractional_count.prev().ceil() as u64;
 
         // Make sure we at least reach the first recorded entry
-        if count_at_percentile == 0 {
-            count_at_percentile = 1;
+        if count_at_quantile == 0 {
+            count_at_quantile = 1;
         }
 
         let mut total_to_current_index: u64 = 0;
         for i in 0..self.len() {
             // TODO overflow
             total_to_current_index = total_to_current_index + self[i].as_u64();
-            if total_to_current_index >= count_at_percentile {
+            if total_to_current_index >= count_at_quantile {
                 let value_at_index = self.value_for(i);
-                return if percentile == 0.0 {
+                return if quantile == 0.0 {
                     self.lowest_equivalent(value_at_index)
                 } else {
                     self.highest_equivalent(value_at_index)
@@ -1217,8 +1219,13 @@ impl<T: Counter> Histogram<T> {
     ///
     /// Panics if the value is out of bounds.
     pub fn percentile_below(&self, value: u64) -> Result<f64, ()> {
+        self.quantile_below(value).map(|q| q * 100.0)
+    }
+
+    /// Get the quantile of samples at or below a given value.
+    pub fn quantile_below(&self, value: u64) -> Result<f64, ()> {
         if self.total_count == 0 {
-            return Ok(100.0);
+            return Ok(1.0);
         }
 
         let target_index = cmp::min(self.index_for(value).ok_or(())?, self.last());
@@ -1226,8 +1233,9 @@ impl<T: Counter> Histogram<T> {
         // TODO panic on bad index
         let total_to_current_index =
             (0..(target_index + 1)).map(|i| self[i]).fold(T::zero(), |t, v| t + v);
-        Ok(100.0 * total_to_current_index.as_f64() / self.total_count as f64)
+        Ok(total_to_current_index.as_f64() / self.total_count as f64)
     }
+
 
     /// Get the count of recorded values within a range of value levels (inclusive to within the
     /// histogram's resolution).

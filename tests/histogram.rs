@@ -112,20 +112,6 @@ fn record_past_trackable_max() {
 }
 
 #[test]
-fn create_with_large_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(20000000, 100000000, 5).unwrap();
-
-    h += 100000000;
-    h += 20000000;
-    h += 30000000;
-
-    assert!(h.equivalent(20000000, h.value_at_percentile(50.0)));
-    assert!(h.equivalent(30000000, h.value_at_percentile(83.33)));
-    assert!(h.equivalent(100000000, h.value_at_percentile(83.34)));
-    assert!(h.equivalent(100000000, h.value_at_percentile(99.0)));
-}
-
-#[test]
 fn record_in_interval() {
     let mut h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     h.record_correct(TEST_VALUE_LEVEL, TEST_VALUE_LEVEL / 4).unwrap();
@@ -935,21 +921,21 @@ fn subtract_underflow_guarded_by_per_value_count_check() {
 }
 
 #[test]
-fn pctile_2_values() {
+fn quantile_2_values() {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
 
     h.record(1).unwrap();
     h.record(2).unwrap();
 
-    assert_eq!(1, h.value_at_percentile(25.0));
-    assert_eq!(1, h.value_at_percentile(50.0));
+    assert_eq!(1, h.value_at_quantile(0.25));
+    assert_eq!(1, h.value_at_quantile(0.5));
     // ideally this would return 2
-    assert_eq!(1, h.value_at_percentile(50.00000000000001));
-    assert_eq!(2, h.value_at_percentile(50.00000000000002));
+    assert_eq!(1, h.value_at_quantile(0.5000000000000001));
+    assert_eq!(2, h.value_at_quantile(0.5000000000000002));
 }
 
 #[test]
-fn pctile_5_values() {
+fn quantile_5_values() {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
 
     h.record(1).unwrap();
@@ -958,13 +944,13 @@ fn pctile_5_values() {
     h.record(2).unwrap();
     h.record(2).unwrap();
 
-    assert_eq!(2, h.value_at_percentile(25.0));
-    assert_eq!(2, h.value_at_percentile(30.0));
+    assert_eq!(2, h.value_at_quantile(0.25));
+    assert_eq!(2, h.value_at_quantile(0.3));
 }
 
 
 #[test]
-fn pctile_20k() {
+fn quantile_20k() {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
 
     for i in 1..20_001 {
@@ -973,25 +959,25 @@ fn pctile_20k() {
 
     assert_eq!(20_000, h.count());
 
-    assert!(h.equivalent(19961, h.value_at_percentile(99.805)));
+    assert!(h.equivalent(19961, h.value_at_quantile(0.99805)));
 }
 
 #[test]
-fn pctile_large_numbers() {
+fn quantile_large_numbers() {
     let mut h = Histogram::<u64>::new_with_bounds(20_000_000, 100_000_000, 5).unwrap();
     h.record(100_000_000).unwrap();
     h.record(20_000_000).unwrap();
     h.record(30_000_000).unwrap();
 
-    assert!(h.equivalent(20_000_000, h.value_at_percentile(50.0)));
-    assert!(h.equivalent(30_000_000, h.value_at_percentile(50.0)));
-    assert!(h.equivalent(100_000_000, h.value_at_percentile(83.33)));
-    assert!(h.equivalent(100_000_000, h.value_at_percentile(83.34)));
-    assert!(h.equivalent(100_000_000, h.value_at_percentile(99.0)));
+    assert!(h.equivalent(20_000_000, h.value_at_quantile(0.5)));
+    assert!(h.equivalent(30_000_000, h.value_at_quantile(0.5)));
+    assert!(h.equivalent(100_000_000, h.value_at_quantile(0.8333)));
+    assert!(h.equivalent(100_000_000, h.value_at_quantile(0.8334)));
+    assert!(h.equivalent(100_000_000, h.value_at_quantile(0.99)));
 }
 
 #[test]
-fn value_at_pctile_matches_pctile_iter() {
+fn value_at_quantile_matches_pctile_iter() {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
 
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000];
@@ -1008,10 +994,10 @@ fn value_at_pctile_matches_pctile_iter() {
         let iter = h.iter_percentiles(1000);
 
         for v in iter {
-            let calculated_value = h.value_at_percentile(v.percentile());
+            let calculated_value = h.value_at_quantile(v.quantile());
             let iter_value = v.value();
 
-            assert_eq!(iter_value, calculated_value, "len {} percentile {}", l, v.percentile());
+            assert_eq!(iter_value, calculated_value, "len {} quantile {}", l, v.quantile());
         }
     }
 }

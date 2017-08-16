@@ -77,8 +77,8 @@ fn scaling_equivalence() {
     assert_near!(hist.mean() * SCALEF as f64, scaled_hist.mean(), 0.000001);
     assert_eq!(hist.count(), scaled_hist.count());
 
-    let expected_99th = hist.value_at_percentile(99.0) * 512;
-    let scaled_99th = scaled_hist.value_at_percentile(99.0);
+    let expected_99th = hist.value_at_quantile(0.99) * 512;
+    let scaled_99th = scaled_hist.value_at_quantile(0.99);
 
     assert_eq!(hist.lowest_equivalent(expected_99th),
                scaled_hist.lowest_equivalent(scaled_99th));
@@ -88,8 +88,8 @@ fn scaling_equivalence() {
     // total count should be the same
     assert_eq!(hist.count(), scaled_hist.count());
     // 99%'iles should be equivalent
-    assert_eq!(scaled_hist.highest_equivalent(hist.value_at_percentile(99.0) * 512),
-               scaled_hist.highest_equivalent(scaled_hist.value_at_percentile(99.0)));
+    assert_eq!(scaled_hist.highest_equivalent(hist.value_at_quantile(0.99) * 512),
+               scaled_hist.highest_equivalent(scaled_hist.value_at_quantile(0.99)));
     // Max should be equivalent
     assert_eq!(scaled_hist.highest_equivalent(hist.max() * 512),
                scaled_hist.max());
@@ -101,8 +101,8 @@ fn scaling_equivalence() {
     // total count should be the same
     assert_eq!(post.count(), scaled_post.count());
     // 99%'iles should be equivalent
-    assert_eq!(post.lowest_equivalent(post.value_at_percentile(99.0)) * SCALEF,
-               scaled_post.lowest_equivalent(scaled_post.value_at_percentile(99.0)));
+    assert_eq!(post.lowest_equivalent(post.value_at_quantile(0.99)) * SCALEF,
+               scaled_post.lowest_equivalent(scaled_post.value_at_quantile(0.99)));
     // Max should be equivalent
     assert_eq!(scaled_post.highest_equivalent(post.max() * 512),
                scaled_post.max());
@@ -175,19 +175,19 @@ fn get_stdev() {
 fn percentiles() {
     let Loaded { hist, raw, .. } = load_histograms();
 
-    assert_near!(raw.value_at_percentile(30.0), 1000.0, 0.001);
-    assert_near!(raw.value_at_percentile(99.0), 1000.0, 0.001);
-    assert_near!(raw.value_at_percentile(99.99), 1000.0, 0.001);
-    assert_near!(raw.value_at_percentile(99.999), 100000000.0, 0.001);
-    assert_near!(raw.value_at_percentile(100.0), 100000000.0, 0.001);
+    assert_near!(raw.value_at_quantile(0.3), 1000.0, 0.001);
+    assert_near!(raw.value_at_quantile(0.99), 1000.0, 0.001);
+    assert_near!(raw.value_at_quantile(0.9999), 1000.0, 0.001);
+    assert_near!(raw.value_at_quantile(0.99999), 100000000.0, 0.001);
+    assert_near!(raw.value_at_quantile(1.0), 100000000.0, 0.001);
 
-    assert_near!(hist.value_at_percentile(30.0), 1000.0, 0.001);
-    assert_near!(hist.value_at_percentile(50.0), 1000.0, 0.001);
-    assert_near!(hist.value_at_percentile(75.0), 50000000.0, 0.001);
-    assert_near!(hist.value_at_percentile(90.0), 80000000.0, 0.001);
-    assert_near!(hist.value_at_percentile(99.0), 98000000.0, 0.001);
-    assert_near!(hist.value_at_percentile(99.999), 100000000.0, 0.001);
-    assert_near!(hist.value_at_percentile(100.0), 100000000.0, 0.001);
+    assert_near!(hist.value_at_quantile(0.3), 1000.0, 0.001);
+    assert_near!(hist.value_at_quantile(0.5), 1000.0, 0.001);
+    assert_near!(hist.value_at_quantile(0.75), 50000000.0, 0.001);
+    assert_near!(hist.value_at_quantile(0.9), 80000000.0, 0.001);
+    assert_near!(hist.value_at_quantile(0.99), 98000000.0, 0.001);
+    assert_near!(hist.value_at_quantile(0.99999), 100000000.0, 0.001);
+    assert_near!(hist.value_at_quantile(1.0), 100000000.0, 0.001);
 }
 
 #[test]
@@ -195,7 +195,7 @@ fn large_percentile() {
     let largest_value = 1000000000000_u64;
     let mut h = Histogram::<u64>::new_with_max(largest_value, 5).unwrap();
     h += largest_value;
-    assert!(h.value_at_percentile(100.0) > 0);
+    assert!(h.value_at_quantile(1.0) > 0);
 }
 
 #[test]
@@ -224,10 +224,10 @@ fn count_at() {
 }
 
 #[test]
-fn perc_iter() {
+fn quantile_iter() {
     let Loaded { hist, .. } = load_histograms();
     for v in hist.iter_percentiles(5 /* ticks per half */) {
-        assert_eq!(v.value(), hist.highest_equivalent(hist.value_at_percentile(v.percentile())));
+        assert_eq!(v.value(), hist.highest_equivalent(hist.value_at_quantile(v.quantile())));
     }
 }
 
@@ -472,7 +472,7 @@ fn total_count_exceeds_bucket_type() {
 }
 
 #[test]
-fn value_at_percentile_internal_count_exceeds_bucket_type() {
+fn value_at_quantile_internal_count_exceeds_bucket_type() {
     let mut h: Histogram<u8> = Histogram::new(3).unwrap();
 
     for _ in 0..200 {
@@ -485,5 +485,5 @@ fn value_at_percentile_internal_count_exceeds_bucket_type() {
     }
 
     // we won't get back the original input because of bucketing
-    assert_eq!(h.highest_equivalent(100_000), h.value_at_percentile(100.0));
+    assert_eq!(h.highest_equivalent(100_000), h.value_at_quantile(1.0));
 }
