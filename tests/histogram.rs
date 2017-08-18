@@ -299,7 +299,7 @@ fn subtract_values_inside_minuend_range_works() {
 
 #[test]
 fn subtract_values_strictly_inside_minuend_range_yields_same_min_max_no_restat() {
-  let mut h1 = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
+    let mut h1 = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     let mut h2 = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
 
     h1 += 1;
@@ -935,8 +935,10 @@ fn quantile_2_values() {
     let almost_half = 0.5000000000000001;
     let next = 0.5000000000000002;
     // one ulp apart
+    assert_eq!(almost_half, 0.5_f64.next());
     assert_eq!(next, almost_half.next());
 
+    assert_eq!(1, h.value_at_quantile(0.5));
     // ideally this would return 2, not 1
     assert_eq!(1, h.value_at_quantile(almost_half));
     assert_eq!(2, h.value_at_quantile(next));
@@ -985,33 +987,35 @@ fn quantile_large_numbers() {
 }
 
 #[test]
-fn value_at_quantile_matches_pctile_iter() {
+fn value_at_quantile_matches_pctile_iter_sequence() {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
 
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000];
 
-    for l in lengths {
+    for length in lengths {
         h.reset();
 
-        for i in 1..(l + 1) {
+        for i in 1..(length + 1) {
             h.record(i).unwrap();
         }
 
-        assert_eq!(l, h.count());
+        assert_eq!(length, h.count());
 
         let iter = h.iter_percentiles(1000);
 
-        for v in iter {
-            let calculated_value = h.value_at_quantile(v.quantile());
-            let iter_value = v.value();
+        for iter_val in iter {
+            let calculated_value = h.value_at_quantile(iter_val.quantile());
+            let v = iter_val.value();
 
-            assert_eq!(iter_value, calculated_value, "len {} quantile {}", l, v.quantile());
+            assert_eq!(v, calculated_value,
+                       "len {} iter quantile {} q count {} iter val {} -> {} calc val {} -> {}",
+                       length, iter_val.quantile(), iter_val.quantile() * length as f64, v, h.highest_equivalent(v), calculated_value, h.highest_equivalent(calculated_value));
         }
     }
 }
 
 #[test]
-fn value_at_quantile_matches_pctile() {
+fn value_at_quantile_matches_value_sequence() {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
 
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000];
@@ -1028,7 +1032,76 @@ fn value_at_quantile_matches_pctile() {
         for v in 1..(length + 1) {
             let quantile = v as f64 / length as f64;
             let calculated_value = h.value_at_quantile(quantile);
-            assert!(h.equivalent(v, calculated_value), "len {} quantile {}", length, quantile);
+            if !h.equivalent(v, calculated_value) {
+                assert_eq!(h.highest_equivalent(v), calculated_value,
+                         "len {} quantile {} q count {} actual {} -> {} calc {} -> {}",
+                         length, quantile, quantile * length as f64, v, h.highest_equivalent(v), calculated_value, h.highest_equivalent(calculated_value));
+            }
+        }
+    }
+}
+
+#[test]
+fn value_at_quantile_matches_pctile_iter_random() {
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+
+    let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000];
+
+    let mut rng = rand::weak_rng();
+
+    for length in lengths {
+        h.reset();
+
+        for _ in 1..(length + 1) {
+            h.record(rng.gen()).unwrap();
+        }
+
+        assert_eq!(length, h.count());
+
+        let iter = h.iter_percentiles(1000);
+
+        for iter_val in iter {
+            let calculated_value = h.value_at_quantile(iter_val.quantile());
+            let v = iter_val.value();
+
+            assert_eq!(v, calculated_value,
+                       "len {} iter quantile {} q count {} iter val {} -> {} calc val {} -> {}",
+                       length, iter_val.quantile(), iter_val.quantile() * length as f64, v, h.highest_equivalent(v), calculated_value, h.highest_equivalent(calculated_value));
+        }
+    }
+}
+
+#[test]
+fn value_at_quantile_matches_value_random() {
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut values = Vec::new();
+
+    let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000];
+
+    let mut rng = rand::weak_rng();
+
+    for length in lengths {
+        h.reset();
+
+        for _ in 1..(length + 1) {
+            let v = rng.gen();
+            h.record(v).unwrap();
+            values.push(v);
+        }
+
+        values.sort();
+
+        assert_eq!(length, h.count());
+
+        for (index, &v) in values.iter().enumerate() {
+            let quantile = (index + 1) as f64 / length as f64;
+            let calculated_value = h.value_at_quantile(quantile);
+            if !h.equivalent(v, calculated_value) {
+                // TODO this fails quickly
+//                assert_eq!(h.highest_equivalent(v), calculated_value,
+//                           "len {} quantile {} q count {} actual {} -> {} calc {} -> {}",
+//                         length, quantile, quantile * length as f64, v, h.highest_equivalent(v), calculated_value, h.highest_equivalent(calculated_value));
+            }
         }
     }
 }

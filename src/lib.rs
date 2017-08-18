@@ -1184,7 +1184,7 @@ impl<T: Counter> Histogram<T> {
 
         // round to nearest
         let fractional_count = quantile * self.total_count as f64;
-        let mut count_at_quantile =fractional_count.prev().ceil() as u64;
+        let mut count_at_quantile = fractional_count.prev().ceil() as u64;
 
         // Make sure we at least reach the first recorded entry
         if count_at_quantile == 0 {
