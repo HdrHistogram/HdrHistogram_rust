@@ -1045,7 +1045,8 @@ fn value_at_quantile_matches_value_sequence() {
 fn value_at_quantile_matches_pctile_iter_random() {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
 
-    let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000];
+    // random u64s tend to be pretty darn big, so percentile calculations have to scan more.
+    let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000];
 
     let mut rng = rand::weak_rng();
 
@@ -1076,7 +1077,7 @@ fn value_at_quantile_matches_value_random() {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
     let mut values = Vec::new();
 
-    let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000];
+    let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000];
 
     let mut rng = rand::weak_rng();
 
