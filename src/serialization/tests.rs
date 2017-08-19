@@ -545,7 +545,7 @@ fn do_serialize_roundtrip_random<S, T>(mut serializer: S, max_count: T)
         for value in RandomVarintEncodedLengthIter::new(rand::weak_rng()).take(1000) {
             let count = range.ind_sample(&mut count_rng);
             // don't let accumulated per-value count exceed max_count
-            let existing_count = h.count_at(value).unwrap();
+            let existing_count = h.count_at(value);
             let sum = existing_count.saturating_add(count);
             if sum >= max_count {
                 // cap it to max count
