@@ -207,11 +207,34 @@ fn percentile_atorbelow() {
 }
 
 #[test]
+fn percentile_below_saturates() {
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+
+    for i in 0..1024 {
+        h.record_n(i, u64::max_value() - 1).unwrap();
+    }
+
+    // really it should be 50 but it saturates at u64::max_value()
+    assert_eq!(100.0, h.percentile_below(512).unwrap());
+}
+
+#[test]
 fn count_between() {
     let Loaded { hist, raw, .. } = load_histograms();
     assert_eq!(raw.count_between(1000, 1000), Ok(10000));
     assert_eq!(raw.count_between(5000, 150000000), Ok(1));
     assert_eq!(hist.count_between(5000, 150000000), Ok(10000));
+}
+
+#[test]
+fn count_between_saturates() {
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+
+    for i in 0..1024 {
+        h.record_n(i, u64::max_value() - 1).unwrap();
+    }
+
+    assert_eq!(u64::max_value(), h.count_between(100, 200).unwrap());
 }
 
 #[test]
