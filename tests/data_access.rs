@@ -3,11 +3,15 @@
 extern crate hdrsample;
 extern crate rand;
 extern crate ieee754;
+extern crate rug;
 
 use hdrsample::Histogram;
 
 use rand::Rng;
+use rand::distributions::range::Range;
+use rand::distributions::IndependentSample;
 use ieee754::Ieee754;
+use rug::{Rational, Integer};
 
 macro_rules! assert_near {
     ($a: expr, $b: expr, $tolerance: expr) => {{
@@ -620,7 +624,7 @@ fn value_at_quantile_matches_pctile_iter_random() {
     // random u64s tend to be pretty darn big, so percentile calculations have to scan more.
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000];
 
-    let mut rng = rand::weak_rng();
+    let mut rng = rand::thread_rng();
 
     for length in lengths {
         h.reset();
@@ -651,10 +655,9 @@ fn value_at_quantile_matches_value_random() {
 
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000];
 
-    let mut rng = rand::weak_rng();
+    let mut rng = rand::thread_rng();
 
-    let mut errors = 0;
-
+    let mut errors: u64 = 0;
 
     for length in lengths {
         h.reset();
@@ -687,6 +690,107 @@ fn value_at_quantile_matches_value_random() {
     }
 
     assert_eq!(0, errors);
+}
+
+#[test]
+fn quantile_prev_before_multiplication_vs_prev_after() {
+    // gather a bunch of data just like we would for a histogram
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut values = Vec::new();
+
+    let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000, 10_000_000];
+
+    let mut rng = rand::thread_rng();
+
+    let mut errors: u64 = 0;
+
+    for length in lengths {
+        h.reset();
+        values.clear();
+
+        for v in RandomMaxIter::new(&mut rng).take(length) {
+            h.record(v).unwrap();
+            values.push(v);
+        }
+
+        values.sort();
+
+        assert_eq!(length as u64, h.count());
+
+        for (index, _) in values.iter().enumerate() {
+            let quantile = if length == 1 {
+                1.0
+            } else {
+                index as f64 / (length - 1) as f64
+            };
+
+            // compare prev() on the quantile vs prev() on the product
+            let q_count_prev_before_mult = (quantile.prev() * length as f64).ceil();
+            let q_count_prev_after_mult = (quantile * length as f64).prev().ceil();
+
+            if q_count_prev_before_mult != q_count_prev_after_mult {
+                errors += 1;
+                println!("len {} index {} quantile {} q count prev before {} q count prev after {}",
+                         length, index, quantile, q_count_prev_before_mult, q_count_prev_after_mult);
+            };
+        };
+    }
+
+    assert_eq!(0, errors);
+}
+
+#[test]
+fn quantile_count_rational_arithmetic_vs_fp() {
+    // look for cases where manipulation with prev(), ceil(), etc yields different results from
+    // rational arithmetic
+
+    let mut rng = rand::thread_rng();
+
+    let mut errors: u64 = 0;
+
+    for _ in 0..10 {
+        // pick a random number to be the "count"
+        let count: u64 = rng.gen_range(1, 1 << 32);
+
+        let range = Range::new(1, count + 1);
+
+        // try every quantile up to that count
+        for _ in 1..100000 {
+            let v = range.ind_sample(&mut rng);
+            let quantile = v as f64 / count as f64;
+            let quantile_rational = Rational::from_f64(quantile).unwrap();
+
+            let q_count_prev_before_mult = (quantile.prev() * count as f64).ceil();
+            let q_count_prev_after_mult = (quantile * count as f64).prev().ceil();
+
+            let q_count_rational = quantile_rational * Rational::from(Integer::from(count));
+            let q_count_rational_f64 = q_count_rational.to_f64();
+            let ulps_before = ulp_distance(q_count_rational_f64, q_count_prev_before_mult);
+            let ulps_after = ulp_distance(q_count_rational_f64, q_count_prev_after_mult);
+
+            if ulps_before > 1 {
+                println!("count {} quantile {} rational q count {} as f64 {} prev before mult {} ulps {}",
+                         count, quantile, q_count_rational, q_count_rational_f64, q_count_prev_before_mult, ulps_before);
+                errors += 1;
+            }
+
+            if ulps_after > 1 {
+                println!("count {} quantile {} rational q count {} as f64 {} after before mult {} ulps {}",
+                         count, quantile, q_count_rational, q_count_rational_f64, q_count_prev_after_mult, ulps_after);
+                errors += 1;
+            }
+        }
+    }
+
+    assert_eq!(0, errors);
+}
+
+fn ulp_distance(a: f64, b: f64) -> usize {
+    if a < b {
+        return a.upto(b).count();
+    } else {
+        return b.upto(a).count();
+    }
 }
 
 /// An iterator of random `u64`s where the maximum value for each random number generation is picked
