@@ -567,6 +567,7 @@ fn value_at_quantile_matches_pctile_iter_sequence() {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
 
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000];
+    let mut errors: u64 = 0;
 
     for length in lengths {
         h.reset();
@@ -583,11 +584,17 @@ fn value_at_quantile_matches_pctile_iter_sequence() {
             let calculated_value = h.value_at_quantile(iter_val.quantile());
             let v = iter_val.value();
 
-            assert_eq!(v, calculated_value,
-                       "len {} iter quantile {} q count {} iter val {} -> {} calc val {} -> {}",
-                       length, iter_val.quantile(), iter_val.quantile() * length as f64, v, h.highest_equivalent(v), calculated_value, h.highest_equivalent(calculated_value));
+            if v != calculated_value {
+                println!("len {} iter quantile {} q count {} iter val {} -> {} calc val {} -> {}",
+                         length, iter_val.quantile(), iter_val.quantile() * length as f64,
+                         v, h.highest_equivalent(v),
+                         calculated_value, h.highest_equivalent(calculated_value));
+                errors += 1;
+            }
         }
     }
+
+    assert_eq!(0, errors);
 }
 
 #[test]
@@ -595,13 +602,14 @@ fn value_at_quantile_matches_value_sequence() {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
 
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000];
+    let mut errors: u64 = 0;
 
     for length in lengths {
         h.reset();
 
         for i in 1..(length + 1) {
             h.record(i).unwrap();
-        }
+        };
 
         assert_eq!(length, h.count());
 
@@ -609,12 +617,16 @@ fn value_at_quantile_matches_value_sequence() {
             let quantile = v as f64 / length as f64;
             let calculated_value = h.value_at_quantile(quantile);
             if !h.equivalent(v, calculated_value) {
-                assert_eq!(h.highest_equivalent(v), calculated_value,
-                           "len {} quantile {} q count {} actual {} -> {} calc {} -> {}",
-                           length, quantile, quantile * length as f64, v, h.highest_equivalent(v), calculated_value, h.highest_equivalent(calculated_value));
+                println!("len {} quantile {} q count {} actual {} -> {} calc {} -> {}",
+                         length, quantile, quantile * length as f64,
+                         v, h.highest_equivalent(v),
+                         calculated_value, h.highest_equivalent(calculated_value));
+                errors += 1;
             }
         }
     }
+
+    assert_eq!(0, errors);
 }
 
 #[test]
@@ -625,6 +637,7 @@ fn value_at_quantile_matches_pctile_iter_random() {
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000];
 
     let mut rng = rand::thread_rng();
+    let mut errors: u64 = 0;
 
     for length in lengths {
         h.reset();
@@ -641,11 +654,17 @@ fn value_at_quantile_matches_pctile_iter_random() {
             let calculated_value = h.value_at_quantile(iter_val.quantile());
             let v = iter_val.value();
 
-            assert_eq!(v, calculated_value,
-                       "len {} iter quantile {} q count {} iter val {} -> {} calc val {} -> {}",
-                       length, iter_val.quantile(), iter_val.quantile() * length as f64, v, h.highest_equivalent(v), calculated_value, h.highest_equivalent(calculated_value));
+            if v != calculated_value {
+                println!("len {} iter quantile {} q count {} iter val {} -> {} calc val {} -> {}",
+                         length, iter_val.quantile(), iter_val.quantile() * length as f64, v,
+                         h.highest_equivalent(v), calculated_value,
+                         h.highest_equivalent(calculated_value));
+                errors += 1;
+            }
         }
     }
+
+    assert_eq!(0, errors);
 }
 
 #[test]
@@ -685,8 +704,8 @@ fn value_at_quantile_matches_value_random() {
                 println!("len {} index {} quantile {} q count {} actual {} -> {} calc {} -> {}",
                          length, index, quantile, quantile * length as f64, v, h.highest_equivalent(v),
                          calculated_value, h.highest_equivalent(calculated_value));
-            };
-        };
+            }
+        }
     }
 
     assert_eq!(0, errors);
@@ -732,8 +751,8 @@ fn quantile_prev_before_multiplication_vs_prev_after() {
                 errors += 1;
                 println!("len {} index {} quantile {} q count prev before {} q count prev after {}",
                          length, index, quantile, q_count_prev_before_mult, q_count_prev_after_mult);
-            };
-        };
+            }
+        }
     }
 
     assert_eq!(0, errors);
