@@ -821,6 +821,51 @@ fn quantile_count_product_fp_error() {
     assert!(false);
 }
 
+#[test]
+fn quantile_count_product_fp_rounding() {
+    // compare different fp approaches to arbitrary-precision rational arithmetic
+
+    fn run_prod_calculator<Q: QuantileCountCalculator>(calculator: Q,
+                                                       reference_calculator: RationalMult) {
+        let mut fp_same: u64 = 0;
+        let mut fp_high: u64 = 0;
+        let mut fp_low: u64 = 0;
+        let q_range = Range::new(0_f64, 1_f64);
+        let count_range = Range::new(0_u64, 1_u64 << 32);
+        let mut rng = rand::thread_rng();
+
+        for _ in 1..10_000_001 {
+            let count: u64 = count_range.ind_sample(&mut rng);
+            let quantile = q_range.ind_sample(&mut rng);
+
+            let q_count = calculator.do_it(quantile, count);
+            let q_count_ref = reference_calculator.do_it(quantile, count);
+
+            if q_count > q_count_ref {
+                fp_high += 1;
+            } else if q_count < q_count_ref {
+                fp_low += 1;
+            } else {
+                fp_same += 1;
+            }
+        }
+
+        println!("high {} low {} same {}",
+                 fp_high, fp_low, fp_same);
+    }
+
+    println!("mult then ceil");
+    run_prod_calculator(MultCeil{}, RationalMult{});
+
+    println!("mult, prev, ceil");
+    run_prod_calculator(MultPrevCeil{}, RationalMult{});
+
+    println!("prev, mult, ceil");
+    run_prod_calculator(PrevMultCeil{}, RationalMult{});
+
+    assert!(false);
+}
+
 fn ulp_distance(a: f64, b: f64) -> usize {
     if a < b {
         return a.upto(b).count();
@@ -857,5 +902,44 @@ impl <'a, R: Rng + 'a> Iterator for RandomMaxIter<'a, R> {
             64 => u64::max_value(),
             x => self.rng.gen_range(0, 1 << x)
         });
+    }
+}
+
+trait QuantileCountCalculator {
+    fn do_it(&self, quantile: f64, count: u64) -> u64;
+}
+
+struct MultCeil;
+
+impl QuantileCountCalculator for MultCeil {
+    fn do_it(&self, quantile: f64, count: u64) -> u64 {
+        (quantile * count as f64).ceil() as u64
+    }
+}
+
+struct MultPrevCeil;
+
+impl QuantileCountCalculator for MultPrevCeil {
+    fn do_it(&self, quantile: f64, count: u64) -> u64 {
+        (quantile * count as f64).prev().ceil() as u64
+    }
+}
+
+struct PrevMultCeil;
+
+impl QuantileCountCalculator for PrevMultCeil {
+    fn do_it(&self, quantile: f64, count: u64) -> u64 {
+        (quantile.prev() * count as f64).ceil() as u64
+    }
+}
+
+struct RationalMult;
+
+impl QuantileCountCalculator for RationalMult {
+    fn do_it(&self, quantile: f64, count: u64) -> u64 {
+        (Rational::from_f64(quantile).unwrap() * Rational::from(Integer::from(count)))
+            .to_integer() // always rounds towards 0
+            .to_u64()
+            .unwrap() + 1
     }
 }
