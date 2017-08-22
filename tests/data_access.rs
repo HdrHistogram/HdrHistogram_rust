@@ -785,6 +785,42 @@ fn quantile_count_rational_arithmetic_vs_fp() {
     assert_eq!(0, errors);
 }
 
+#[test]
+fn quantile_count_product_fp_error() {
+    // how often is multiplying a quantile by an int cast to a f64 too high vs too low?
+
+    let mut rng = rand::thread_rng();
+
+    let mut fp_same: u64 = 0;
+    let mut fp_high: u64 = 0;
+    let mut fp_low: u64 = 0;
+    let range = Range::new(0_f64, 1_f64);
+
+    for _ in 1..10_000_000 {
+        let count: u64 = rng.gen_range(1, 1 << 32);
+        let quantile = range.ind_sample(&mut rng);
+        let quantile_rational = Rational::from_f64(quantile).unwrap();
+
+        let q_count_fp = quantile * count as f64;
+
+        let q_count_rational = quantile_rational * Rational::from(Integer::from(count));
+        let q_count_rational_f64 = q_count_rational.to_f64();
+
+        if q_count_fp > q_count_rational_f64 {
+            fp_high += 1;
+        } else if q_count_fp < q_count_rational_f64 {
+            fp_low += 1;
+        } else {
+            fp_same += 1;
+        }
+    }
+
+    println!("high {} low {} same {}",
+             fp_high, fp_low, fp_same);
+
+    assert!(false);
+}
+
 fn ulp_distance(a: f64, b: f64) -> usize {
     if a < b {
         return a.upto(b).count();
