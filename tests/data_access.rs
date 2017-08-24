@@ -7,6 +7,7 @@ extern crate rug;
 
 use hdrsample::Histogram;
 
+use std::fmt;
 use rand::Rng;
 use rand::distributions::range::Range;
 use rand::distributions::IndependentSample;
@@ -160,8 +161,8 @@ fn get_stdev() {
     // direct avg. of raw results
     let expected_raw_mean: f64 = ((10000.0 * 1000.0) + (1.0 * 100000000.0)) / 10001.0;
     let expected_raw_std_dev = (((10000.0 * (1000_f64 - expected_raw_mean).powi(2)) +
-                              (100000000_f64 - expected_raw_mean).powi(2)) /
-                             10001.0)
+        (100000000_f64 - expected_raw_mean).powi(2)) /
+        10001.0)
         .sqrt();
 
     // avg. 1 msec for half the time, and 50 sec for other half
@@ -477,7 +478,6 @@ fn total_count_exceeds_bucket_type() {
     }
 
     assert_eq!(400, h.count());
-
 }
 
 #[test]
@@ -514,7 +514,6 @@ fn value_at_quantile_2_values() {
     assert_eq!(almost_half, 0.5_f64.next());
     assert_eq!(next, almost_half.next());
 
-    assert_eq!(1, h.value_at_quantile(0.5));
     // ideally this would return 2, not 1
     assert_eq!(1, h.value_at_quantile(almost_half));
     assert_eq!(2, h.value_at_quantile(next));
@@ -563,7 +562,7 @@ fn value_at_quantile_large_numbers() {
 }
 
 #[test]
-fn value_at_quantile_matches_pctile_iter_sequence() {
+fn value_at_quantile_matches_pctile_iter_sequence_values() {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
 
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000];
@@ -585,9 +584,11 @@ fn value_at_quantile_matches_pctile_iter_sequence() {
             let v = iter_val.value();
 
             if v != calculated_value {
-                println!("len {} iter quantile {} q count {} iter val {} -> {} calc val {} -> {}",
+                let q_count_rational = RationalMult {}.calculate_quantile_count(iter_val.quantile(), length);
+
+                println!("len {} iter quantile {} q count fp {} q count rational {} iter val {} -> {} calc val {} -> {}",
                          length, iter_val.quantile(), iter_val.quantile() * length as f64,
-                         v, h.highest_equivalent(v),
+                         q_count_rational, v, h.highest_equivalent(v),
                          calculated_value, h.highest_equivalent(calculated_value));
                 errors += 1;
             }
@@ -598,42 +599,9 @@ fn value_at_quantile_matches_pctile_iter_sequence() {
 }
 
 #[test]
-fn value_at_quantile_matches_value_sequence() {
+fn value_at_quantile_matches_pctile_iter_random_values() {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
 
-    let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000];
-    let mut errors: u64 = 0;
-
-    for length in lengths {
-        h.reset();
-
-        for i in 1..(length + 1) {
-            h.record(i).unwrap();
-        };
-
-        assert_eq!(length, h.count());
-
-        for v in 1..(length + 1) {
-            let quantile = v as f64 / length as f64;
-            let calculated_value = h.value_at_quantile(quantile);
-            if !h.equivalent(v, calculated_value) {
-                println!("len {} quantile {} q count {} actual {} -> {} calc {} -> {}",
-                         length, quantile, quantile * length as f64,
-                         v, h.highest_equivalent(v),
-                         calculated_value, h.highest_equivalent(calculated_value));
-                errors += 1;
-            }
-        }
-    }
-
-    assert_eq!(0, errors);
-}
-
-#[test]
-fn value_at_quantile_matches_pctile_iter_random() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
-
-    // random u64s tend to be pretty darn big, so percentile calculations have to scan more.
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000];
 
     let mut rng = rand::thread_rng();
@@ -655,10 +623,12 @@ fn value_at_quantile_matches_pctile_iter_random() {
             let v = iter_val.value();
 
             if v != calculated_value {
-                println!("len {} iter quantile {} q count {} iter val {} -> {} calc val {} -> {}",
-                         length, iter_val.quantile(), iter_val.quantile() * length as f64, v,
-                         h.highest_equivalent(v), calculated_value,
-                         h.highest_equivalent(calculated_value));
+                let q_count_rational = RationalMult {}.calculate_quantile_count(iter_val.quantile(), length as u64);
+
+                println!("len {} iter quantile {} q count fp {} q count rational {} iter val {} -> {} calc val {} -> {}",
+                         length, iter_val.quantile(), iter_val.quantile() * length as f64,
+                         q_count_rational, v, h.highest_equivalent(v),
+                         calculated_value, h.highest_equivalent(calculated_value));
                 errors += 1;
             }
         }
@@ -668,7 +638,40 @@ fn value_at_quantile_matches_pctile_iter_random() {
 }
 
 #[test]
-fn value_at_quantile_matches_value_random() {
+fn value_at_quantile_matches_quantile_at_each_value_sequence_values() {
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+
+    let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000];
+    let mut errors: u64 = 0;
+
+    for length in lengths {
+        h.reset();
+
+        for i in 1..(length + 1) {
+            h.record(i).unwrap();
+        };
+
+        assert_eq!(length, h.count());
+
+        for v in 1..(length + 1) {
+            let quantile = (Rational::from(Integer::from(v as u64))
+                / Rational::from(Integer::from(length as u64))).to_f64();
+            let calculated_value = h.value_at_quantile(quantile);
+            if !h.equivalent(v, calculated_value) {
+                println!("len {} value {} quantile {} q count {} actual {} -> {} calc {} -> {}",
+                         length, v, quantile, quantile * length as f64,
+                         v, h.highest_equivalent(v),
+                         calculated_value, h.highest_equivalent(calculated_value));
+                errors += 1;
+            }
+        }
+    }
+
+    assert_eq!(0, errors);
+}
+
+#[test]
+fn value_at_quantile_matches_quantile_at_each_value_random_values() {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
     let mut values = Vec::new();
 
@@ -692,12 +695,8 @@ fn value_at_quantile_matches_value_random() {
         assert_eq!(length as u64, h.count());
 
         for (index, &v) in values.iter().enumerate() {
-            let quantile = if length == 1 {
-                1.0
-            } else {
-                index as f64 / (length - 1) as f64
-            };
-
+            let quantile = (Rational::from(Integer::from(index as u64 + 1))
+                / Rational::from(Integer::from(length as u64))).to_f64();
             let calculated_value = h.value_at_quantile(quantile);
             if !h.equivalent(v, calculated_value) {
                 errors += 1;
@@ -712,14 +711,14 @@ fn value_at_quantile_matches_value_random() {
 }
 
 #[test]
-fn quantile_prev_before_multiplication_vs_prev_after() {
-    // gather a bunch of data just like we would for a histogram
+fn value_at_quantile_matches_random_quantile_random_values() {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
     let mut values = Vec::new();
 
-    let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000, 10_000_000];
+    let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000];
 
     let mut rng = rand::thread_rng();
+    let quantile_range = Range::new(0_f64, 1_f64.next());
 
     let mut errors: u64 = 0;
 
@@ -736,21 +735,18 @@ fn quantile_prev_before_multiplication_vs_prev_after() {
 
         assert_eq!(length as u64, h.count());
 
-        for (index, _) in values.iter().enumerate() {
-            let quantile = if length == 1 {
-                1.0
-            } else {
-                index as f64 / (length - 1) as f64
-            };
-
-            // compare prev() on the quantile vs prev() on the product
-            let q_count_prev_before_mult = (quantile.prev() * length as f64).ceil();
-            let q_count_prev_after_mult = (quantile * length as f64).prev().ceil();
-
-            if q_count_prev_before_mult != q_count_prev_after_mult {
+        for _ in 0..10_000 {
+            let quantile = quantile_range.ind_sample(&mut rng);
+            let index_at_quantile = (Rational::from_f64(quantile).unwrap()
+                * Rational::from(Integer::from(length as u64)))
+                .to_integer().to_u64().unwrap() as usize;
+            let calculated_value = h.value_at_quantile(quantile);
+            let v = values[index_at_quantile];
+            if !h.equivalent(v, calculated_value) {
                 errors += 1;
-                println!("len {} index {} quantile {} q count prev before {} q count prev after {}",
-                         length, index, quantile, q_count_prev_before_mult, q_count_prev_after_mult);
+                println!("len {} index {} quantile {} q count {} actual {} -> {} calc {} -> {}",
+                         length, index_at_quantile, quantile, quantile * length as f64, v, h.highest_equivalent(v),
+                         calculated_value, h.highest_equivalent(calculated_value));
             }
         }
     }
@@ -759,138 +755,35 @@ fn quantile_prev_before_multiplication_vs_prev_after() {
 }
 
 #[test]
-fn quantile_count_rational_arithmetic_vs_fp() {
-    // look for cases where manipulation with prev(), ceil(), etc yields different results from
-    // rational arithmetic
-
-    let mut rng = rand::thread_rng();
-
-    let mut errors: u64 = 0;
-
-    for _ in 0..10 {
-        // pick a random number to be the "count"
-        let count: u64 = rng.gen_range(1, 1 << 32);
-
-        let range = Range::new(1, count + 1);
-
-        // try every quantile up to that count
-        for _ in 1..100000 {
-            let v = range.ind_sample(&mut rng);
-            let quantile = v as f64 / count as f64;
-            let quantile_rational = Rational::from_f64(quantile).unwrap();
-
-            let q_count_prev_before_mult = (quantile.prev() * count as f64).ceil();
-            let q_count_prev_after_mult = (quantile * count as f64).prev().ceil();
-
-            let q_count_rational = quantile_rational * Rational::from(Integer::from(count));
-            let q_count_rational_f64 = q_count_rational.to_f64();
-            let ulps_before = ulp_distance(q_count_rational_f64, q_count_prev_before_mult);
-            let ulps_after = ulp_distance(q_count_rational_f64, q_count_prev_after_mult);
-
-            if ulps_before > 1 {
-                println!("count {} quantile {} rational q count {} as f64 {} prev before mult {} ulps {}",
-                         count, quantile, q_count_rational, q_count_rational_f64, q_count_prev_before_mult, ulps_before);
-                errors += 1;
-            }
-
-            if ulps_after > 1 {
-                println!("count {} quantile {} rational q count {} as f64 {} after before mult {} ulps {}",
-                         count, quantile, q_count_rational, q_count_rational_f64, q_count_prev_after_mult, ulps_after);
-                errors += 1;
-            }
-        }
-    }
-
-    assert_eq!(0, errors);
-}
-
-#[test]
-fn quantile_count_product_fp_error() {
-    // how often is multiplying a quantile by an int cast to a f64 too high vs too low?
-
-    let mut rng = rand::thread_rng();
-
-    let mut fp_same: u64 = 0;
-    let mut fp_high: u64 = 0;
-    let mut fp_low: u64 = 0;
-    let range = Range::new(0_f64, 1_f64);
-
-    for _ in 1..10_000_000 {
-        let count: u64 = rng.gen_range(1, 1 << 32);
-        let quantile = range.ind_sample(&mut rng);
-        let quantile_rational = Rational::from_f64(quantile).unwrap();
-
-        let q_count_fp = quantile * count as f64;
-
-        let q_count_rational = quantile_rational * Rational::from(Integer::from(count));
-        let q_count_rational_f64 = q_count_rational.to_f64();
-
-        if q_count_fp > q_count_rational_f64 {
-            fp_high += 1;
-        } else if q_count_fp < q_count_rational_f64 {
-            fp_low += 1;
-        } else {
-            fp_same += 1;
-        }
-    }
-
-    println!("high {} low {} same {}",
-             fp_high, fp_low, fp_same);
-
-    assert!(false);
-}
-
-#[test]
-fn quantile_count_product_fp_rounding() {
+fn quantile_count_product_fp_rounding_random() {
     // compare different fp approaches to arbitrary-precision rational arithmetic
 
-    fn run_prod_calculator<Q: QuantileCountCalculator>(calculator: Q,
-                                                       reference_calculator: RationalMult) {
-        let mut fp_same: u64 = 0;
-        let mut fp_high: u64 = 0;
-        let mut fp_low: u64 = 0;
-        let q_range = Range::new(0_f64, 1_f64);
-        let count_range = Range::new(0_u64, 1_u64 << 32);
-        let mut rng = rand::thread_rng();
+    let mut mult_ceil = QuantileErrorState::new(MultCeil {});
+    let mut mult_prev_ceil = QuantileErrorState::new(MultPrevCeil {});
+    let mut prev_mult_ceil = QuantileErrorState::new(PrevMultCeil {});
 
-        for _ in 1..10_000_001 {
-            let count: u64 = count_range.ind_sample(&mut rng);
-            let quantile = q_range.ind_sample(&mut rng);
+    let reference_calculator = RationalMult {};
 
-            let q_count = calculator.do_it(quantile, count);
-            let q_count_ref = reference_calculator.do_it(quantile, count);
+    let quantile_range = Range::new(0_f64, 1_f64.next());
+    let count_range = Range::new(0_u64, (1_u64 << 32) + 1);
+    let mut rng = rand::thread_rng();
 
-            if q_count > q_count_ref {
-                fp_high += 1;
-            } else if q_count < q_count_ref {
-                fp_low += 1;
-            } else {
-                fp_same += 1;
-            }
-        }
+    for _ in 0..20_000_000 {
+        let count: u64 = count_range.ind_sample(&mut rng);
+        let quantile = quantile_range.ind_sample(&mut rng);
 
-        println!("high {} low {} same {}",
-                 fp_high, fp_low, fp_same);
+        let q_count_ref = reference_calculator.calculate_quantile_count(quantile, count);
+
+        mult_ceil.calculate_and_track(quantile, count, q_count_ref);
+        mult_prev_ceil.calculate_and_track(quantile, count, q_count_ref);
+        prev_mult_ceil.calculate_and_track(quantile, count, q_count_ref);
     }
 
-    println!("mult then ceil");
-    run_prod_calculator(MultCeil{}, RationalMult{});
-
-    println!("mult, prev, ceil");
-    run_prod_calculator(MultPrevCeil{}, RationalMult{});
-
-    println!("prev, mult, ceil");
-    run_prod_calculator(PrevMultCeil{}, RationalMult{});
+    println!("mult, ceil: {:?}", mult_ceil);
+    println!("mult, prev, ceil: {:?}", mult_prev_ceil);
+    println!("prev, mult, ceil: {:?}", prev_mult_ceil);
 
     assert!(false);
-}
-
-fn ulp_distance(a: f64, b: f64) -> usize {
-    if a < b {
-        return a.upto(b).count();
-    } else {
-        return b.upto(a).count();
-    }
 }
 
 /// An iterator of random `u64`s where the maximum value for each random number generation is picked
@@ -902,7 +795,7 @@ struct RandomMaxIter<'a, R: Rng + 'a> {
     rng: &'a mut R
 }
 
-impl <'a, R: Rng + 'a> RandomMaxIter<'a, R> {
+impl<'a, R: Rng + 'a> RandomMaxIter<'a, R> {
     fn new(rng: &'a mut R) -> RandomMaxIter<R> {
         RandomMaxIter {
             rng: rng
@@ -910,7 +803,7 @@ impl <'a, R: Rng + 'a> RandomMaxIter<'a, R> {
     }
 }
 
-impl <'a, R: Rng + 'a> Iterator for RandomMaxIter<'a, R> {
+impl<'a, R: Rng + 'a> Iterator for RandomMaxIter<'a, R> {
     type Item = u64;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -924,14 +817,50 @@ impl <'a, R: Rng + 'a> Iterator for RandomMaxIter<'a, R> {
     }
 }
 
+struct QuantileErrorState<Q: QuantileCountCalculator> {
+    calc: Q,
+    too_high: u64,
+    too_low: u64,
+    equal: u64
+}
+
+impl<Q: QuantileCountCalculator> QuantileErrorState<Q> {
+    fn new(calc: Q) -> QuantileErrorState<Q> {
+        QuantileErrorState {
+            calc: calc,
+            too_high: 0,
+            too_low: 0,
+            equal: 0
+        }
+    }
+
+    fn calculate_and_track(&mut self, quantile: f64, count: u64, reference: u64) {
+        let q_count = self.calc.calculate_quantile_count(quantile, count);
+
+        if q_count > reference {
+            self.too_high += 1;
+        } else if q_count < reference {
+            self.too_low += 1;
+        } else {
+            self.equal += 1;
+        }
+    }
+}
+
+impl<Q: QuantileCountCalculator> fmt::Debug for QuantileErrorState<Q> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "high: {} low: {} equal: {}", self.too_high, self.too_low, self.equal)
+    }
+}
+
 trait QuantileCountCalculator {
-    fn do_it(&self, quantile: f64, count: u64) -> u64;
+    fn calculate_quantile_count(&self, quantile: f64, count: u64) -> u64;
 }
 
 struct MultCeil;
 
 impl QuantileCountCalculator for MultCeil {
-    fn do_it(&self, quantile: f64, count: u64) -> u64 {
+    fn calculate_quantile_count(&self, quantile: f64, count: u64) -> u64 {
         (quantile * count as f64).ceil() as u64
     }
 }
@@ -939,7 +868,7 @@ impl QuantileCountCalculator for MultCeil {
 struct MultPrevCeil;
 
 impl QuantileCountCalculator for MultPrevCeil {
-    fn do_it(&self, quantile: f64, count: u64) -> u64 {
+    fn calculate_quantile_count(&self, quantile: f64, count: u64) -> u64 {
         (quantile * count as f64).prev().ceil() as u64
     }
 }
@@ -947,7 +876,7 @@ impl QuantileCountCalculator for MultPrevCeil {
 struct PrevMultCeil;
 
 impl QuantileCountCalculator for PrevMultCeil {
-    fn do_it(&self, quantile: f64, count: u64) -> u64 {
+    fn calculate_quantile_count(&self, quantile: f64, count: u64) -> u64 {
         (quantile.prev() * count as f64).ceil() as u64
     }
 }
@@ -955,10 +884,16 @@ impl QuantileCountCalculator for PrevMultCeil {
 struct RationalMult;
 
 impl QuantileCountCalculator for RationalMult {
-    fn do_it(&self, quantile: f64, count: u64) -> u64 {
-        (Rational::from_f64(quantile).unwrap() * Rational::from(Integer::from(count)))
-            .to_integer() // always rounds towards 0
-            .to_u64()
-            .unwrap() + 1
+    fn calculate_quantile_count(&self, quantile: f64, count: u64) -> u64 {
+        let product = Rational::from_f64(quantile).unwrap() * Rational::from(Integer::from(count));
+        let prod_as_int = (product).to_integer();
+
+        // emulate ceil()
+        if product == Rational::from(prod_as_int.clone()) {
+            return prod_as_int.to_u64().unwrap();
+        } else {
+            // to_integer()'s rounding down has chopped off a fractional part
+            return prod_as_int.to_u64().unwrap() + 1;
+        }
     }
 }
