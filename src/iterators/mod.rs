@@ -105,7 +105,6 @@ impl<'a, T: Counter, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
         }
     }
 
-    // (value, percentile, count-for-value, count-for-step)
     fn current(&self) -> IterationValue<T> {
         IterationValue {
             value: self.hist.highest_equivalent(self.hist.value_for(self.current_index)),
@@ -148,7 +147,7 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
                     return None;
                 }
 
-                // nope -- alright, let's keep iterating
+            // nope -- alright, let's keep iterating
             } else {
                 assert!(self.current_index < self.hist.len());
                 assert!(self.prev_total_count < total);

@@ -515,7 +515,7 @@ fn value_at_quantile_2_values() {
     assert_eq!(next, almost_half.next());
 
     // ideally this would return 2, not 1
-    assert_eq!(1, h.value_at_quantile(almost_half));
+    assert_eq!(2, h.value_at_quantile(almost_half));
     assert_eq!(2, h.value_at_quantile(next));
 }
 
@@ -586,7 +586,7 @@ fn value_at_quantile_matches_pctile_iter_sequence_values() {
             if v != calculated_value {
                 let q_count_rational = RationalMult {}.calculate_quantile_count(iter_val.quantile(), length);
 
-                println!("len {} iter quantile {} q count fp {} q count rational {} iter val {} -> {} calc val {} -> {}",
+                println!("len {} iter quantile {} q * count fp {} q count rational {} iter val {} -> {} calc val {} -> {}",
                          length, iter_val.quantile(), iter_val.quantile() * length as f64,
                          q_count_rational, v, h.highest_equivalent(v),
                          calculated_value, h.highest_equivalent(calculated_value));
@@ -625,7 +625,7 @@ fn value_at_quantile_matches_pctile_iter_random_values() {
             if v != calculated_value {
                 let q_count_rational = RationalMult {}.calculate_quantile_count(iter_val.quantile(), length as u64);
 
-                println!("len {} iter quantile {} q count fp {} q count rational {} iter val {} -> {} calc val {} -> {}",
+                println!("len {} iter quantile {} q * count fp {} q count rational {} iter val {} -> {} calc val {} -> {}",
                          length, iter_val.quantile(), iter_val.quantile() * length as f64,
                          q_count_rational, v, h.highest_equivalent(v),
                          calculated_value, h.highest_equivalent(calculated_value));
@@ -658,7 +658,7 @@ fn value_at_quantile_matches_quantile_at_each_value_sequence_values() {
                 / Rational::from(Integer::from(length as u64))).to_f64();
             let calculated_value = h.value_at_quantile(quantile);
             if !h.equivalent(v, calculated_value) {
-                println!("len {} value {} quantile {} q count {} actual {} -> {} calc {} -> {}",
+                println!("len {} value {} quantile {} q * count fp {} actual {} -> {} calc {} -> {}",
                          length, v, quantile, quantile * length as f64,
                          v, h.highest_equivalent(v),
                          calculated_value, h.highest_equivalent(calculated_value));
@@ -700,7 +700,7 @@ fn value_at_quantile_matches_quantile_at_each_value_random_values() {
             let calculated_value = h.value_at_quantile(quantile);
             if !h.equivalent(v, calculated_value) {
                 errors += 1;
-                println!("len {} index {} quantile {} q count {} actual {} -> {} calc {} -> {}",
+                println!("len {} index {} quantile {} q * count fp {} actual {} -> {} calc {} -> {}",
                          length, index, quantile, quantile * length as f64, v, h.highest_equivalent(v),
                          calculated_value, h.highest_equivalent(calculated_value));
             }
@@ -744,7 +744,7 @@ fn value_at_quantile_matches_random_quantile_random_values() {
             let v = values[index_at_quantile];
             if !h.equivalent(v, calculated_value) {
                 errors += 1;
-                println!("len {} index {} quantile {} q count {} actual {} -> {} calc {} -> {}",
+                println!("len {} index {} quantile {} q * count fp {} actual {} -> {} calc {} -> {}",
                          length, index_at_quantile, quantile, quantile * length as f64, v, h.highest_equivalent(v),
                          calculated_value, h.highest_equivalent(calculated_value));
             }

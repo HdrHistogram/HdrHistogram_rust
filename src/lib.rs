@@ -163,13 +163,11 @@
 #![cfg_attr(all(test, feature = "bench_private"), feature(test))]
 
 extern crate num;
-extern crate ieee754;
 
 use std::borrow::Borrow;
 use std::cmp;
 use std::ops::{Index, IndexMut, AddAssign, SubAssign};
 use num::ToPrimitive;
-use ieee754::Ieee754;
 
 use iterators::HistogramIterator;
 
@@ -1184,7 +1182,7 @@ impl<T: Counter> Histogram<T> {
 
         // round to nearest
         let fractional_count = quantile * self.total_count as f64;
-        let mut count_at_quantile = fractional_count.prev().ceil() as u64;
+        let mut count_at_quantile = fractional_count.ceil() as u64;
 
         // Make sure we at least reach the first recorded entry
         if count_at_quantile == 0 {
