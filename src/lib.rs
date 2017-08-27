@@ -1349,7 +1349,7 @@ impl<T: Counter> Histogram<T> {
 
     /// Returns an error if the index doesn't exist.
     fn set_count_at_index(&mut self, index: usize, count: T) -> Result<(), ()> {
-        let mut r = self.counts.get_mut(index).ok_or(())?;
+        let r = self.counts.get_mut(index).ok_or(())?;
         *r = count;
         Ok(())
     }
