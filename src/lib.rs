@@ -1227,6 +1227,7 @@ impl<T: Counter> Histogram<T> {
 
         let target_index = self.index_for_or_last(value);
         // TODO panic on bad index
+        // TODO use RangeInclusive when it's stable to avoid checked_add
         let total_to_current_index = (0..target_index.checked_add(1).expect("usize overflow"))
             .map(|i| self[i].as_u64())
             .fold(0_u64, |t, v| t.saturating_add(v));
@@ -1250,6 +1251,7 @@ impl<T: Counter> Histogram<T> {
         let low_index = self.index_for_or_last(low);
         let high_index = self.index_for_or_last(high);
         // TODO panic on bad index
+        // TODO use RangeInclusive when it's stable to avoid checked_add
         (low_index..high_index.checked_add(1).expect("usize overflow"))
             .map(|i| self[i])
             .fold(0_u64, |t, v| t.saturating_add(v.as_u64()))
