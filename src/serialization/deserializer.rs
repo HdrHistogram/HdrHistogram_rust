@@ -293,6 +293,7 @@ impl<T: Counter> DecodeLoopState<T> {
                 restat_state.on_nonzero_count(self.dest_index, count);
             }
 
+            // TODO use RangeInclusive when it's stable to avoid checked_add
             self.dest_index = self.dest_index.checked_add(1)
                 .ok_or(DeserializeError::UsizeTypeTooSmall)?;
         }
