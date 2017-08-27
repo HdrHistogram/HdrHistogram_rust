@@ -1216,11 +1216,11 @@ impl<T: Counter> Histogram<T> {
         }
 
         let target_index = cmp::min(self.index_for(value).ok_or(())?, self.last());
-        // TODO overflow
         // TODO panic on bad index
-        let total_to_current_index =
-            (0..(target_index + 1)).map(|i| self[i]).fold(T::zero(), |t, v| t + v);
-        Ok(100.0 * total_to_current_index.as_f64() / self.total_count as f64)
+        let total_to_current_index = (0..(target_index + 1))
+            .map(|i| self[i].as_u64())
+            .fold(0_u64, |t, v| t.saturating_add(v));
+        Ok(100.0 * total_to_current_index as f64 / self.total_count as f64)
     }
 
     /// Get the count of recorded values within a range of value levels (inclusive to within the
@@ -1235,12 +1235,13 @@ impl<T: Counter> Histogram<T> {
     /// Returns an error if parameters map to indices that cannot be represented by `usize`.
     ///
     /// Panics if the given values are out of bounds.
-    pub fn count_between(&self, low: u64, high: u64) -> Result<T, ()> {
+    pub fn count_between(&self, low: u64, high: u64) -> Result<u64, ()> {
         let low_index = self.index_for(low).ok_or(())?;
         let high_index = cmp::min(self.index_for(high).ok_or(())?, self.last());
-        // TODO overflow
         // TODO panic on bad index
-        Ok((low_index..(high_index + 1)).map(|i| self[i]).fold(T::zero(), |t, v| t + v))
+        Ok((low_index..(high_index + 1))
+            .map(|i| self[i].as_u64())
+            .fold(0_u64, |t, v| t.saturating_add(v)))
     }
 
     /// Get the count of recorded values at a specific value (to within the histogram resolution at
