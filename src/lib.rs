@@ -634,8 +634,8 @@ impl<T: Counter> Histogram<T> {
     /// Subtract the contents of another histogram from this one.
     ///
     /// See `SubtractionError` for error conditions.
-    pub fn subtract<B: Borrow<Histogram<T>>>(&mut self, other: B) -> Result<(), SubtractionError> {
-        let subtrahend = other.borrow();
+    pub fn subtract<B: Borrow<Histogram<T>>>(&mut self, subtrahend: B) -> Result<(), SubtractionError> {
+        let subtrahend = subtrahend.borrow();
 
         // make sure we can take the values in source
         let top = self.highest_equivalent(self.value_for(self.last_index()));
