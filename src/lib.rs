@@ -56,9 +56,9 @@
 //! enabled) will automatically resize itself if a value that is too large to fit in the current
 //! dataset is encountered. `new_with_max` sets an upper bound on the values to be recorded, and
 //! disables auto-resizing, thus preventing any re-allocation during recording. If the application
-//! attempts to record a larger value than this maximum bound, the record call will fail. Finally,
-//! `new_with_bounds` restricts the lowest representable value of the dataset, such that a smaller
-//! range needs to be covered (thus reducing the overall allocation size).
+//! attempts to record a larger value than this maximum bound, the `record` call will return an
+//! error. Finally, `new_with_bounds` restricts the lowest representable value of the dataset,
+//! such that a smaller range needs to be covered (thus reducing the overall allocation size).
 //!
 //! For example the example below shows how to create a `Histogram` that can count values in the
 //! `[1..3600000]` range with 1% precision, which could be used to track latencies in the range `[1
@@ -113,6 +113,25 @@
 //! }
 //! ```
 //!
+//! ## Panics and error handling
+//!
+//! As long as you're using safe, non-panicking functions (see below), this library should never
+//! panic. Any panics you encounter are a bug; please file them in the issue tracker.
+//!
+//! A few functions have their functionality exposed via `AddAssign` and `SubAssign`
+//! implementations. These alternate forms are equivalent to simply calling `unwrap()` on the
+//! normal functions, so the normal rules of `unwrap()` apply: view with suspicion when used in
+//! production code, etc.
+//!
+//! | Returns Result                 | Panics on error    | Functionality                   |
+//! | ------------------------------ | ------------------ | ------------------------------- |
+//! | `h.record(v)`                  | `h += v`           | Increment count for value `v`   |
+//! | `h.add(h2)`                    | `h += h2`          | Add `h2`'s counts to `h`        |
+//! | `h.subtract(h2)`               | `h -= h2`          | Subtract `h2`'s counts from `h` |
+//!
+//! Other than the panicking forms of the above functions, everything will return `Result` or
+//! `Option` if it can fail.
+//!
 //! ## `usize` limitations
 //!
 //! Depending on the configured number of significant digits and maximum value, a histogram's
@@ -166,7 +185,7 @@ extern crate num;
 
 use std::borrow::Borrow;
 use std::cmp;
-use std::ops::{Index, IndexMut, AddAssign, SubAssign};
+use std::ops::{AddAssign, SubAssign};
 use num::ToPrimitive;
 
 use iterators::HistogramIterator;
@@ -272,8 +291,11 @@ pub struct Histogram<T: Counter> {
     sub_bucket_half_count: u32,
     // In [0, 17]
     sub_bucket_half_count_magnitude: u8,
+    // The bottom sub bucket's bits set, shifted by unit magnitude.
+    // The highest bit will be (one-indexed) sub bucket count magnitude + unit_magnitude.
     sub_bucket_mask: u64,
 
+    // Number of leading zeros that would be used by the largest value in bucket 0.
     // in [1, 63]
     leading_zero_count_base: u8,
 
@@ -392,11 +414,6 @@ impl<T: Counter> Histogram<T> {
         self.total_count
     }
 
-    /// Get the index of the last histogram bin.
-    pub fn last(&self) -> usize {
-        self.len().checked_sub(1).expect("Empty counts array?")
-    }
-
     /// Get the number of buckets used by the histogram to cover the highest trackable value.
     ///
     /// This method differs from `.len()` in that it does not count the sub buckets within each
@@ -444,12 +461,17 @@ impl<T: Counter> Histogram<T> {
     /// is returned instead.
     fn index_for_or_last(&self, value: u64) -> usize {
         return self.index_for(value)
-            .map_or(self.last(), |i| cmp::min(i, self.last()))
+            .map_or(self.last_index(), |i| cmp::min(i, self.last_index()))
     }
 
     /// Get a mutable reference to the count bucket for the given value, if it is in range.
     fn mut_at(&mut self, value: u64) -> Option<&mut T> {
         self.index_for(value).and_then(move |i| self.counts.get_mut(i))
+    }
+
+    /// Get the index of the last histogram bin.
+    fn last_index(&self) -> usize {
+        self.len().checked_sub(1).expect("Empty counts array?")
     }
 
     // ********************************************************************************************
@@ -511,11 +533,12 @@ impl<T: Counter> Histogram<T> {
         let source = source.borrow();
 
         // make sure we can take the values in source
-        let top = self.highest_equivalent(self.value_for(self.last()));
+        let top = self.highest_equivalent(self.value_for(self.last_index()));
         if top < source.max() {
             if !self.auto_resize {
                 return Err(AdditionError::OtherAddendValueExceedsRange);
             }
+            // We're growing the histogram, so new high > old high and is therefore >= 2x low.
             self.resize(source.max()).map_err(|_| AdditionError::ResizeFailedUsizeTypeTooSmall)?;
         }
 
@@ -525,9 +548,12 @@ impl<T: Counter> Histogram<T> {
             // so we can just iterate and add directly:
             let mut observed_other_total_count: u64 = 0;
             for i in 0..source.len() {
-                let other_count = source[i];
+                let other_count = source.count_at_index(i)
+                    .expect("iterating inside source length");
                 if other_count != T::zero() {
-                    self[i] = self[i].saturating_add(other_count);
+                    // indexing is safe: same configuration as `source`, and the index was valid for
+                    // `source`.
+                    self.counts[i] = self.counts[i].saturating_add(other_count);
                     observed_other_total_count = observed_other_total_count
                         .saturating_add(other_count.as_u64());
                 }
@@ -550,13 +576,15 @@ impl<T: Counter> Histogram<T> {
             // Do max value first, to avoid max value updates on each iteration:
             let other_max_index = source.index_for(source.max())
                 .expect("Index for max value must exist");
-            let other_count = source[other_max_index];
+            let other_count = source.count_at_index(other_max_index)
+                .expect("max's index must exist");
             self.record_n(source.value_for(other_max_index), other_count)
                 .expect("Record must succeed; already resized for max value");
 
             // Record the remaining values, up to but not including the max value:
             for i in 0..other_max_index {
-                let other_count = source[i];
+                let other_count = source.count_at_index(i)
+                    .expect("index before max must exist");
                 if other_count != T::zero() {
                     self.record_n(source.value_for(i), other_count)
                         .expect("Record must succeed; already recorded max value");
@@ -590,8 +618,7 @@ impl<T: Counter> Histogram<T> {
     /// See notes in the description of the `Histogram` calls for an illustration of why this
     /// corrective behavior is important.
     ///
-    /// May fail if values in the other histogram are higher than `.high()`, and auto-resize is
-    /// disabled.
+    /// See `RecordError` for error conditions.
     pub fn add_correct<B: Borrow<Histogram<T>>>(&mut self,
                                                 source: B,
                                                 interval: u64)
@@ -606,16 +633,13 @@ impl<T: Counter> Histogram<T> {
 
     /// Subtract the contents of another histogram from this one.
     ///
-    /// May fail if values in the other histogram are higher than `.high()`, and auto-resize is
-    /// disabled. Or, if the count for a given value in the other histogram is higher than that of
-    /// this histogram. In the latter case, some of the counts may still have been updated, which
-    /// may cause data corruption.
-    pub fn subtract<B: Borrow<Histogram<T>>>(&mut self, other: B) -> Result<(), SubtractionError> {
-        let other = other.borrow();
+    /// See `SubtractionError` for error conditions.
+    pub fn subtract<B: Borrow<Histogram<T>>>(&mut self, subtrahend: B) -> Result<(), SubtractionError> {
+        let subtrahend = subtrahend.borrow();
 
         // make sure we can take the values in source
-        let top = self.highest_equivalent(self.value_for(self.last()));
-        if top < self.highest_equivalent(other.max()) {
+        let top = self.highest_equivalent(self.value_for(self.last_index()));
+        if top < self.highest_equivalent(subtrahend.max()) {
             return Err(SubtractionError::SubtrahendValueExceedsMinuendRange);
         }
 
@@ -625,10 +649,11 @@ impl<T: Counter> Histogram<T> {
         // If total_count is at the max value, it may have saturated, so we must restat
         let mut needs_restat = self.total_count == u64::max_value();
 
-        for i in 0..other.len() {
-            let other_count = other[i];
+        for i in 0..subtrahend.len() {
+            let other_count = subtrahend.count_at_index(i)
+                .expect("index inside subtrahend len must exist");
             if other_count != T::zero() {
-                let other_value = other.value_for(i);
+                let other_value = subtrahend.value_for(i);
                 {
                     let mut_count = self.mut_at(other_value);
 
@@ -651,7 +676,7 @@ impl<T: Counter> Histogram<T> {
                 if !needs_restat {
                     // if we're not already going to recalculate everything, subtract from
                     // total_count
-                    self.total_count = self.total_count.checked_sub(other_count.to_u64().unwrap())
+                    self.total_count = self.total_count.checked_sub(other_count.as_u64())
                         .expect("total count underflow on subtraction");
                 }
             }
@@ -804,7 +829,7 @@ impl<T: Counter> Histogram<T> {
             lowest_discernible_value: low,
             significant_value_digits: sigfig,
 
-            // set by cover() below
+            // set by resize() below
             bucket_count: 0,
             sub_bucket_count: sub_bucket_count,
 
@@ -828,8 +853,8 @@ impl<T: Counter> Histogram<T> {
             counts: Vec::new(),
         };
 
-        let len = h.cover(high).to_usize().ok_or(CreationError::UsizeTypeTooSmall)?;
-        h.counts.resize(len, T::zero());
+        // Already checked that high >= 2*low
+        h.resize(high).map_err(|_| CreationError::UsizeTypeTooSmall)?;
         Ok(h)
     }
 
@@ -878,8 +903,9 @@ impl<T: Counter> Histogram<T> {
                 return Err(RecordError::ValueOutOfRangeResizeDisabled);
             }
 
+            // We're growing the histogram, so new high > old high and is therefore >= 2x low.
             self.resize(value).map_err(|_| RecordError::ResizeFailedUsizeTypeTooSmall)?;
-            self.highest_trackable_value = self.highest_equivalent(self.value_for(self.last()));
+            self.highest_trackable_value = self.highest_equivalent(self.value_for(self.last_index()));
 
             {
                 let c = self.mut_at(value).expect("value should fit after resize");
@@ -1105,7 +1131,8 @@ impl<T: Counter> Histogram<T> {
     /// Get the lowest recorded value level in the histogram.
     /// If the histogram has no recorded values, the value returned will be 0.
     pub fn min(&self) -> u64 {
-        if self.total_count == 0 || self[0] != T::zero() {
+        if self.total_count == 0 ||
+            self.count_at_index(0).expect("counts array must be non-empty") != T::zero() {
             0
         } else {
             self.min_nz()
@@ -1146,6 +1173,7 @@ impl<T: Counter> Histogram<T> {
         }
 
         self.iter_recorded().fold(0.0_f64, |total, v| {
+            // TODO overflow?
             total +
                 self.median_equivalent(v.value()) as f64 * v.count_at_value().as_f64()
                     / self.total_count as f64
@@ -1175,6 +1203,9 @@ impl<T: Counter> Histogram<T> {
     /// all value entries in the histogram are either larger than or equivalent to.
     ///
     /// Two values are considered "equivalent" if `self.equivalent` would return true.
+    ///
+    /// If the total count of the histogram has exceeded `u64::max_value()`, this will return
+    /// inaccurate results.
     pub fn value_at_percentile(&self, percentile: f64) -> u64 {
         // Truncate down to 100%
         let percentile = if percentile > 100.0 {
@@ -1192,9 +1223,10 @@ impl<T: Counter> Histogram<T> {
         }
 
         let mut total_to_current_index: u64 = 0;
-        for i in 0..self.len() {
+        for i in 0..self.counts.len() {
+            // Direct indexing is safe; indexes must reside in counts array.
             // TODO overflow
-            total_to_current_index = total_to_current_index + self[i].as_u64();
+            total_to_current_index = total_to_current_index + self.counts[i].as_u64();
             if total_to_current_index >= count_at_percentile {
                 let value_at_index = self.value_for(i);
                 return if percentile == 0.0 {
@@ -1226,11 +1258,10 @@ impl<T: Counter> Histogram<T> {
         }
 
         let target_index = self.index_for_or_last(value);
-        // TODO panic on bad index
         // TODO use RangeInclusive when it's stable to avoid checked_add
         let total_to_current_index = (0..target_index.checked_add(1).expect("usize overflow"))
-            .map(|i| self[i].as_u64())
-            .fold(0_u64, |t, v| t.saturating_add(v));
+            .map(|i| self.count_at_index(i).expect("index is <= last_index()"))
+            .fold(0_u64, |t, v| t.saturating_add(v.as_u64()));
         100.0 * total_to_current_index as f64 / self.total_count as f64
     }
 
@@ -1250,10 +1281,9 @@ impl<T: Counter> Histogram<T> {
     pub fn count_between(&self, low: u64, high: u64) -> u64 {
         let low_index = self.index_for_or_last(low);
         let high_index = self.index_for_or_last(high);
-        // TODO panic on bad index
         // TODO use RangeInclusive when it's stable to avoid checked_add
         (low_index..high_index.checked_add(1).expect("usize overflow"))
-            .map(|i| self[i])
+            .map(|i| self.count_at_index(i).expect("index is <= last_index()"))
             .fold(0_u64, |t, v| t.saturating_add(v.as_u64()))
     }
 
@@ -1266,45 +1296,12 @@ impl<T: Counter> Histogram<T> {
     /// If the value is larger than the maximum representable value, it will be clamped to the
     /// max representable value.
     pub fn count_at(&self, value: u64) -> T {
-        // TODO panic on bad index
-        self[self.index_for_or_last(value)]
+        self.count_at_index(self.index_for_or_last(value)).expect("index is <= last_index()")
     }
 
     // ********************************************************************************************
     // Public helpers
     // ********************************************************************************************
-
-    /// Computes the matching histogram value for the given histogram bin.
-    ///
-    /// `index` must be no larger than `u32::max_value()`; no possible histogram uses that much
-    /// storage anyway.
-    pub fn value_for(&self, index: usize) -> u64 {
-        assert!((index as u64) < (u32::max_value() as u64), "index must be <= u32::max_value()");
-        // TODO what to do about indexes that are beyond what can be represented by this histogram?
-        // Pretty easy to end up shifting off the high end of a u64, e.g. asking for a big index
-        // when sigfigs is high.
-
-        // Dividing by sub bucket half count will yield 1 in top half of first bucket, 2 in
-        // in the top half (i.e., the only half that's used) of the 2nd bucket, etc, so subtract 1
-        // to get 0-indexed bucket indexes. This will be -1 for the bottom half of the first bucket.
-        let mut bucket_index = (index >> self.sub_bucket_half_count_magnitude) as isize - 1;
-
-        // Calculate the remainder of dividing by sub_bucket_half_count, shifted into the top half
-        // of the corresponding bucket. This will (temporarily) map indexes in the lower half of
-        // first bucket into the top half.
-
-        // The subtraction won't underflow because half count is always at least 1.
-        // Cast to `u32` is safe because we checked it above.
-        // TODO precalculate sub_bucket_half_count mask if benchmarks show improvement
-        let mut sub_bucket_index =
-            ((index as u32) & (self.sub_bucket_half_count - 1)) + self.sub_bucket_half_count;
-        if bucket_index < 0 {
-            // lower half of first bucket case; move sub bucket index back
-            sub_bucket_index -= self.sub_bucket_half_count;
-            bucket_index = 0;
-        }
-        self.value_from_loc(bucket_index as u8, sub_bucket_index)
-    }
 
     /// Get the lowest value that is equivalent to the given value within the histogram's
     /// resolution. Equivalent here means that value samples recorded for any two equivalent values
@@ -1360,6 +1357,44 @@ impl<T: Counter> Histogram<T> {
     // Internal helpers
     // ********************************************************************************************
 
+    /// Computes the matching histogram value for the given histogram bin.
+    ///
+    /// `index` must be no larger than `u32::max_value()`; no possible histogram uses that much
+    /// storage anyway. So, any index that comes from a valid histogram location will be safe.
+    ///
+    /// If the index is for a position beyond what this histogram is configured for, the correct
+    /// corresponding value will be returned, but of course it won't have a corresponding count.
+    ///
+    /// If the index maps to a value beyond `u64::max_value()`, the result will be garbage.
+    fn value_for(&self, index: usize) -> u64 {
+        // Dividing by sub bucket half count will yield 1 in top half of first bucket, 2 in
+        // in the top half (i.e., the only half that's used) of the 2nd bucket, etc, so subtract 1
+        // to get 0-indexed bucket indexes. This will be -1 for the bottom half of the first bucket.
+        let mut bucket_index = (index >> self.sub_bucket_half_count_magnitude) as isize - 1;
+
+        // Calculate the remainder of dividing by sub_bucket_half_count, shifted into the top half
+        // of the corresponding bucket. This will (temporarily) map indexes in the lower half of
+        // first bucket into the top half.
+
+        // The subtraction won't underflow because half count is always at least 1.
+        // TODO precalculate sub_bucket_half_count mask if benchmarks show improvement
+        let mut sub_bucket_index =
+            ((index.to_u32().expect("index must fit in u32")) & (self.sub_bucket_half_count - 1))
+                + self.sub_bucket_half_count;
+        if bucket_index < 0 {
+            // lower half of first bucket case; move sub bucket index back
+            sub_bucket_index -= self.sub_bucket_half_count;
+            bucket_index = 0;
+        }
+        self.value_from_loc(bucket_index as u8, sub_bucket_index)
+    }
+
+
+    /// Returns count at index, or None if out of bounds
+    fn count_at_index(&self, index: usize) -> Option<T> {
+        self.counts.get(index).map(|&t| t)
+    }
+
     /// Returns an error if the index doesn't exist.
     fn set_count_at_index(&mut self, index: usize, count: T) -> Result<(), ()> {
         let r = self.counts.get_mut(index).ok_or(())?;
@@ -1374,13 +1409,15 @@ impl<T: Counter> Histogram<T> {
         // Calculates the number of powers of two by which the value is greater than the biggest
         // value that fits in bucket 0. This is the bucket index since each successive bucket can
         // hold a value 2x greater. The mask maps small values to bucket 0.
+        // Will not underflow because sub_bucket_mask caps the leading zeros to no more than
+        // leading_zero_count_base.
         self.leading_zero_count_base - (value | self.sub_bucket_mask).leading_zeros() as u8
     }
 
-    #[inline]
     /// Compute the position inside a bucket at which the given value should be recorded, indexed
     /// from position 0 in the bucket (in the first half, which is not used past the first bucket).
     /// For bucket_index > 0, the result will be in the top half of the bucket.
+    #[inline]
     fn sub_bucket_for(&self, value: u64, bucket_index: u8) -> u32 {
         // Since bucket_index is simply how many powers of 2 greater value is than what will fit in
         // bucket 0 (that is, what will fit in [0, sub_bucket_count)), we shift off that many
@@ -1388,16 +1425,20 @@ impl<T: Counter> Histogram<T> {
         // For bucket_index 0, this is just value. For bucket index k > 0, we know value won't fit
         // in bucket (k - 1) by definition, so this calculation won't end up in the lower half of
         // [0, sub_bucket_count) because that would mean it would also fit in bucket (k - 1).
+        // As unit magnitude grows, the maximum possible bucket index should shrink because it is
+        // based off of sub_bucket_mask, so this shouldn't lead to an overlarge shift.
         (value >> (bucket_index + self.unit_magnitude)) as u32
     }
 
+    /// Compute the value corresponding to the provided bucket and sub bucket indices.
+    /// The indices given must map to an actual u64; providing contrived indices that would map to
+    /// a value larger than u64::max_value() will yield garbage.
     #[inline]
     fn value_from_loc(&self, bucket_index: u8, sub_bucket_index: u32) -> u64 {
         // Sum won't overflow; bucket_index and unit_magnitude are both <= 64.
         // However, the resulting shift may overflow given bogus input, e.g. if unit magnitude is
         // large and the input sub_bucket_index is for an entry in the counts index that shouldn't
         // be used (because this calculation will overflow).
-        // TODO probably audit uses to make sure none will cause overflow
         (sub_bucket_index as u64) << (bucket_index + self.unit_magnitude)
     }
 
@@ -1433,14 +1474,12 @@ impl<T: Counter> Histogram<T> {
         (number_of_buckets as u32 + 1) * (self.sub_bucket_half_count)
     }
 
-    /// Compute the number of buckets needed to cover the given value, as well as the total number
-    /// of bins needed to cover that range.
+    /// Resize the underlying counts array such that it can cover the given `high` value.
     ///
     /// `high` must be at least 2x the lowest discernible value.
     ///
-    /// May fail if `high` is not at least twice the lowest discernible value.
-    fn cover(&mut self, high: u64) -> u32 {
-        // TODO validate before we get to here so we don't need an assert
+    /// Returns an error if the new size cannot be represented as a `usize`.
+    fn resize(&mut self, high: u64) -> Result<(), UsizeTypeTooSmall> {
         // will not overflow because lowest_discernible_value must be at least as small as
         // u64::max_value() / 2 to have passed initial validation
         assert!(high >= 2 * self.lowest_discernible_value,
@@ -1448,22 +1487,13 @@ impl<T: Counter> Histogram<T> {
 
         // establish counts array length:
         let buckets_needed = self.buckets_to_cover(high);
-        let counts_array_length = self.num_bins(buckets_needed);
+        let len = self.num_bins(buckets_needed).to_usize().ok_or(UsizeTypeTooSmall)?;
 
         // establish exponent range needed to support the trackable value with no overflow:
         self.bucket_count = buckets_needed;
 
         // establish the new highest trackable value:
         self.highest_trackable_value = high;
-
-        counts_array_length
-    }
-
-    /// Resize the underlying counts array such that it can cover the given `high` value.
-    /// Returns an error if the new size cannot be represented as a `usize`.
-    fn resize(&mut self, high: u64) -> Result<(), UsizeTypeTooSmall> {
-        // figure out how large the sample tracker now needs to be
-        let len = self.cover(high).to_usize().ok_or(UsizeTypeTooSmall)?;
 
         // expand counts to also hold the new counts
         self.counts.resize(len, T::zero());
@@ -1513,16 +1543,17 @@ impl<T: Counter> Histogram<T> {
         };
     }
 
-    fn restat(&mut self, until: usize) {
+    /// Recalculate min, max, total_count.
+    fn restat(&mut self, length_to_scan: usize) {
         self.reset_max(ORIGINAL_MAX);
         self.reset_min(ORIGINAL_MIN);
 
         let mut restat_state = RestatState::new();
 
-        for i in 0..until {
-            // TODO can panic. May not be a sensible place to use Result, but should audit paths
-            // that can get here.
-            let count = self[i];
+        assert!(length_to_scan <= self.counts.len());
+        for i in 0..length_to_scan {
+            // Direct indexing safe because of assert above
+            let count = self.counts[i];
             if count != T::zero() {
                 restat_state.on_nonzero_count(i, count);
             }
@@ -1532,7 +1563,8 @@ impl<T: Counter> Histogram<T> {
     }
 }
 
-/// Stores the state to calculate the max, min, etc for a histogram by iterating across the counts
+/// Stores the state to calculate the max, min, and total count for a histogram by iterating across
+/// the counts.
 struct RestatState<T: Counter> {
     max_index: Option<usize>,
     min_index: Option<usize>,
@@ -1562,7 +1594,7 @@ impl <T: Counter> RestatState<T> {
         }
     }
 
-    /// Write updated min, max, etc into histogram.
+    /// Write updated min, max, total_count into histogram.
     /// Called once all counts have been iterated across.
     fn update_histogram(self, h: &mut Histogram<T>) {
         if let Some(max_i) = self.max_index {
@@ -1581,19 +1613,6 @@ impl <T: Counter> RestatState<T> {
 // ********************************************************************************************
 // Trait implementations
 // ********************************************************************************************
-
-impl<T: Counter> Index<usize> for Histogram<T> {
-    type Output = T;
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.counts[index]
-    }
-}
-
-impl<T: Counter> IndexMut<usize> for Histogram<T> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.counts[index]
-    }
-}
 
 impl<T: Counter> Clone for Histogram<T> {
     fn clone(&self) -> Self {
@@ -1641,8 +1660,11 @@ impl<T: Counter, F: Counter> PartialEq<Histogram<F>> for Histogram<T>
         if self.min_nz() != other.min_nz() {
             return false;
         }
-        // TODO may panic? Does the above guarantee that the other array is at least as long?
-        (0..self.len()).all(|i| self[i] == other[i])
+
+        (0..self.counts.len()).all(|i| self.counts[i] == match other.count_at_index(i) {
+            Some(c) => c,
+            None => return false
+        })
     }
 }
 
@@ -1657,7 +1679,6 @@ impl<T: Counter, F: Counter> PartialEq<Histogram<F>> for Histogram<T>
 
 // TODO: shift
 // TODO: hash
-// TODO: serialization
 // TODO: encoding/decoding
 // TODO: timestamps and tags
 // TODO: textual output

@@ -474,8 +474,6 @@ fn iter_all() {
         // The count in iter_all buckets should exactly match the amount added since the last iteration
         assert_eq!(v.count_at_value(), v.count_since_last_iteration());
         total_added_counts += v.count_since_last_iteration();
-        // value_from_index(index) should be equal to get_value_iterated_to()
-        assert!(hist.equivalent(hist.value_for(i), v.value()));
         num += 1;
     }
     assert_eq!(num, hist.len());

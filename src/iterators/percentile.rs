@@ -30,7 +30,8 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
 
 impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
     fn pick(&mut self, index: usize, running_total: u64) -> bool {
-        let count = &self.hist[index];
+        let count = &self.hist.count_at_index(index)
+            .expect("index must be valid by PickyIterator contract");
         if *count == T::zero() {
             return false;
         }
