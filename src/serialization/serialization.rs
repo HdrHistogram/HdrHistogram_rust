@@ -159,14 +159,14 @@
 //!     let h: Histogram<u64> = deserializer.deserialize(&mut cursor).unwrap();
 //!
 //!     // behold, they are restored as they were originally
-//!     assert_eq!(7, h.count_at(42).unwrap());
-//!     assert_eq!(0, h.count_at(1000).unwrap());
+//!     assert_eq!(7, h.count_at(42));
+//!     assert_eq!(0, h.count_at(1000));
 //!
 //!     accumulator.add(h).unwrap();
 //! }
 //!
 //! // all the counts are there
-//! assert_eq!(num_histograms * 7, accumulator.count_at(42).unwrap());
+//! assert_eq!(num_histograms * 7, accumulator.count_at(42));
 //! ```
 //!
 

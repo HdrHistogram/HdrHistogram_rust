@@ -211,26 +211,93 @@ fn large_percentile() {
 #[test]
 fn percentile_atorbelow() {
     let Loaded { hist, raw, .. } = load_histograms();
-    assert_near!(99.99, raw.percentile_below(5000).unwrap(), 0.0001);
-    assert_near!(50.0, hist.percentile_below(5000).unwrap(), 0.0001);
-    assert_near!(100.0, hist.percentile_below(100000000_u64).unwrap(), 0.0001);
+    assert_near!(99.99, raw.percentile_below(5000), 0.0001);
+    assert_near!(50.0, hist.percentile_below(5000), 0.0001);
+    assert_near!(100.0, hist.percentile_below(100000000_u64), 0.0001);
+}
+
+#[test]
+fn percentile_below_saturates() {
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+
+    for i in 0..1024 {
+        h.record_n(i, u64::max_value() - 1).unwrap();
+    }
+
+    // really it should be 50 but it saturates at u64::max_value()
+    assert_eq!(100.0, h.percentile_below(512));
+}
+
+#[test]
+fn percentile_below_value_beyond_max() {
+
+    let mut h = Histogram::<u64>::new_with_bounds(1, 100_000, 3).unwrap();
+
+    for i in 0..1024 {
+        h.record(i).unwrap();
+    }
+
+    // also a bunch at maximum value, should be included in the resulting pctile
+    for _ in 0..1024 {
+        h.record(100_000).unwrap();
+    }
+
+    assert_eq!(100.0, h.percentile_below(u64::max_value()));
 }
 
 #[test]
 fn count_between() {
     let Loaded { hist, raw, .. } = load_histograms();
-    assert_eq!(raw.count_between(1000, 1000), Ok(10000));
-    assert_eq!(raw.count_between(5000, 150000000), Ok(1));
-    assert_eq!(hist.count_between(5000, 150000000), Ok(10000));
+    assert_eq!(raw.count_between(1000, 1000), 10000);
+    assert_eq!(raw.count_between(5000, 150000000), 1);
+    assert_eq!(hist.count_between(5000, 150000000), 10000);
+}
+
+#[test]
+fn count_between_high_beyond_max() {
+    let mut h = Histogram::<u64>::new_with_bounds(1, 100_000, 3).unwrap();
+    // largest expressible value will land in last index
+    h.record((1 << 17) - 1).unwrap();
+
+    assert_eq!(1, h.count_between(50, 300_000));
+}
+
+#[test]
+fn count_between_low_and_high_beyond_max() {
+    let mut h = Histogram::<u64>::new_with_bounds(1, 100_000, 3).unwrap();
+    // largest expressible value will land in last index
+    h.record((1 << 17) - 1).unwrap();
+
+    assert_eq!(1, h.count_between(200_000, 300_000));
+}
+
+#[test]
+fn count_between_saturates() {
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+
+    for i in 0..1024 {
+        h.record_n(i, u64::max_value() - 1).unwrap();
+    }
+
+    assert_eq!(u64::max_value(), h.count_between(100, 200));
 }
 
 #[test]
 fn count_at() {
     let Loaded { hist, raw, .. } = load_histograms();
-    assert_eq!(raw.count_between(10000, 10010), Ok(0));
-    assert_eq!(hist.count_between(10000, 10010), Ok(1));
-    assert_eq!(raw.count_at(1000), Ok(10000));
-    assert_eq!(hist.count_at(1000), Ok(10000));
+    assert_eq!(raw.count_between(10000, 10010), 0);
+    assert_eq!(hist.count_between(10000, 10010), 1);
+    assert_eq!(raw.count_at(1000), 10000);
+    assert_eq!(hist.count_at(1000), 10000);
+}
+
+#[test]
+fn count_at_beyond_max_value() {
+    let mut h = Histogram::<u64>::new_with_bounds(1, 100_000, 3).unwrap();
+    // largest expressible value will land in last index
+    h.record((1 << 17) - 1).unwrap();
+
+    assert_eq!(1, h.count_at(u64::max_value()));
 }
 
 #[test]
@@ -417,8 +484,6 @@ fn iter_all() {
         // The count in iter_all buckets should exactly match the amount added since the last iteration
         assert_eq!(v.count_at_value(), v.count_since_last_iteration());
         total_added_counts += v.count_since_last_iteration();
-        // value_from_index(index) should be equal to get_value_iterated_to()
-        assert!(hist.equivalent(hist.value_for(i), v.value()));
         num += 1;
     }
     assert_eq!(num, hist.len());

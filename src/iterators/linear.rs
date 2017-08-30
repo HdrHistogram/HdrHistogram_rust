@@ -33,7 +33,7 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
 impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
     fn pick(&mut self, index: usize, _: u64) -> bool {
         let val = self.hist.value_for(index);
-        if val >= self.current_step_lowest_value_reporting_level || index == self.hist.last() {
+        if val >= self.current_step_lowest_value_reporting_level || index == self.hist.last_index() {
             self.current_step_highest_value_reporting_level += self.value_units_per_bucket;
             self.current_step_lowest_value_reporting_level = self.hist
                 .lowest_equivalent(self.current_step_highest_value_reporting_level);
@@ -48,6 +48,7 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
         // if we reached this point), then we are not yet done iterating (we want to iterate
         // until we are no longer on a value that has a count, rather than util we first reach
         // the last value that has a count. The difference is subtle but important)...
+        // TODO index + 1 could overflow 16-bit usize
         self.current_step_highest_value_reporting_level + 1 < self.hist.value_for(index + 1)
     }
 }

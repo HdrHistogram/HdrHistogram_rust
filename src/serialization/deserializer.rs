@@ -277,6 +277,8 @@ impl<T: Counter> DecodeLoopState<T> {
     fn on_decoded_num(&mut self, count_or_zeros: i64, restat_state: &mut RestatState<T>,
                       h: &mut Histogram<T>) -> Result<(), DeserializeError> {
         if count_or_zeros < 0 {
+            // For a valid histogram, negation won't overflow because you can't have anywhere close
+            // to even 2^32 array length
             let zero_count = (-count_or_zeros).to_usize()
                 .ok_or(DeserializeError::UsizeTypeTooSmall)?;
             // skip the zeros

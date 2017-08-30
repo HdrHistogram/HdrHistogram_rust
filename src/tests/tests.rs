@@ -8,6 +8,8 @@ mod init;
 mod index_calculation;
 #[path = "value_calculation.rs"]
 mod value_calculation;
+#[path = "subtract.rs"]
+mod subtract;
 
 #[test]
 fn new_err_high_not_double_low() {

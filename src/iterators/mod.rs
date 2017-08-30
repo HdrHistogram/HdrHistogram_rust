@@ -19,6 +19,7 @@ pub mod all;
 /// A trait for designing an subset iterator over values in a `Histogram`.
 pub trait PickyIterator<T: Counter> {
     /// should an item be yielded for the given index?
+    /// `index` is a valid index in the relevant histogram.
     fn pick(&mut self, index: usize, total_count_to_index: u64) -> bool;
     /// should we keep iterating even though all future indices are zeros?
     fn more(&mut self, index: usize) -> bool;
@@ -109,7 +110,8 @@ impl<'a, T: Counter, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
         IterationValue {
             value: self.hist.highest_equivalent(self.hist.value_for(self.current_index)),
             quantile: self.total_count_to_index as f64 / self.hist.count() as f64,
-            count_at_value: self.hist[self.current_index],
+            count_at_value: self.hist.count_at_index(self.current_index)
+                .expect("current index cannot exceed counts length"),
             count_since_last_iteration: self.total_count_to_index - self.prev_total_count
         }
     }
@@ -153,10 +155,12 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
                 assert!(self.prev_total_count < total);
 
                 if self.fresh {
-                    let count = self.hist[self.current_index];
+                    let count = self.hist.count_at_index(self.current_index)
+                        .expect("Already checked that current_index is < counts len");
 
                     // if we've seen all counts, no other counts should be non-zero
                     if self.total_count_to_index == total {
+                        // TODO this can fail when total count overflows
                         assert!(count == T::zero());
                     }
 
