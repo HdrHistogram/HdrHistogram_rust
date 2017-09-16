@@ -23,7 +23,7 @@ travis-ci = { repository = "jonhoo/hdrsample" }
 bench_private = [] # for enabling nightly-only feature(test) on the main crate to allow benchmarking private code
 
 [dependencies]
-num = "0.1"
+num-traits = "0.1"
 byteorder = "1.0.0"
 flate2 = "0.2.17"
 

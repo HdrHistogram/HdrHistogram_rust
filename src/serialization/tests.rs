@@ -5,7 +5,7 @@ use super::v2_serializer::{counts_array_max_encoded_size, encode_counts, varint_
 use super::deserializer::{Deserializer, varint_read, varint_read_slice, zig_zag_decode};
 use super::byteorder::{BigEndian, ReadBytesExt};
 use super::super::{Counter, Histogram};
-use super::super::num::traits::{Saturating, ToPrimitive};
+use num::ToPrimitive;
 use super::super::tests::helpers::histo64;
 use std::io::{Cursor, Write};
 use std::fmt::{Debug, Display};
@@ -532,7 +532,7 @@ fn do_varint_write_read_slice_roundtrip_rand(byte_length: usize) {
 
 fn do_serialize_roundtrip_random<S, T>(mut serializer: S, max_count: T)
     where S: TestOnlyHypotheticalSerializerInterface,
-          T: Counter + Debug + Display + Rand + Saturating + ToPrimitive + SampleRange {
+          T: Counter + Debug + Display + Rand + ToPrimitive + SampleRange {
     let mut d = Deserializer::new();
     let mut vec = Vec::new();
     let mut count_rng = rand::weak_rng();
