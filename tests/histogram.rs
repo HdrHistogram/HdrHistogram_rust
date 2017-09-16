@@ -6,7 +6,6 @@ extern crate rand;
 use self::rand::Rng;
 
 use hdrsample::{Histogram, SubtractionError};
-use hdrsample::serialization::{V2Serializer, Deserializer};
 use std::borrow::Borrow;
 use std::fmt;
 
@@ -545,7 +544,9 @@ fn total_count_overflow_from_add_with_resize_saturates() {
 }
 
 #[test]
+#[cfg(feature = "serialization")]
 fn total_count_overflow_from_deserialize_saturates() {
+    use hdrsample::serialization::{V2Serializer, Deserializer};
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
 
     // can't go bigger than i64 max because it will be serialized

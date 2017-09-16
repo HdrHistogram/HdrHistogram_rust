@@ -21,11 +21,13 @@ travis-ci = { repository = "jonhoo/hdrsample" }
 
 [features]
 bench_private = [] # for enabling nightly-only feature(test) on the main crate to allow benchmarking private code
+serialization = [ "flate2" ]
+default = [ "serialization" ]
 
 [dependencies]
 num-traits = "0.1"
 byteorder = "1.0.0"
-flate2 = "0.2.17"
+flate2 = { version = "0.2.17", optional = true }
 
 [dev-dependencies]
 rand = "0.3.15"

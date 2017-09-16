@@ -1396,6 +1396,7 @@ impl<T: Counter> Histogram<T> {
     }
 
     /// Returns an error if the index doesn't exist.
+    #[cfg(feature = "serialization")]
     fn set_count_at_index(&mut self, index: usize, count: T) -> Result<(), ()> {
         let r = self.counts.get_mut(index).ok_or(())?;
         *r = count;
@@ -1687,5 +1688,6 @@ impl<T: Counter, F: Counter> PartialEq<Histogram<F>> for Histogram<T>
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "serialization")]
 #[path = "serialization/serialization.rs"]
 pub mod serialization;
