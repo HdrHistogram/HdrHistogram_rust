@@ -1,11 +1,14 @@
 [package]
 name = "hdrsample"
-version = "4.0.0"
+version = "5.0.0"
 
 description = "A port of HdrHistogram to Rust"
 readme = "README.md"
 
-authors = ["Jon Gjengset <jon@thesquareplanet.com>"]
+authors = [
+	"Jon Gjengset <jon@thesquareplanet.com>",
+	"Marshall Pierce <marshall@mpierce.org>",
+]
 
 documentation = "https://docs.rs/hdrsample"
 homepage = "https://github.com/jonhoo/hdrsample"
