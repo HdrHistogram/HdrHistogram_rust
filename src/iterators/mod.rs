@@ -1,8 +1,8 @@
 use Counter;
 use Histogram;
 
-/// An iterator that iterates over histogram percentiles.
-pub mod percentile;
+/// An iterator that iterates over histogram quantiles.
+pub mod quantile;
 
 /// An iterator that iterates linearly over histogram values.
 pub mod linear;
@@ -52,20 +52,20 @@ pub struct HistogramIterator<'a, T: 'a + Counter, P: PickyIterator<T>> {
 #[derive(Debug, PartialEq)]
 pub struct IterationValue<T: Counter> {
     value: u64,
-    percentile: f64,
+    quantile: f64,
     count_at_value: T,
     count_since_last_iteration: u64
 }
 
 impl<T: Counter> IterationValue<T> {
     /// Create a new IterationValue.
-    pub fn new(value: u64, percentile: f64, count_at_value: T, count_since_last_iteration: u64)
+    pub fn new(value: u64, quantile: f64, count_at_value: T, count_since_last_iteration: u64)
             -> IterationValue<T> {
         IterationValue {
-            value: value,
-            percentile: percentile,
-            count_at_value: count_at_value,
-            count_since_last_iteration: count_since_last_iteration
+            value,
+            quantile,
+            count_at_value,
+            count_since_last_iteration
         }
     }
 
@@ -74,10 +74,15 @@ impl<T: Counter> IterationValue<T> {
         self.value
     }
 
-    /// percent of recorded values that are equivalent to or below `value`
+    /// percent of recorded values that are equivalent to or below `value`.
+    /// This is simply the quantile multiplied by 100.0, so if you care about maintaining the best
+    /// floating-point precision, use `quantile()` instead.
     pub fn percentile(&self) -> f64 {
-        self.percentile
+        self.quantile * 100.0
     }
+
+    /// quantile of recorded values that are equivalent to or below `value`
+    pub fn quantile(&self) -> f64 { self.quantile }
 
     /// recorded count for values equivalent to `value`
     pub fn count_at_value(&self) -> T {
@@ -97,17 +102,16 @@ impl<'a, T: Counter, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
             total_count_to_index: 0,
             prev_total_count: 0,
             current_index: 0,
-            picker: picker,
+            picker,
             fresh: true,
             ended: false,
         }
     }
 
-    // (value, percentile, count-for-value, count-for-step)
     fn current(&self) -> IterationValue<T> {
         IterationValue {
             value: self.hist.highest_equivalent(self.hist.value_for(self.current_index)),
-            percentile: 100.0 * self.total_count_to_index as f64 / self.hist.count() as f64,
+            quantile: self.total_count_to_index as f64 / self.hist.count() as f64,
             count_at_value: self.hist.count_at_index(self.current_index)
                 .expect("current index cannot exceed counts length"),
             count_since_last_iteration: self.total_count_to_index - self.prev_total_count
@@ -147,7 +151,7 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
                     return None;
                 }
 
-                // nope -- alright, let's keep iterating
+            // nope -- alright, let's keep iterating
             } else {
                 assert!(self.current_index < self.hist.len());
                 assert!(self.prev_total_count < total);
@@ -162,7 +166,6 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
                         assert!(count == T::zero());
                     }
 
-                    // maintain total count so we can yield percentiles
                     // TODO overflow
                     self.total_count_to_index = self.total_count_to_index + count.as_u64();
 

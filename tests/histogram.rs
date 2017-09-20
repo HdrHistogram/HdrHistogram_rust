@@ -52,7 +52,7 @@ fn empty_histogram() {
     assert_eq!(h.max(), 0);
     assert_near!(h.mean(), 0.0, 0.0000000000001);
     assert_near!(h.stdev(), 0.0, 0.0000000000001);
-    assert_near!(h.percentile_below(0), 100.0, 0.0000000000001);
+    assert_near!(h.quantile_below(0), 1.0, 0.0000000000001);
     assert!(verify_max(h));
 }
 
@@ -80,20 +80,6 @@ fn record() {
 fn record_past_trackable_max() {
     let mut h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     assert!(h.record(3 * TRACKABLE_MAX).is_err());
-}
-
-#[test]
-fn create_with_large_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(20000000, 100000000, 5).unwrap();
-
-    h += 100000000;
-    h += 20000000;
-    h += 30000000;
-
-    assert!(h.equivalent(20000000, h.value_at_percentile(50.0)));
-    assert!(h.equivalent(30000000, h.value_at_percentile(83.33)));
-    assert!(h.equivalent(100000000, h.value_at_percentile(83.34)));
-    assert!(h.equivalent(100000000, h.value_at_percentile(99.0)));
 }
 
 #[test]
@@ -164,7 +150,6 @@ fn add() {
     assert!(verify_max(h2));
     assert!(verify_max(big));
 }
-
 
 #[test]
 fn equivalent_range() {
