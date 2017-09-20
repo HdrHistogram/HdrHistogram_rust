@@ -2,7 +2,7 @@ use Counter;
 use Histogram;
 use iterators::{HistogramIterator, PickyIterator};
 
-/// An iterator that will yield at percentile/quantile steps through the histogram's value range.
+/// An iterator that will yield at quantile steps through the histogram's value range.
 pub struct Iter<'a, T: 'a + Counter> {
     hist: &'a Histogram<T>,
 
@@ -12,15 +12,15 @@ pub struct Iter<'a, T: 'a + Counter> {
 }
 
 impl<'a, T: 'a + Counter> Iter<'a, T> {
-    /// Construct a new percentile iterator. See `Histogram::iter_percentiles` for details.
+    /// Construct a new iterator. See `Histogram::iter_quantiles` for details.
     pub fn new(hist: &'a Histogram<T>, ticks_per_half_distance: u32)
                -> HistogramIterator<'a, T, Iter<'a, T>> {
         assert!(ticks_per_half_distance > 0, "Ticks per half distance must be > 0");
 
         HistogramIterator::new(hist,
                                Iter {
-                                   hist: hist,
-                                   ticks_per_half_distance: ticks_per_half_distance,
+                                   hist,
+                                   ticks_per_half_distance,
                                    quantile_to_iterate_to: 0.0,
                                    reached_last_recorded_value: false,
                                })
@@ -35,6 +35,8 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
             return false;
         }
 
+        // This calculation, combined with the `quantile * count` in `value_at_quantile`, tends
+        // to produce a count_at_quantile that is 1 ulp wrong. That's just the way IEEE754 works.
         let current_quantile = running_total as f64 / self.hist.count() as f64;
         if current_quantile < self.quantile_to_iterate_to {
             return false;
@@ -42,11 +44,11 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
 
         // The choice to maintain fixed-sized "ticks" in each half-distance to 100% [starting from
         // 0%], as opposed to a "tick" size that varies with each interval, was made to make the
-        // steps easily comprehensible and readable to humans. The resulting percentile steps are
-        // much easier to browse through in a percentile distribution output, for example.
+        // steps easily comprehensible and readable to humans. The resulting quantile steps are
+        // much easier to browse through in a quantile distribution output, for example.
         //
         // We calculate the number of equal-sized "ticks" that the 0-1 range will be divided by
-        // at the current scale. The scale is determined by the percentile level we are iterating
+        // at the current scale. The scale is determined by the quantile level we are iterating
         // to. The following math determines the tick size for the current scale, and maintain a
         // fixed tick size for the remaining "half the distance to 100%" [from either 0% or from
         // the previous half-distance]. When that half-distance is crossed, the scale changes and

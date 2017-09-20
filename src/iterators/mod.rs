@@ -1,8 +1,8 @@
 use Counter;
 use Histogram;
 
-/// An iterator that iterates over histogram percentiles.
-pub mod percentile;
+/// An iterator that iterates over histogram quantiles.
+pub mod quantile;
 
 /// An iterator that iterates linearly over histogram values.
 pub mod linear;
@@ -62,10 +62,10 @@ impl<T: Counter> IterationValue<T> {
     pub fn new(value: u64, quantile: f64, count_at_value: T, count_since_last_iteration: u64)
             -> IterationValue<T> {
         IterationValue {
-            value: value,
-            quantile: quantile,
-            count_at_value: count_at_value,
-            count_since_last_iteration: count_since_last_iteration
+            value,
+            quantile,
+            count_at_value,
+            count_since_last_iteration
         }
     }
 
@@ -74,7 +74,9 @@ impl<T: Counter> IterationValue<T> {
         self.value
     }
 
-    /// percent of recorded values that are equivalent to or below `value`
+    /// percent of recorded values that are equivalent to or below `value`.
+    /// This is simply the quantile multiplied by 100.0, so if you care about maintaining the best
+    /// floating-point precision, use `quantile()` instead.
     pub fn percentile(&self) -> f64 {
         self.quantile * 100.0
     }
@@ -100,7 +102,7 @@ impl<'a, T: Counter, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
             total_count_to_index: 0,
             prev_total_count: 0,
             current_index: 0,
-            picker: picker,
+            picker,
             fresh: true,
             ended: false,
         }
@@ -164,7 +166,6 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
                         assert!(count == T::zero());
                     }
 
-                    // maintain total count so we can yield percentiles
                     // TODO overflow
                     self.total_count_to_index = self.total_count_to_index + count.as_u64();
 

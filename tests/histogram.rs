@@ -53,7 +53,7 @@ fn empty_histogram() {
     assert_eq!(h.max(), 0);
     assert_near!(h.mean(), 0.0, 0.0000000000001);
     assert_near!(h.stdev(), 0.0, 0.0000000000001);
-    assert_near!(h.percentile_below(0), 100.0, 0.0000000000001);
+    assert_near!(h.quantile_below(0), 1.0, 0.0000000000001);
     assert!(verify_max(h));
 }
 

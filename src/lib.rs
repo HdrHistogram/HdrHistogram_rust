@@ -88,7 +88,7 @@
 //! ## Querying samples
 //!
 //! At any time, the histogram can be queried to return interesting statistical measurements, such
-//! as the total number of recorded samples, or the value at a given percentile:
+//! as the total number of recorded samples, or the value at a given quantile:
 //!
 //! ```
 //! use hdrsample::Histogram;
@@ -145,6 +145,21 @@
 //! 32- and above systems will not have any such issues, as all possible histograms fit within a
 //! 32-bit index.
 //!
+//! ## Floating point accuracy
+//!
+//! Some calculations inherently involve floating point values, like `value_at_quantile`, and are
+//! therefore subject to the precision limits of IEEE754 floating point calculations. The user-
+//! visible consequence of this is that in certain corner cases, you might end up with a bucket (and
+//! therefore value) that is higher or lower than it would be if the calculation had been done
+//! with arbitrary-precision arithmetic. However, double-precision IEEE754 (i.e. `f64`) is very
+//! good at its job, so these cases should be rare. Also, we haven't seen a case that was off by
+//! more than one bucket.
+//!
+//! To minimize FP precision losses, we favor working with quantiles rather than percentiles. A
+//! quantile represents a portion of a set with a number in `[0, 1]`. A percentile is the same
+//! concept, except it uses the range `[0, 100]`. Working just with quantiles means we can skip an
+//! FP operation in a few places, and therefore avoid opportunities for precision loss to creep in.
+//!
 //! # Limitations and Caveats
 //!
 //! As with all the other HdrHistogram ports, the latest features and bug fixes from the upstream
@@ -199,8 +214,8 @@ const ORIGINAL_MAX: u64 = 0;
 
 /// This trait represents the operations a histogram must be able to perform on the underlying
 /// counter type. The `ToPrimitive` trait is needed to perform floating point operations on the
-/// counts (usually for percentiles). The `FromPrimitive` to convert back into an integer count.
-/// Partial ordering is used for threshholding, also usually in the context of percentiles.
+/// counts (usually for quantiles). The `FromPrimitive` to convert back into an integer count.
+/// Partial ordering is used for threshholding, also usually in the context of quantiles.
 pub trait Counter
     : num::Num + num::ToPrimitive + num::FromPrimitive + num::Saturating + num::CheckedSub
     + num::CheckedAdd + Copy + PartialOrd<Self> {
@@ -831,20 +846,20 @@ impl<T: Counter> Histogram<T> {
 
             // set by resize() below
             bucket_count: 0,
-            sub_bucket_count: sub_bucket_count,
+            sub_bucket_count,
 
 
             // Establish leading_zero_count_base, used in bucket_index_of() fast path:
             // subtract the bits that would be used by the largest value in bucket 0.
             leading_zero_count_base: 64 - unit_magnitude - sub_bucket_count_magnitude,
-            sub_bucket_half_count_magnitude: sub_bucket_half_count_magnitude,
+            sub_bucket_half_count_magnitude,
 
-            unit_magnitude: unit_magnitude,
-            sub_bucket_half_count: sub_bucket_half_count,
+            unit_magnitude,
+            sub_bucket_half_count,
 
-            sub_bucket_mask: sub_bucket_mask,
+            sub_bucket_mask,
 
-            unit_magnitude_mask: unit_magnitude_mask,
+            unit_magnitude_mask,
             max_value: ORIGINAL_MAX,
             min_non_zero_value: ORIGINAL_MIN,
 
@@ -961,16 +976,16 @@ impl<T: Counter> Histogram<T> {
     // Iterators
     // ********************************************************************************************
 
-    /// Iterate through histogram values by percentile levels.
+    /// Iterate through histogram values by quantile levels.
     ///
     /// The iteration mechanic for this iterator may appear somewhat confusing, but it yields
-    /// fairly pleasing output. The iterator starts with a *percentile step size* of
-    /// `100/halving_period`. For every iteration, it yields a value whose percentile is that much
-    /// greater than the previously emitted percentile (i.e., initially 0, 10, 20, etc.). Once
-    /// `halving_period` values have been emitted, the percentile step size is halved, and the
+    /// fairly pleasing output. The iterator starts with a *quantile step size* of
+    /// `1/halving_period`. For every iteration, it yields a value whose quantile is that much
+    /// greater than the previously emitted quantile (i.e., initially 0, 0.1, 0.2, etc.). Once
+    /// `halving_period` values have been emitted, the quantile  step size is halved, and the
     /// iteration continues.
     ///
-    /// `percentile_ticks_per_half_distance` must be at least 1.
+    /// `ticks_per_half_distance` must be at least 1.
     ///
     /// The iterator yields an `iterators::IterationValue` struct.
     ///
@@ -982,9 +997,9 @@ impl<T: Counter> Histogram<T> {
     ///     hist += i;
     /// }
     ///
-    /// let mut perc = hist.iter_percentiles(1);
+    /// let mut perc = hist.iter_quantiles(1);
     ///
-    /// println!("{:?}", hist.iter_percentiles(1).collect::<Vec<_>>());
+    /// println!("{:?}", hist.iter_quantiles(1).collect::<Vec<_>>());
     ///
     /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.0001), 0.0001, 1, 1)));
     /// // step size = 50
@@ -999,10 +1014,10 @@ impl<T: Counter> Histogram<T> {
     /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.9688), 0.9688, 1, 313)));
     /// // etc...
     /// ```
-    pub fn iter_percentiles<'a>(&'a self, percentile_ticks_per_half_distance: u32)
-            -> HistogramIterator<'a, T, iterators::percentile::Iter<'a, T>> {
+    pub fn iter_quantiles<'a>(&'a self, ticks_per_half_distance: u32)
+            -> HistogramIterator<'a, T, iterators::quantile::Iter<'a, T>> {
         // TODO upper bound on ticks per half distance? 2^31 ticks is not useful
-        iterators::percentile::Iter::new(self, percentile_ticks_per_half_distance)
+        iterators::quantile::Iter::new(self, ticks_per_half_distance)
     }
 
     /// Iterates through histogram values using linear value steps. The iteration is performed in
@@ -1197,30 +1212,33 @@ impl<T: Counter> Histogram<T> {
 
     /// Get the value at a given percentile.
     ///
-    /// When the given percentile is > 0.0, the value returned is the value that the given
+    /// This is simply `value_at_quantile` multiplied by 100.0. For best floating-point precision,
+    /// use `value_at_quantile` directly.
+    pub fn value_at_percentile(&self, percentile: f64) -> u64 {
+        self.value_at_quantile(percentile / 100.0)
+    }
+
+    /// Get the value at a given quantile.
+    ///
+    /// When the given quantile is > 0.0, the value returned is the value that the given
     /// percentage of the overall recorded value entries in the histogram are either smaller than
-    /// or equivalent to. When the given percentile is 0.0, the value returned is the value that
+    /// or equivalent to. When the given quantile is 0.0, the value returned is the value that
     /// all value entries in the histogram are either larger than or equivalent to.
     ///
     /// Two values are considered "equivalent" if `self.equivalent` would return true.
     ///
     /// If the total count of the histogram has exceeded `u64::max_value()`, this will return
     /// inaccurate results.
-    pub fn value_at_percentile(&self, percentile: f64) -> u64 {
-        self.value_at_quantile(percentile / 100.0)
-    }
-
-    /// Get the value at a given quantile.
     pub fn value_at_quantile(&self, quantile: f64) -> u64 {
-        // Truncate down to 1.0
+        // Cap at 1.0
         let quantile = if quantile > 1.0 {
             1.0
         } else {
             quantile
         };
 
-        // round to nearest
         let fractional_count = quantile * self.total_count as f64;
+        // If we're part-way into the next highest int, we should use that as the count
         let mut count_at_quantile = fractional_count.ceil() as u64;
 
         // Make sure we at least reach the first recorded entry
@@ -1248,7 +1266,15 @@ impl<T: Counter> Histogram<T> {
 
     /// Get the percentile of samples at and below a given value.
     ///
-    /// The percentile returned is the percentile of values recorded in the histogram that are
+    /// This is simply `quantile_below* multiplied by 100.0. For best floating-point precision, use
+    /// `quantile_below` directly.
+    pub fn percentile_below(&self, value: u64) -> f64 {
+        self.quantile_below(value) * 100.0
+    }
+
+    /// Get the quantile of samples at or below a given value.
+    ///
+    /// The value returned is the quantile of values recorded in the histogram that are
     /// smaller than or equivalent to the given value.
     ///
     /// Two values are considered "equivalent" if `self.equivalent` would return true.
@@ -1258,11 +1284,6 @@ impl<T: Counter> Histogram<T> {
     ///
     /// If the total count of the histogram has reached `u64::max_value()`, this will return
     /// inaccurate results.
-    pub fn percentile_below(&self, value: u64) -> f64 {
-        self.quantile_below(value) * 100.0
-    }
-
-    /// Get the quantile of samples at or below a given value.
     pub fn quantile_below(&self, value: u64) -> f64 {
         if self.total_count == 0 {
             return 1.0;
@@ -1275,7 +1296,6 @@ impl<T: Counter> Histogram<T> {
             .fold(0_u64, |t, v| t.saturating_add(v.as_u64()));
         total_to_current_index.as_f64() / self.total_count as f64
     }
-
 
     /// Get the count of recorded values within a range of value levels (inclusive to within the
     /// histogram's resolution).
