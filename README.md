@@ -62,9 +62,9 @@ may be recorded. A `Histogram` created this way (or one where auto-resize has be
 enabled) will automatically resize itself if a value that is too large to fit in the current
 dataset is encountered. `new_with_max` sets an upper bound on the values to be recorded, and
 disables auto-resizing, thus preventing any re-allocation during recording. If the application
-attempts to record a larger value than this maximum bound, the record call will fail. Finally,
-`new_with_bounds` restricts the lowest representible value of the dataset, such that a smaller
-range needs to be covered (thus reducing the overall allocation size).
+attempts to record a larger value than this maximum bound, the `record` call will return an
+error. Finally, `new_with_bounds` restricts the lowest representable value of the dataset,
+such that a smaller range needs to be covered (thus reducing the overall allocation size).
 
 For example the example below shows how to create a `Histogram` that can count values in the
 `[1..3600000]` range with 1% precision, which could be used to track latencies in the range `[1
@@ -87,14 +87,14 @@ hist += 54321;
 hist.record_correct(54321, 10).expect("value 54321 should be in range");
 ```
 
-Note the `u64` annotation. This type can be changed to reduce the storage overhead for all the
-histogram bins, at the cost of a risk of overflowing if a large number of samples end up in the
+Note the `u64` type. This type can be changed to reduce the storage overhead for all the
+histogram bins, at the cost of a risk of saturating if a large number of samples end up in the
 same bin.
 
 ### Querying samples
 
 At any time, the histogram can be queried to return interesting statistical measurements, such
-as the total number of recorded samples, or the value at a given percentile:
+as the total number of recorded samples, or the value at a given quantile:
 
 ```rust
 use hdrsample::Histogram;
@@ -119,6 +119,53 @@ for v in hist.iter_recorded() {
 }
 ```
 
+### Panics and error handling
+
+As long as you're using safe, non-panicking functions (see below), this library should never
+panic. Any panics you encounter are a bug; please file them in the issue tracker.
+
+A few functions have their functionality exposed via `AddAssign` and `SubAssign`
+implementations. These alternate forms are equivalent to simply calling `unwrap()` on the
+normal functions, so the normal rules of `unwrap()` apply: view with suspicion when used in
+production code, etc.
+
+| Returns Result                 | Panics on error    | Functionality                   |
+| ------------------------------ | ------------------ | ------------------------------- |
+| `h.record(v)`                  | `h += v`           | Increment count for value `v`   |
+| `h.add(h2)`                    | `h += h2`          | Add `h2`'s counts to `h`        |
+| `h.subtract(h2)`               | `h -= h2`          | Subtract `h2`'s counts from `h` |
+
+Other than the panicking forms of the above functions, everything will return `Result` or
+`Option` if it can fail.
+
+### `usize` limitations
+
+Depending on the configured number of significant digits and maximum value, a histogram's
+internal storage may have hundreds of thousands of cells. Systems with a 16-bit `usize` cannot
+represent pointer offsets that large, so relevant operations (creation, deserialization, etc)
+will fail with a suitable error (e.g. `CreationError::UsizeTypeTooSmall`). If you are using such
+a system and hitting these errors, reducing the number of significant digits will greatly reduce
+memory consumption (and therefore the need for large `usize` values). Lowering the max value may
+also help as long as resizing is disabled.
+
+32- and above systems will not have any such issues, as all possible histograms fit within a
+32-bit index.
+
+### Floating point accuracy
+
+Some calculations inherently involve floating point values, like `value_at_quantile`, and are
+therefore subject to the precision limits of IEEE754 floating point calculations. The user-
+visible consequence of this is that in certain corner cases, you might end up with a bucket (and
+therefore value) that is higher or lower than it would be if the calculation had been done
+with arbitrary-precision arithmetic. However, double-precision IEEE754 (i.e. `f64`) is very
+good at its job, so these cases should be rare. Also, we haven't seen a case that was off by
+more than one bucket.
+
+To minimize FP precision losses, we favor working with quantiles rather than percentiles. A
+quantile represents a portion of a set with a number in `[0, 1]`. A percentile is the same
+concept, except it uses the range `[0, 100]`. Working just with quantiles means we can skip an
+FP operation in a few places, and therefore avoid opportunities for precision loss to creep in.
+
 ## Limitations and Caveats
 
 As with all the other HdrHistogram ports, the latest features and bug fixes from the upstream
@@ -126,8 +173,7 @@ HdrHistogram implementations may not be available in this port. A number of feat
 not (yet) been implemented:
 
  - Concurrency support (`AtomicHistogram`, `ConcurrentHistogram`, …).
- - `DoubleHistogram`. You can use `f64` as the counter type, but none of the "special"
-   `DoubleHistogram` features are supported.
+ - `DoubleHistogram`.
  - The `Recorder` feature of HdrHistogram.
  - Value shifting ("normalization").
  - Timestamps and tags.
@@ -148,27 +194,13 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-hdrsample = "3.0"
+hdrsample = "5.0"
 ```
 
 and this to your crate root:
 
 ```rust
 extern crate hdrsample;
-```
-
-## Benchmarking
-
-For the benchmarks in `benches`:
-
-```
-rustup run nightly cargo bench
-```
-
-There are also some benchmarks inside `src` for directly benchmarking non-public code. To enable using nightly features (like benchmark support) in the main tree, another feature must be enabled to access those benchmarks:
-
-```
-rustup run nightly cargo bench --features=bench_private
 ```
 
 ## License
