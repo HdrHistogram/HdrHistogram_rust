@@ -890,13 +890,17 @@ fn next_value_nonzero_count<C: Counter>(h: &Histogram<C>, start_value: u64) -> u
 
 
 fn prev_value_nonzero_count<C: Counter>(h: &Histogram<C>, start_value: u64) -> u64 {
-    let mut v = h.lowest_equivalent(start_value).checked_sub(1).unwrap();
+    let mut v = h.lowest_equivalent(start_value).saturating_sub(1);
 
     loop {
+        if v == 0 {
+            return 0;
+        }
+
         if h.count_at(v) > C::zero() {
             return h.highest_equivalent(v);
         }
 
-        v = h.lowest_equivalent(v).checked_sub(1).unwrap();
+        v = h.lowest_equivalent(v).saturating_sub(1);
     }
 }
