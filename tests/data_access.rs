@@ -517,7 +517,6 @@ fn linear_iter_steps() {
     histogram += 1;
     histogram += 64;
     histogram += 128;
-    println!("{:?}", histogram.iter_linear(64).collect::<Vec<_>>());
     assert_eq!(histogram.iter_linear(64).count(), 4);
 }
 

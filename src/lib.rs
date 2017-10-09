@@ -94,7 +94,7 @@
 //! use hdrsample::Histogram;
 //! let hist = Histogram::<u64>::new(2).unwrap();
 //! // ...
-//! println!("# of samples: {}", hist.count());
+//! println!("# of samples: {}", hist.len());
 //! println!("99.9'th percentile: {}", hist.value_at_quantile(0.999));
 //! ```
 //!
@@ -170,7 +170,6 @@
 //!  - `DoubleHistogram`.
 //!  - The `Recorder` feature of HdrHistogram.
 //!  - Value shifting ("normalization").
-//!  - Timestamps and tags.
 //!  - Textual output methods. These seem almost orthogonal to HdrSample, though it might be
 //!    convenient if we implemented some relevant traits (CSV, JSON, and possibly simple
 //!    `fmt::Display`).
@@ -183,11 +182,15 @@
 //! ergonomic as possible.
 
 #![deny(missing_docs, trivial_casts, trivial_numeric_casts, unused_extern_crates,
-        unused_import_braces, unused_results, variant_size_differences, warnings)]
+        unused_import_braces, unused_results)]
 // Enable feature(test) is enabled so that we can have benchmarks of private code
 #![cfg_attr(all(test, feature = "bench_private"), feature(test))]
 
 extern crate num_traits as num;
+
+#[cfg(feature = "serialization")]
+#[macro_use]
+extern crate nom;
 
 use std::borrow::Borrow;
 use std::cmp;

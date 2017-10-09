@@ -1,4 +1,4 @@
-//! # Serialization/deserialization
+//! Serialization/deserialization support.
 //!
 //! The upstream Java project has established several different types of serialization. We have
 //! currently implemented V2 and V2 + DEFLATE (following the names used by the Java implementation).
@@ -49,6 +49,10 @@
 //! `Read`. This should make it easy to use them in almost any context, as everything from i/o
 //! streams to `Vec<u8>` can be a `Read` or `Write`.
 //!
+//! # Interval logs
+//!
+//! Parsing interval logs is supported via `IntervalLogIterator`.
+//!
 //! ### Integration with general-purpose serialization libraries
 //!
 //! In general, serializing histograms should be straightforward: pick the serialization format
@@ -70,7 +74,7 @@
 //!
 //! ```
 //! use hdrsample::Histogram;
-//! use hdrsample::serialization::{Deserializer, V2Serializer};
+//! use hdrsample::serialization::V2Serializer;
 //!
 //! // part of serde, simplified
 //! trait Serializer {
@@ -85,6 +89,7 @@
 //! }
 //!
 //! // your custom wrapper
+//! #[allow(dead_code)] // to muffle warnings compiling this example
 //! struct V2HistogramWrapper {
 //!     histogram: Histogram<u64>
 //! }
@@ -117,7 +122,7 @@
 //! let orig_histogram = Histogram::<u64>::new(1).unwrap();
 //! V2Serializer::new().serialize(&orig_histogram, &mut vec).unwrap();
 //!
-//! let histogram: Histogram<u64> = Deserializer::new()
+//! let _histogram: Histogram<u64> = Deserializer::new()
 //!     .deserialize(&mut vec.as_slice()).unwrap();
 //! ```
 //!
@@ -137,7 +142,7 @@
 //! // Make some histograms
 //! for _ in 0..num_histograms {
 //!     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
-//!     h.record_n(42, 7);
+//!     h.record_n(42, 7).unwrap();
 //!     histograms.push(h);
 //! }
 //!
@@ -188,6 +193,9 @@ pub use self::v2_deflate_serializer::{V2DeflateSerializeError, V2DeflateSerializ
 
 mod deserializer;
 pub use self::deserializer::{DeserializeError, Deserializer};
+
+mod interval_log;
+pub use self::interval_log::{IntervalLogIterator, LogEntry};
 
 const V2_COOKIE_BASE: u32 = 0x1c84_9303;
 const V2_COMPRESSED_COOKIE_BASE: u32 = 0x1c84_9304;
