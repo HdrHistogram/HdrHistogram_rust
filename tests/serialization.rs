@@ -1,5 +1,4 @@
-#[cfg(feature = "serialization")]
-#[cfg(test)]
+#[cfg(all(feature = "serialization", test))]
 mod tests {
     extern crate hdrsample;
 

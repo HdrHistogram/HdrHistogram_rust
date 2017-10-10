@@ -46,3 +46,7 @@ debug=true
 
 [profile.bench]
 debug=true
+
+[[example]]
+name = "cli"
+required-features = ["serialization"]
