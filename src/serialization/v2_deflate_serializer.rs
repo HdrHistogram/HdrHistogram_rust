@@ -5,7 +5,7 @@ use super::byteorder::{BigEndian, WriteBytesExt};
 use super::flate2::Compression;
 use std;
 use std::io::{ErrorKind, Write};
-use super::flate2::write::DeflateEncoder;
+use super::flate2::write::ZlibEncoder;
 
 /// Errors that occur during serialization.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -23,6 +23,9 @@ impl std::convert::From<std::io::Error> for V2DeflateSerializeError {
 }
 
 /// Serializer for the V2 + DEFLATE binary format.
+///
+/// It's called "deflate" to stay consistent with the naming used in the Java implementation, but
+/// it actually uses zlib's wrapper format around plain DEFLATE.
 pub struct V2DeflateSerializer {
     uncompressed_buf: Vec<u8>,
     compressed_buf: Vec<u8>,
@@ -76,7 +79,7 @@ impl V2DeflateSerializer {
 
         {
             // TODO reuse deflate buf, or switch to lower-level flate2::Compress
-            let mut compressor = DeflateEncoder::new(&mut self.compressed_buf, Compression::Default);
+            let mut compressor = ZlibEncoder::new(&mut self.compressed_buf, Compression::Default);
             compressor.write_all(&self.uncompressed_buf[0..uncompressed_len])?;
             let _ = compressor.finish()?;
         }
