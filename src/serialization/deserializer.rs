@@ -5,7 +5,7 @@ use std::io::{self, Cursor, ErrorKind, Read};
 use std::marker::PhantomData;
 use std;
 use super::byteorder::{BigEndian, ReadBytesExt};
-use super::flate2::read::DeflateDecoder;
+use super::flate2::read::ZlibDecoder;
 
 /// Errors that can happen during deserialization.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -70,7 +70,7 @@ impl Deserializer {
             .ok_or(DeserializeError::UsizeTypeTooSmall)?;
 
         // TODO reuse deflate buf, or switch to lower-level flate2::Decompress
-        let mut deflate_reader = DeflateDecoder::new(reader.take(payload_len as u64));
+        let mut deflate_reader = ZlibDecoder::new(reader.take(payload_len as u64));
         let inner_cookie = deflate_reader.read_u32::<BigEndian>()?;
         if inner_cookie != V2_COOKIE {
             return Err(DeserializeError::InvalidCookie);
