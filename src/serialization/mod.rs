@@ -173,23 +173,18 @@
 extern crate byteorder;
 extern crate flate2;
 
-#[path = "tests.rs"]
 #[cfg(test)]
 mod tests;
 
-#[path = "benchmarks.rs"]
 #[cfg(all(test, feature = "bench_private"))]
 mod benchmarks;
 
-#[path = "v2_serializer.rs"]
 mod v2_serializer;
 pub use self::v2_serializer::{V2Serializer, V2SerializeError};
 
-#[path = "v2_deflate_serializer.rs"]
 mod v2_deflate_serializer;
 pub use self::v2_deflate_serializer::{V2DeflateSerializer, V2DeflateSerializeError};
 
-#[path = "deserializer.rs"]
 mod deserializer;
 pub use self::deserializer::{Deserializer, DeserializeError};
 

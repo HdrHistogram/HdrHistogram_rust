@@ -5,7 +5,7 @@ extern crate rand;
 
 use self::rand::Rng;
 
-use hdrsample::{Histogram, SubtractionError};
+use hdrsample::{Histogram, SubtractionError, Counter};
 use std::borrow::Borrow;
 use std::fmt;
 
@@ -22,7 +22,7 @@ macro_rules! assert_near {
     }}
 }
 
-fn verify_max<T: hdrsample::Counter, B: Borrow<Histogram<T>>>(hist: B) -> bool {
+fn verify_max<T: Counter, B: Borrow<Histogram<T>>>(hist: B) -> bool {
     let hist = hist.borrow();
     if let Some(mx) = hist.iter_recorded()
         .map(|v| v.value())
@@ -239,7 +239,7 @@ fn scaled_median_equivalent() {
 }
 
 fn are_equal<T, B1, B2>(actual: B1, expected: B2)
-    where T: hdrsample::Counter + fmt::Debug,
+    where T: Counter + fmt::Debug,
           B1: Borrow<Histogram<T>>,
           B2: Borrow<Histogram<T>>
 {
