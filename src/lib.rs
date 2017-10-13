@@ -200,6 +200,7 @@ extern crate num_traits as num;
 
 use std::borrow::Borrow;
 use std::cmp;
+use std::fmt;
 use std::ops::{AddAssign, SubAssign};
 use num::ToPrimitive;
 
@@ -218,7 +219,7 @@ const ORIGINAL_MAX: u64 = 0;
 /// Partial ordering is used for threshholding, also usually in the context of quantiles.
 pub trait Counter
     : num::Num + num::ToPrimitive + num::FromPrimitive + num::Saturating + num::CheckedSub
-    + num::CheckedAdd + Copy + PartialOrd<Self> {
+    + num::CheckedAdd + Copy + PartialOrd<Self> + fmt::Debug {
 
     /// Counter as a f64.
     fn as_f64(&self) -> f64;

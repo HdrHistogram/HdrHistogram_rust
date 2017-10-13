@@ -142,7 +142,9 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
                 return None;
             }
 
-            // have we yielded all non-zeros in the histogram?
+            // TODO should check if we've reached max, not count, to avoid early termination
+            // on histograms with very large counts whose total would exceed u64::max_value()
+            // Have we yielded all non-zeros in the histogram?
             let total = self.hist.count();
             if self.prev_total_count == total {
                 // is the picker done?
@@ -163,7 +165,7 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
                     // if we've seen all counts, no other counts should be non-zero
                     if self.total_count_to_index == total {
                         // TODO this can fail when total count overflows
-                        assert!(count == T::zero());
+                        assert_eq!(count, T::zero());
                     }
 
                     // TODO overflow
@@ -182,6 +184,7 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
                 // exposed to the same value again after yielding. not sure why this is the
                 // behavior we want, but it's what the original Java implementation dictates.
 
+                // TODO count starting at 0 each time we emit a value to be less prone to overflow
                 self.prev_total_count = self.total_count_to_index;
                 return Some(val);
             }

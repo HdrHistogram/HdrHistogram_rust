@@ -40,7 +40,7 @@ fn main() {
                             .short("r")
                             .long("resize")
                             .help("Enable auto resize")))
-            .subcommand(SubCommand::with_name("quantiles")
+            .subcommand(SubCommand::with_name("iter-quantiles")
                     .about("Display quantiles to stdout from serialized histogram stdin")
                     .arg(Arg::with_name("ticks")
                             .short("t")
@@ -75,8 +75,8 @@ fn main() {
 
             serialize(stdin_handle, stdout_handle, h, sub_matches.is_present("compression"))
         }
-        Some("quantiles") => {
-            let sub_matches = matches.subcommand_matches("quantiles").unwrap();
+        Some("iter-quantiles") => {
+            let sub_matches = matches.subcommand_matches("iter-quantiles").unwrap();
             let ticks_per_half = sub_matches.value_of("ticks").unwrap().parse().unwrap();
             let quantile_precision = sub_matches.value_of("quantile-precision").unwrap().parse().unwrap();
             quantiles(stdin_handle, stdout_handle, quantile_precision, ticks_per_half)
