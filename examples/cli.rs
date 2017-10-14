@@ -51,14 +51,14 @@ fn main() {
                     .arg(Arg::with_name("quantile-precision")
                             .long("quantile-precision")
                             .takes_value(true)
-                            .default_value("5")))
+                            .default_value("20")))
             .get_matches();
 
     let stdin = std::io::stdin();
-    let stdin_handle = stdin.lock();
+    let stdin = stdin.lock();
 
     let stdout = std::io::stdout();
-    let stdout_handle = stdout.lock();
+    let stdout = stdout.lock();
 
     match matches.subcommand_name() {
         Some("serialize") => {
@@ -73,13 +73,13 @@ fn main() {
                 h.auto(true);
             }
 
-            serialize(stdin_handle, stdout_handle, h, sub_matches.is_present("compression"))
+            serialize(stdin, stdout, h, sub_matches.is_present("compression"))
         }
         Some("iter-quantiles") => {
             let sub_matches = matches.subcommand_matches("iter-quantiles").unwrap();
             let ticks_per_half = sub_matches.value_of("ticks").unwrap().parse().unwrap();
             let quantile_precision = sub_matches.value_of("quantile-precision").unwrap().parse().unwrap();
-            quantiles(stdin_handle, stdout_handle, quantile_precision, ticks_per_half)
+            quantiles(stdin, stdout, quantile_precision, ticks_per_half)
         }
         _ => unreachable!()
     }.expect("Subcommand failed")
@@ -109,9 +109,10 @@ fn quantiles<R: BufRead, W: Write>(mut reader: R, mut writer: W, quantile_precis
 
     writer.write_all(
         format!(
-            "{:>12} {:>quantile_precision$} {:>10} {:>14}\n\n",
+            "{:>12} {:>quantile_precision$} {:>quantile_precision$} {:>10} {:>14}\n\n",
             "Value",
-            "Quantile",
+            "QuantileValue",
+            "QuantileIteration",
             "TotalCount",
             "1/(1-Quantile)",
             quantile_precision = quantile_precision + 2 // + 2 from leading "0." for numbers
@@ -123,10 +124,12 @@ fn quantiles<R: BufRead, W: Write>(mut reader: R, mut writer: W, quantile_precis
         if v.quantile() < 1.0 {
             writer.write_all(
                 format!(
-                    "{:12} {:1.*} {:10} {:14.2}\n",
+                    "{:12} {:1.*} {:1.*} {:10} {:14.2}\n",
                     v.value(),
                     quantile_precision,
                     v.quantile(),
+                    quantile_precision,
+                    v.quantile_iterated_to(),
                     sum,
                     1_f64 / (1_f64 - v.quantile())
                 ).as_ref(),
@@ -134,10 +137,12 @@ fn quantiles<R: BufRead, W: Write>(mut reader: R, mut writer: W, quantile_precis
         } else {
             writer.write_all(
                 format!(
-                    "{:12} {:1.*} {:10} {:>14}\n",
+                    "{:12} {:1.*} {:1.*} {:10} {:>14}\n",
                     v.value(),
                     quantile_precision,
                     v.quantile(),
+                    quantile_precision,
+                    v.quantile_iterated_to(),
                     sum,
                     "∞"
                 ).as_ref(),

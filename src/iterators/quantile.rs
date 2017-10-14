@@ -5,9 +5,9 @@ use iterators::{HistogramIterator, PickyIterator};
 /// An iterator that will yield at quantile steps through the histogram's value range.
 pub struct Iter<'a, T: 'a + Counter> {
     hist: &'a Histogram<T>,
-
     ticks_per_half_distance: u32,
-    quantile_to_iterate_to: f64
+    quantile_to_iterate_to: f64,
+    quantile_just_picked: f64
 }
 
 impl<'a, T: 'a + Counter> Iter<'a, T> {
@@ -20,7 +20,8 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
                                Iter {
                                    hist,
                                    ticks_per_half_distance,
-                                   quantile_to_iterate_to: 0.0
+                                   quantile_to_iterate_to: 0.0,
+                                   quantile_just_picked: 0.0
                                })
     }
 }
@@ -77,6 +78,7 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
             .checked_mul(1_u64.checked_shl(num_halvings + 1).expect("too many halvings"))
             .expect("too many total ticks");
         let increment_size = 1.0 / total_ticks as f64;
+        self.quantile_just_picked = self.quantile_to_iterate_to;
         // Unclear if it's possible for adding a very small increment to 0.999999... to yield > 1.0
         // but let's just be safe since FP is weird and this code is not likely to be very hot.
         self.quantile_to_iterate_to = 1.0_f64.min(self.quantile_to_iterate_to + increment_size);
@@ -88,5 +90,9 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
         // quantile 1.0 and will be reported as such in the IterationValue, even if
         // `quantile_to_iterate_to` is somewhere below 1.0 -- we still got to the final bucket.
         false
+    }
+
+    fn quantile_iterated_to(&self) -> Option<f64> {
+        Some(self.quantile_just_picked)
     }
 }
