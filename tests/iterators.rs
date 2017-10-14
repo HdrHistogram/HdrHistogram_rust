@@ -1,6 +1,4 @@
 extern crate hdrsample;
-extern crate num;
-extern crate rand;
 
 use hdrsample::Histogram;
 
