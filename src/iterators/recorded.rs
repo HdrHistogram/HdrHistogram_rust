@@ -37,4 +37,8 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
     fn more(&mut self, _: usize) -> bool {
         false
     }
+
+    fn quantile_iterated_to(&self) -> Option<f64> {
+        None
+    }
 }

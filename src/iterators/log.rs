@@ -25,8 +25,8 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
         assert!(log_base > 1.0, "log_base must be > 1.0");
         HistogramIterator::new(hist,
                                Iter {
-                                   hist: hist,
-                                   log_base: log_base,
+                                   hist,
+                                   log_base,
                                    next_value_reporting_level: value_units_in_first_bucket as f64,
                                    current_step_highest_value_reporting_level: value_units_in_first_bucket -
                                                                           1,
@@ -59,5 +59,9 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
         // that has a count. The difference is subtle but important)...
         self.hist.lowest_equivalent(self.next_value_reporting_level as u64) <
             self.hist.value_for(next_index)
+    }
+
+    fn quantile_iterated_to(&self) -> Option<f64> {
+        None
     }
 }

@@ -200,6 +200,7 @@ extern crate num_traits as num;
 
 use std::borrow::Borrow;
 use std::cmp;
+use std::fmt;
 use std::ops::{AddAssign, SubAssign};
 use num::ToPrimitive;
 
@@ -218,7 +219,7 @@ const ORIGINAL_MAX: u64 = 0;
 /// Partial ordering is used for threshholding, also usually in the context of quantiles.
 pub trait Counter
     : num::Num + num::ToPrimitive + num::FromPrimitive + num::Saturating + num::CheckedSub
-    + num::CheckedAdd + Copy + PartialOrd<Self> {
+    + num::CheckedAdd + Copy + PartialOrd<Self> + fmt::Debug {
 
     /// Counter as a f64.
     fn as_f64(&self) -> f64;
@@ -1001,17 +1002,17 @@ impl<T: Counter> Histogram<T> {
     ///
     /// println!("{:?}", hist.iter_quantiles(1).collect::<Vec<_>>());
     ///
-    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.0001), 0.0001, 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.0001), 0.0001, 0.0, 1, 1)));
     /// // step size = 50
-    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.5), 0.5, 1, 5000 - 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.5), 0.5, 0.5, 1, 5000 - 1)));
     /// // step size = 25
-    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.75), 0.75, 1, 2500)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.75), 0.75, 0.75, 1, 2500)));
     /// // step size = 12.5
-    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.875), 0.875, 1, 1250)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.875), 0.875, 0.875, 1, 1250)));
     /// // step size = 6.25
-    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.9375), 0.9375, 1, 625)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.9375), 0.9375, 0.9375, 1, 625)));
     /// // step size = 3.125
-    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.9688), 0.9688, 1, 313)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.9688), 0.9688, 0.96875, 1, 313)));
     /// // etc...
     /// ```
     pub fn iter_quantiles<'a>(&'a self, ticks_per_half_distance: u32)
@@ -1037,15 +1038,15 @@ impl<T: Counter> Histogram<T> {
     /// hist += 850;
     ///
     /// let mut perc = hist.iter_linear(100);
-    /// assert_eq!(perc.next(), Some(IterationValue::new(99, hist.quantile_below(99), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(199, hist.quantile_below(199), 0, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(299, hist.quantile_below(299), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(399, hist.quantile_below(399), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(499, hist.quantile_below(499), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(599, hist.quantile_below(599), 0, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(699, hist.quantile_below(699), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(799, hist.quantile_below(799), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(899, hist.quantile_below(899), 0, 2)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(99, hist.quantile_below(99), hist.quantile_below(99), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(199, hist.quantile_below(199), hist.quantile_below(199), 0, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(299, hist.quantile_below(299), hist.quantile_below(299), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(399, hist.quantile_below(399), hist.quantile_below(399), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(499, hist.quantile_below(499), hist.quantile_below(499), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(599, hist.quantile_below(599), hist.quantile_below(599), 0, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(699, hist.quantile_below(699), hist.quantile_below(699), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(799, hist.quantile_below(799), hist.quantile_below(799), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(899, hist.quantile_below(899), hist.quantile_below(899), 0, 2)));
     /// assert_eq!(perc.next(), None);
     /// ```
     pub fn iter_linear<'a>(&'a self, step: u64)
@@ -1069,10 +1070,10 @@ impl<T: Counter> Histogram<T> {
     /// hist += 850;
     ///
     /// let mut perc = hist.iter_log(1, 10.0);
-    /// assert_eq!(perc.next(), Some(IterationValue::new(0, hist.quantile_below(0), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(9, hist.quantile_below(9), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(99, hist.quantile_below(99), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(999, hist.quantile_below(999), 0, 4)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(0, hist.quantile_below(0), hist.quantile_below(0), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(9, hist.quantile_below(9), hist.quantile_below(9), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(99, hist.quantile_below(99), hist.quantile_below(99), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(999, hist.quantile_below(999), hist.quantile_below(999), 0, 4)));
     /// assert_eq!(perc.next(), None);
     /// ```
     pub fn iter_log<'a>(&'a self, start: u64, exp: f64)
@@ -1096,10 +1097,10 @@ impl<T: Counter> Histogram<T> {
     /// hist += 850;
     ///
     /// let mut perc = hist.iter_recorded();
-    /// assert_eq!(perc.next(), Some(IterationValue::new(100, hist.quantile_below(100), 1, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(500, hist.quantile_below(500), 1, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(800, hist.quantile_below(800), 1, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(850, hist.quantile_below(850), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(100, hist.quantile_below(100), hist.quantile_below(100), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(500, hist.quantile_below(500), hist.quantile_below(500), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(800, hist.quantile_below(800), hist.quantile_below(800), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(850, hist.quantile_below(850), hist.quantile_below(850), 1, 1)));
     /// assert_eq!(perc.next(), None);
     /// ```
     pub fn iter_recorded<'a>(&'a self)
@@ -1123,17 +1124,17 @@ impl<T: Counter> Histogram<T> {
     /// hist += 8;
     ///
     /// let mut perc = hist.iter_all();
-    /// assert_eq!(perc.next(), Some(IterationValue::new(0, 0.0, 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(1, hist.quantile_below(1), 1, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(2, hist.quantile_below(2), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(3, hist.quantile_below(3), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(4, hist.quantile_below(4), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(5, hist.quantile_below(5), 1, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(6, hist.quantile_below(6), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(7, hist.quantile_below(7), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(8, hist.quantile_below(8), 1, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(9, hist.quantile_below(9), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(10, 1.0, 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(0, 0.0, 0.0, 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(1, hist.quantile_below(1), hist.quantile_below(1), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(2, hist.quantile_below(2), hist.quantile_below(2), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(3, hist.quantile_below(3), hist.quantile_below(3), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(4, hist.quantile_below(4), hist.quantile_below(4), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(5, hist.quantile_below(5), hist.quantile_below(5), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(6, hist.quantile_below(6), hist.quantile_below(6), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(7, hist.quantile_below(7), hist.quantile_below(7), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(8, hist.quantile_below(8), hist.quantile_below(8), 1, 1)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(9, hist.quantile_below(9), hist.quantile_below(9), 0, 0)));
+    /// assert_eq!(perc.next(), Some(IterationValue::new(10, 1.0, 1.0, 0, 0)));
     /// ```
     pub fn iter_all<'a>(&'a self) -> HistogramIterator<'a, T, iterators::all::Iter> {
         iterators::all::Iter::new(self)
