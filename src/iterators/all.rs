@@ -1,6 +1,6 @@
 use Counter;
 use Histogram;
-use iterators::{HistogramIterator, PickyIterator};
+use iterators::{HistogramIterator, PickyIterator, PickMetadata};
 
 /// An iterator that will yield every bin.
 pub struct Iter { visited: Option<usize> }
@@ -13,21 +13,17 @@ impl Iter {
 }
 
 impl<T: Counter> PickyIterator<T> for Iter {
-    fn pick(&mut self, index: usize, _: u64) -> bool {
+    fn pick(&mut self, index: usize, _: u64) -> Option<PickMetadata> {
         if self.visited.map(|i| i != index).unwrap_or(true) {
             // haven't visited this index yet
             self.visited = Some(index);
-            true
+            Some(PickMetadata::new(None, None))
         } else {
-            false
+            None
         }
     }
 
     fn more(&mut self, _: usize) -> bool {
         true
-    }
-
-    fn quantile_iterated_to(&self) -> Option<f64> {
-        None
     }
 }

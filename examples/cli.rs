@@ -125,7 +125,7 @@ fn quantiles<R: BufRead, W: Write>(mut reader: R, mut writer: W, quantile_precis
             writer.write_all(
                 format!(
                     "{:12} {:1.*} {:1.*} {:10} {:14.2}\n",
-                    v.value(),
+                    v.value_iterated_to(),
                     quantile_precision,
                     v.quantile(),
                     quantile_precision,
@@ -138,7 +138,7 @@ fn quantiles<R: BufRead, W: Write>(mut reader: R, mut writer: W, quantile_precis
             writer.write_all(
                 format!(
                     "{:12} {:1.*} {:1.*} {:10} {:>14}\n",
-                    v.value(),
+                    v.value_iterated_to(),
                     quantile_precision,
                     v.quantile(),
                     quantile_precision,

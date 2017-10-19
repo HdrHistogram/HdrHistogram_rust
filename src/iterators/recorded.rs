@@ -1,6 +1,6 @@
 use Counter;
 use Histogram;
-use iterators::{HistogramIterator, PickyIterator};
+use iterators::{HistogramIterator, PickyIterator, PickMetadata};
 
 /// An iterator that will yield only bins with at least one sample.
 pub struct Iter<'a, T: 'a + Counter> {
@@ -13,14 +13,14 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
     pub fn new(hist: &'a Histogram<T>) -> HistogramIterator<'a, T, Iter<'a, T>> {
         HistogramIterator::new(hist,
                                Iter {
-                                   hist: hist,
+                                   hist,
                                    visited: None,
                                })
     }
 }
 
 impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
-    fn pick(&mut self, index: usize, _: u64) -> bool {
+    fn pick(&mut self, index: usize, _: u64) -> Option<PickMetadata> {
         // is the count non-zero?
         let count = self.hist.count_at_index(index)
             .expect("index must be valid by PickyIterator contract");
@@ -28,17 +28,13 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
             // have we visited before?
             if self.visited.map(|i| i != index).unwrap_or(true) {
                 self.visited = Some(index);
-                return true;
+                return Some(PickMetadata::new(None, None));
             }
         }
-        false
+        None
     }
 
     fn more(&mut self, _: usize) -> bool {
         false
-    }
-
-    fn quantile_iterated_to(&self) -> Option<f64> {
-        None
     }
 }

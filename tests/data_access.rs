@@ -295,7 +295,7 @@ fn count_at_beyond_max_value() {
 fn quantile_iter() {
     let Loaded { hist, .. } = load_histograms();
     for v in hist.iter_quantiles(5 /* ticks per half */) {
-        assert_eq!(v.value(), hist.highest_equivalent(hist.value_at_quantile(v.quantile())));
+        assert_eq!(v.value_iterated_to(), hist.highest_equivalent(hist.value_at_quantile(v.quantile())));
     }
 }
 
@@ -457,7 +457,7 @@ fn iter_all() {
     for (i, v) in raw.iter_all().enumerate() {
         if i == 1000 {
             assert_eq!(v.count_since_last_iteration(), 10000);
-        } else if hist.equivalent(v.value(), 100000000) {
+        } else if hist.equivalent(v.value_iterated_to(), 100000000) {
             assert_eq!(v.count_since_last_iteration(), 1);
         } else {
             assert_eq!(v.count_since_last_iteration(), 0);
@@ -509,7 +509,7 @@ fn value_duplication() {
     let mut counts = Vec::with_capacity(histogram1.len());
     for v in histogram1.iter_all() {
         if v.count_since_last_iteration() > 0 {
-            ranges.push(v.value());
+            ranges.push(v.value_iterated_to());
             counts.push(v.count_since_last_iteration());
         }
         num += 1;

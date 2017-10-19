@@ -25,7 +25,7 @@ macro_rules! assert_near {
 fn verify_max<T: hdrsample::Counter, B: Borrow<Histogram<T>>>(hist: B) -> bool {
     let hist = hist.borrow();
     if let Some(mx) = hist.iter_recorded()
-        .map(|v| v.value())
+        .map(|v| v.value_iterated_to())
         .map(|v| hist.highest_equivalent(v))
         .last() {
         hist.max() == mx
@@ -246,7 +246,7 @@ fn are_equal<T, B1, B2>(actual: B1, expected: B2)
     let actual = actual.borrow();
     let expected = expected.borrow();
 
-    assert!(actual == expected);
+    assert_eq!(actual, expected);
     assert_eq!(actual.count_at(TEST_VALUE_LEVEL),
                expected.count_at(TEST_VALUE_LEVEL));
     assert_eq!(actual.count_at(10 * TEST_VALUE_LEVEL),

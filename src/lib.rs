@@ -109,7 +109,7 @@
 //! // ...
 //! for v in hist.iter_recorded() {
 //!     println!("{}'th percentile of data is {} with {} samples",
-//!         v.percentile(), v.value(), v.count_at_value());
+//!         v.percentile(), v.value_iterated_to(), v.count_at_value());
 //! }
 //! ```
 //!
@@ -514,7 +514,7 @@ impl<T: Counter> Histogram<T> {
     pub fn clone_correct(&self, interval: u64) -> Histogram<T> {
         let mut h = Histogram::new_from(self);
         for v in self.iter_recorded() {
-            h.record_n_correct(v.value(), v.count_at_value(), interval)
+            h.record_n_correct(v.value_iterated_to(), v.count_at_value(), interval)
                 .expect("Same dimensions; all values should be representable");
         }
         h
@@ -642,7 +642,7 @@ impl<T: Counter> Histogram<T> {
         let source = source.borrow();
 
         for v in source.iter_recorded() {
-            self.record_n_correct(v.value(), v.count_at_value(), interval)?;
+            self.record_n_correct(v.value_iterated_to(), v.count_at_value(), interval)?;
         }
         Ok(())
     }
@@ -1191,7 +1191,7 @@ impl<T: Counter> Histogram<T> {
         self.iter_recorded().fold(0.0_f64, |total, v| {
             // TODO overflow?
             total +
-                self.median_equivalent(v.value()) as f64 * v.count_at_value().as_f64()
+                self.median_equivalent(v.value_iterated_to()) as f64 * v.count_at_value().as_f64()
                     / self.total_count as f64
         })
     }
@@ -1204,7 +1204,7 @@ impl<T: Counter> Histogram<T> {
 
         let mean = self.mean();
         let geom_dev_tot = self.iter_recorded().fold(0.0_f64, |gdt, v| {
-            let dev = self.median_equivalent(v.value()) as f64 - mean;
+            let dev = self.median_equivalent(v.value_iterated_to()) as f64 - mean;
             gdt + (dev * dev) * v.count_since_last_iteration() as f64
         });
 

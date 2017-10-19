@@ -110,7 +110,7 @@ fn value_at_quantile_matches_quantile_iter_sequence_values() {
 
         for iter_val in iter {
             let calculated_value = h.value_at_quantile(iter_val.quantile());
-            let v = iter_val.value();
+            let v = iter_val.value_iterated_to();
 
             // Quantile iteration has problematic floating-point calculations. Calculating the
             // quantile involves something like `index / total_count`, and that's then multiplied
@@ -157,7 +157,7 @@ fn value_at_quantile_matches_quantile_iter_random_values() {
 
         for iter_val in iter {
             let calculated_value = h.value_at_quantile(iter_val.quantile());
-            let v = iter_val.value();
+            let v = iter_val.value_iterated_to();
 
             // Quantile iteration has problematic floating-point calculations. Calculating the
             // quantile involves something like `index / total_count`, and that's then multiplied

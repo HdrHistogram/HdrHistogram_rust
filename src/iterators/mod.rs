@@ -16,18 +16,40 @@ pub mod recorded;
 /// An iterator that iterates over histogram values.
 pub mod all;
 
-/// A trait for designing an subset iterator over values in a `Histogram`.
-pub trait PickyIterator<T: Counter> {
-    /// should an item be yielded for the given index?
-    /// `index` is a valid index in the relevant histogram.
-    fn pick(&mut self, index: usize, total_count_to_index: u64) -> bool;
-    /// should we keep iterating even though all future indices are zeros?
-    fn more(&mut self, index: usize) -> bool;
-
-    /// Supply the quantile iterated to in the last `pick()`, if available. If `None` is returned,
+/// Extra information about the picked point in the histogram provided by the picker.
+pub struct PickMetadata {
+    /// Supply the quantile iterated to in the last `pick()`, if available. If `None` is provided,
     /// the quantile of the current value will be used instead. Probably only useful for the
     /// quantile iterator.
-    fn quantile_iterated_to(&self) -> Option<f64>;
+    quantile_iterated_to: Option<f64>,
+
+    /// Supply the value iterated to in the last `pick()`, if the picker can supply a more useful
+    /// value than the largest value represented by the bucket.
+    value_iterated_to: Option<u64>
+}
+
+impl PickMetadata {
+    fn new(quantile_iterated_to: Option<f64>, value_iterated_to: Option<u64>) -> PickMetadata {
+        PickMetadata {
+            quantile_iterated_to,
+            value_iterated_to
+        }
+    }
+}
+
+/// A trait for designing an subset iterator over values in a `Histogram`.
+pub trait PickyIterator<T: Counter> {
+    /// Return `Some` if an `IterationValue` should be emitted at this point.
+    ///
+    /// `index` is a valid index in the relevant histogram.
+    ///
+    /// This will be called with the same index until it returns `None`. This enables modes of
+    /// iteration that pick different values represented by the same bucket, for instance.
+    fn pick(&mut self, index: usize, total_count_to_index: u64) -> Option<PickMetadata>;
+
+    /// Should we keep iterating even though the last non-zero index has already been picked at
+    /// least once?
+    fn more(&mut self, index_to_pick: usize) -> bool;
 }
 
 /// `HistogramIterator` provides a base iterator for a `Histogram`.
@@ -37,17 +59,13 @@ pub trait PickyIterator<T: Counter> {
 /// sophisticated iterators, a *picker* is also provided, which is allowed to only select some bins
 /// that should be yielded. The picker may also extend the iteration to include a suffix of empty
 /// bins.
-///
-/// One peculiarity of this iterator is that, if the picker does choose to yield a particular bin,
-/// that bin *is re-visited* before moving on to later bins. It is not clear why this is, but it is
-/// how the iterators were implemented in the original HdrHistogram, so we preserve the behavior
-/// here. This is the reason why iterators such as all and recorded need to keep track of which
-/// indices they have already visited.
 pub struct HistogramIterator<'a, T: 'a + Counter, P: PickyIterator<T>> {
     hist: &'a Histogram<T>,
     total_count_to_index: u64,
-    prev_total_count: u64,
+    count_since_last_iteration: u64,
     current_index: usize,
+    last_picked_index: usize,
+    max_value_index: usize,
     fresh: bool,
     ended: bool,
     picker: P,
@@ -56,7 +74,7 @@ pub struct HistogramIterator<'a, T: 'a + Counter, P: PickyIterator<T>> {
 /// The value emitted at each step when iterating over a `Histogram`.
 #[derive(Debug, PartialEq)]
 pub struct IterationValue<T: Counter> {
-    value: u64,
+    value_iterated_to: u64,
     quantile: f64,
     quantile_iterated_to: f64,
     count_at_value: T,
@@ -65,10 +83,10 @@ pub struct IterationValue<T: Counter> {
 
 impl<T: Counter> IterationValue<T> {
     /// Create a new IterationValue.
-    pub fn new(value: u64, quantile: f64, quantile_iterated_to: f64, count_at_value: T,
+    pub fn new(value_iterated_to: u64, quantile: f64, quantile_iterated_to: f64, count_at_value: T,
                count_since_last_iteration: u64) -> IterationValue<T> {
         IterationValue {
-            value,
+            value_iterated_to,
             quantile,
             quantile_iterated_to,
             count_at_value,
@@ -76,9 +94,10 @@ impl<T: Counter> IterationValue<T> {
         }
     }
 
-    /// The lowest value stored in the current histogram bin
-    pub fn value(&self) -> u64 {
-        self.value
+    /// The value iterated to. Some iterators provide a specific value inside the bucket, while
+    /// others just use the highest value in the bucket.
+    pub fn value_iterated_to(&self) -> u64 {
+        self.value_iterated_to
     }
 
     /// Percent of recorded values that are equivalent to or below `value`.
@@ -111,23 +130,13 @@ impl<'a, T: Counter, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
         HistogramIterator {
             hist: h,
             total_count_to_index: 0,
-            prev_total_count: 0,
+            count_since_last_iteration: 0,
             current_index: 0,
+            last_picked_index: 0,
+            max_value_index: h.index_for(h.max()).expect("Either 0 or an existing index"),
             picker,
             fresh: true,
             ended: false,
-        }
-    }
-
-    fn current(&self) -> IterationValue<T> {
-        let quantile = self.total_count_to_index as f64 / self.hist.count() as f64;
-        IterationValue {
-            value: self.hist.highest_equivalent(self.hist.value_for(self.current_index)),
-            quantile,
-            quantile_iterated_to: self.picker.quantile_iterated_to().unwrap_or(quantile),
-            count_at_value: self.hist.count_at_index(self.current_index)
-                .expect("current index cannot exceed counts length"),
-            count_since_last_iteration: self.total_count_to_index - self.prev_total_count
         }
     }
 }
@@ -155,34 +164,24 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
                 return None;
             }
 
-            // TODO should check if we've reached max, not count, to avoid early termination
-            // on histograms with very large counts whose total would exceed u64::max_value()
-            // Have we yielded all non-zeros in the histogram?
-            let total = self.hist.count();
-            if self.prev_total_count == total {
+            // Have we already picked the index with the last non-zero count in the histogram?
+            if self.last_picked_index >= self.max_value_index {
                 // is the picker done?
                 if !self.picker.more(self.current_index) {
                     self.ended = true;
                     return None;
                 }
-
-            // nope -- alright, let's keep iterating
             } else {
+                // nope -- alright, let's keep iterating
                 assert!(self.current_index < self.hist.len());
-                assert!(self.prev_total_count < total);
 
                 if self.fresh {
+                    // at a new index, and not past the max, so there's nonzero counts to add
                     let count = self.hist.count_at_index(self.current_index)
-                        .expect("Already checked that current_index is < counts len");
+                            .expect("Already checked that current_index is < counts len");
 
-                    // if we've seen all counts, no other counts should be non-zero
-                    if self.total_count_to_index == total {
-                        // TODO this can fail when total count overflows
-                        assert_eq!(count, T::zero());
-                    }
-
-                    // TODO overflow
-                    self.total_count_to_index = self.total_count_to_index + count.as_u64();
+                    self.total_count_to_index = self.total_count_to_index.saturating_add(count.as_u64());
+                    self.count_since_last_iteration = self.count_since_last_iteration.saturating_add(count.as_u64());
 
                     // make sure we don't add this index again
                     self.fresh = false;
@@ -190,15 +189,26 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
             }
 
             // figure out if picker thinks we should yield this value
-            if self.picker.pick(self.current_index, self.total_count_to_index) {
-                let val = self.current();
+            if let Some(metadata) = self.picker.pick(self.current_index, self.total_count_to_index) {
+                let quantile = self.total_count_to_index as f64 / self.hist.count() as f64;
+                let val = IterationValue {
+                    value_iterated_to: metadata.value_iterated_to
+                            .unwrap_or(self.hist.highest_equivalent(self.hist.value_for(self.current_index))),
+                    quantile,
+                    quantile_iterated_to: metadata.quantile_iterated_to.unwrap_or(quantile),
+                    count_at_value: self.hist.count_at_index(self.current_index)
+                            .expect("current index cannot exceed counts length"),
+                    count_since_last_iteration: self.count_since_last_iteration
+                };
 
-                // note that we *don't* increment self.current_index here. the picker will be
-                // exposed to the same value again after yielding. not sure why this is the
-                // behavior we want, but it's what the original Java implementation dictates.
+                // Note that we *don't* increment self.current_index here. The picker will be
+                // exposed to the same value again after yielding. This is to allow a picker to
+                // pick multiple times at the same index. An example of this is how the linear
+                // picker may be using a step size smaller than the bucket size, so it should
+                // step multiple times without advancing the index.
 
-                // TODO count starting at 0 each time we emit a value to be less prone to overflow
-                self.prev_total_count = self.total_count_to_index;
+                self.count_since_last_iteration = 0;
+                self.last_picked_index = self.current_index;
                 return Some(val);
             }
 

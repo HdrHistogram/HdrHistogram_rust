@@ -1,13 +1,12 @@
 use Counter;
 use Histogram;
-use iterators::{HistogramIterator, PickyIterator};
+use iterators::{HistogramIterator, PickyIterator, PickMetadata};
 
 /// An iterator that will yield at quantile steps through the histogram's value range.
 pub struct Iter<'a, T: 'a + Counter> {
     hist: &'a Histogram<T>,
     ticks_per_half_distance: u32,
-    quantile_to_iterate_to: f64,
-    quantile_just_picked: f64
+    quantile_to_iterate_to: f64
 }
 
 impl<'a, T: 'a + Counter> Iter<'a, T> {
@@ -20,32 +19,31 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
                                Iter {
                                    hist,
                                    ticks_per_half_distance,
-                                   quantile_to_iterate_to: 0.0,
-                                   quantile_just_picked: 0.0
+                                   quantile_to_iterate_to: 0.0
                                })
     }
 }
 
 impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
-    fn pick(&mut self, index: usize, running_total: u64) -> bool {
+    fn pick(&mut self, index: usize, running_total: u64) -> Option<PickMetadata> {
         let count = &self.hist.count_at_index(index)
             .expect("index must be valid by PickyIterator contract");
         if *count == T::zero() {
-            return false;
+            return None;
         }
 
         // This calculation, combined with the `quantile * count` in `value_at_quantile`, tends
         // to produce a count_at_quantile that is 1 ulp wrong. That's just the way IEEE754 works.
         let current_quantile = running_total as f64 / self.hist.count() as f64;
         if current_quantile < self.quantile_to_iterate_to {
-            return false;
+            return None;
         }
 
         if self.quantile_to_iterate_to == 1.0 {
             // We incremented to 1.0 just at the point where we finally got to the last non-zero
             // bucket. We want to pick this value but not do the math below because it doesn't work
             // when quantile >= 1.0.
-            return true;
+            return None;
         }
 
         // The choice to maintain fixed-sized "ticks" in each half-distance to 100% [starting from
@@ -78,11 +76,11 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
             .checked_mul(1_u64.checked_shl(num_halvings + 1).expect("too many halvings"))
             .expect("too many total ticks");
         let increment_size = 1.0 / total_ticks as f64;
-        self.quantile_just_picked = self.quantile_to_iterate_to;
+        let metadata = PickMetadata::new(Some(self.quantile_to_iterate_to), None);
         // Unclear if it's possible for adding a very small increment to 0.999999... to yield > 1.0
         // but let's just be safe since FP is weird and this code is not likely to be very hot.
         self.quantile_to_iterate_to = 1.0_f64.min(self.quantile_to_iterate_to + increment_size);
-        true
+        Some(metadata)
     }
 
     fn more(&mut self, _: usize) -> bool {
@@ -90,9 +88,5 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
         // quantile 1.0 and will be reported as such in the IterationValue, even if
         // `quantile_to_iterate_to` is somewhere below 1.0 -- we still got to the final bucket.
         false
-    }
-
-    fn quantile_iterated_to(&self) -> Option<f64> {
-        Some(self.quantile_just_picked)
     }
 }
