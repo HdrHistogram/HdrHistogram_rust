@@ -43,6 +43,7 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
             // We incremented to 1.0 just at the point where we finally got to the last non-zero
             // bucket. We want to pick this value but not do the math below because it doesn't work
             // when quantile >= 1.0.
+            // TODO we should be picking here, once
             return None;
         }
 
@@ -84,6 +85,7 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
     }
 
     fn more(&mut self, _: usize) -> bool {
+        // TODO this should probably be more like the Java impl
         // No need to go past the point where cumulative count == total count, because that's
         // quantile 1.0 and will be reported as such in the IterationValue, even if
         // `quantile_to_iterate_to` is somewhere below 1.0 -- we still got to the final bucket.
