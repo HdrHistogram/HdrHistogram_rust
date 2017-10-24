@@ -28,6 +28,11 @@ pub struct V2Serializer {
     buf: Vec<u8>,
 }
 
+impl Default for V2Serializer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl V2Serializer {
     /// Create a new serializer.
     pub fn new() -> V2Serializer {
@@ -55,7 +60,7 @@ impl V2Serializer {
         // normalizing index offset
         self.buf.write_u32::<BigEndian>(0)?;
         self.buf
-            .write_u32::<BigEndian>(h.significant_value_digits as u32)?;
+            .write_u32::<BigEndian>(u32::from(h.significant_value_digits))?;
         self.buf.write_u64::<BigEndian>(h.lowest_discernible_value)?;
         self.buf.write_u64::<BigEndian>(h.highest_trackable_value)?;
         // int to double conversion
@@ -78,7 +83,7 @@ impl V2Serializer {
         (&mut self.buf[4..8]).write_u32::<BigEndian>(counts_len as u32)?;
 
         writer
-            .write_all(&mut self.buf[0..(total_len)])
+            .write_all(&self.buf[0..(total_len)])
             .map(|_| total_len)
             .map_err(|e| V2SerializeError::IoError(e.kind()))
     }
@@ -213,7 +218,7 @@ pub fn varint_write(input: u64, buf: &mut [u8]) -> usize {
     buf[7] = nth_7b_chunk_with_high_bit(input, 7);
     // special case: write last whole byte as is
     buf[8] = (input >> 56) as u8;
-    return 9;
+    9
 }
 
 /// input: a u64

@@ -9,7 +9,7 @@ pub struct Iter {
 
 impl Iter {
     /// Construct a new full iterator. See `Histogram::iter_all` for details.
-    pub fn new<'a, T: Counter>(hist: &'a Histogram<T>) -> HistogramIterator<'a, T, Iter> {
+    pub fn new<T: Counter>(hist: &Histogram<T>) -> HistogramIterator<T, Iter> {
         HistogramIterator::new(hist, Iter { visited: None })
     }
 }

@@ -16,12 +16,9 @@ impl Iter {
 
 impl<T: Counter> PickyIterator<T> for Iter {
     fn pick(&mut self, index: usize, _: u64, count_at_index: T) -> Option<PickMetadata> {
-        if count_at_index != T::zero() {
-            // have we visited before?
-            if self.visited.map(|i| i != index).unwrap_or(true) {
-                self.visited = Some(index);
-                return Some(PickMetadata::new(None, None));
-            }
+        if count_at_index != T::zero() && self.visited.map(|i| i != index).unwrap_or(true) {
+            self.visited = Some(index);
+            return Some(PickMetadata::new(None, None));
         }
         None
     }

@@ -230,39 +230,39 @@ fn quantiles<R: BufRead, W: Write>(
 // subcommands, the convenience seems worth it.
 #[derive(Debug)]
 enum CliError {
-    IoError(io::Error),
-    HistogramSerializeError(V2SerializeError),
-    HistogramSerializeCompressedError(V2DeflateSerializeError),
-    HistogramDeserializeError(DeserializeError),
-    HistogramRecordError(RecordError),
+    Io(io::Error),
+    HistogramSerialize(V2SerializeError),
+    HistogramSerializeCompressed(V2DeflateSerializeError),
+    HistogramDeserialize(DeserializeError),
+    HistogramRecord(RecordError),
 }
 
 impl From<io::Error> for CliError {
     fn from(e: io::Error) -> Self {
-        CliError::IoError(e)
+        CliError::Io(e)
     }
 }
 
 impl From<V2SerializeError> for CliError {
     fn from(e: V2SerializeError) -> Self {
-        CliError::HistogramSerializeError(e)
+        CliError::HistogramSerialize(e)
     }
 }
 
 impl From<V2DeflateSerializeError> for CliError {
     fn from(e: V2DeflateSerializeError) -> Self {
-        CliError::HistogramSerializeCompressedError(e)
+        CliError::HistogramSerializeCompressed(e)
     }
 }
 
 impl From<RecordError> for CliError {
     fn from(e: RecordError) -> Self {
-        CliError::HistogramRecordError(e)
+        CliError::HistogramRecord(e)
     }
 }
 
 impl From<DeserializeError> for CliError {
     fn from(e: DeserializeError) -> Self {
-        CliError::HistogramDeserializeError(e)
+        CliError::HistogramDeserialize(e)
     }
 }

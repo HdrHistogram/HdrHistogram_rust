@@ -56,7 +56,7 @@
 //! that will consume the serialized histograms) and use the corresponding struct.
 //!
 //! However, there are some approaches to serialization like [serde's
-//! `Serialize`](https://docs.serde.rs/serde/trait.Serialize.html) or [rustc_serialize's
+//! `Serialize`](https://docs.serde.rs/serde/trait.Serialize.html) or [`rustc_serialize`'s
 //! `Encodable`](https://doc.rust-lang.org/rustc-serialize/rustc_serialize/trait.Encodable.html)
 //! that effectively require that only one way of serialization can be used because a trait can
 //! only be implemented once for a struct. This is too restrictive for histograms since they
@@ -189,8 +189,8 @@ pub use self::v2_deflate_serializer::{V2DeflateSerializeError, V2DeflateSerializ
 mod deserializer;
 pub use self::deserializer::{DeserializeError, Deserializer};
 
-const V2_COOKIE_BASE: u32 = 0x1c849303;
-const V2_COMPRESSED_COOKIE_BASE: u32 = 0x1c849304;
+const V2_COOKIE_BASE: u32 = 0x1c84_9303;
+const V2_COMPRESSED_COOKIE_BASE: u32 = 0x1c84_9304;
 
 const V2_COOKIE: u32 = V2_COOKIE_BASE | 0x10;
 const V2_COMPRESSED_COOKIE: u32 = V2_COMPRESSED_COOKIE_BASE | 0x10;

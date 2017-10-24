@@ -220,10 +220,10 @@ where
             ) {
                 let quantile = self.total_count_to_index as f64 / self.hist.count() as f64;
                 let val = IterationValue {
-                    value_iterated_to: metadata.value_iterated_to.unwrap_or(
+                    value_iterated_to: metadata.value_iterated_to.unwrap_or_else(|| {
                         self.hist
-                            .highest_equivalent(self.hist.value_for(self.current_index)),
-                    ),
+                            .highest_equivalent(self.hist.value_for(self.current_index))
+                    }),
                     quantile,
                     quantile_iterated_to: metadata.quantile_iterated_to.unwrap_or(quantile),
                     count_at_value: self.hist

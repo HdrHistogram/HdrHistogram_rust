@@ -92,13 +92,13 @@ fn record_in_interval() {
     r += TEST_VALUE_LEVEL;
 
     // The data will include corrected samples:
-    assert_eq!(h.count_at((TEST_VALUE_LEVEL * 1) / 4), 1);
+    assert_eq!(h.count_at(TEST_VALUE_LEVEL / 4), 1);
     assert_eq!(h.count_at((TEST_VALUE_LEVEL * 2) / 4), 1);
     assert_eq!(h.count_at((TEST_VALUE_LEVEL * 3) / 4), 1);
     assert_eq!(h.count_at((TEST_VALUE_LEVEL * 4) / 4), 1);
     assert_eq!(h.count(), 4);
     // But the raw data will not:
-    assert_eq!(r.count_at((TEST_VALUE_LEVEL * 1) / 4), 0);
+    assert_eq!(r.count_at(TEST_VALUE_LEVEL / 4), 0);
     assert_eq!(r.count_at((TEST_VALUE_LEVEL * 2) / 4), 0);
     assert_eq!(r.count_at((TEST_VALUE_LEVEL * 3) / 4), 0);
     assert_eq!(r.count_at((TEST_VALUE_LEVEL * 4) / 4), 1);
@@ -160,32 +160,32 @@ fn equivalent_range() {
     assert_eq!(h.equivalent_range(2500), 2);
     assert_eq!(h.equivalent_range(8191), 4);
     assert_eq!(h.equivalent_range(8192), 8);
-    assert_eq!(h.equivalent_range(10000), 8);
+    assert_eq!(h.equivalent_range(10_000), 8);
 }
 
 #[test]
 fn scaled_equivalent_range() {
     let h = Histogram::<u64>::new_with_bounds(1024, TRACKABLE_MAX, SIGFIG).unwrap();
-    assert_eq!(h.equivalent_range(1 * 1024), 1 * 1024);
+    assert_eq!(h.equivalent_range(1024), 1024);
     assert_eq!(h.equivalent_range(2500 * 1024), 2 * 1024);
     assert_eq!(h.equivalent_range(8191 * 1024), 4 * 1024);
     assert_eq!(h.equivalent_range(8192 * 1024), 8 * 1024);
-    assert_eq!(h.equivalent_range(10000 * 1024), 8 * 1024);
+    assert_eq!(h.equivalent_range(10_000 * 1024), 8 * 1024);
 }
 
 #[test]
 fn lowest_equivalent() {
     let h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
-    assert_eq!(h.lowest_equivalent(10007), 10000);
-    assert_eq!(h.lowest_equivalent(10009), 10008);
+    assert_eq!(h.lowest_equivalent(10_007), 10_000);
+    assert_eq!(h.lowest_equivalent(10_009), 10_008);
 }
 
 
 #[test]
 fn scaled_lowest_equivalent() {
     let h = Histogram::<u64>::new_with_bounds(1024, TRACKABLE_MAX, SIGFIG).unwrap();
-    assert_eq!(h.lowest_equivalent(10007 * 1024), 10000 * 1024);
-    assert_eq!(h.lowest_equivalent(10009 * 1024), 10008 * 1024);
+    assert_eq!(h.lowest_equivalent(10_007 * 1024), 10_000 * 1024);
+    assert_eq!(h.lowest_equivalent(10_009 * 1024), 10_008 * 1024);
 }
 
 #[test]
@@ -195,8 +195,8 @@ fn highest_equivalent() {
     assert_eq!(h.highest_equivalent(8191), 8191);
     assert_eq!(h.highest_equivalent(8193), 8199);
     assert_eq!(h.highest_equivalent(9995), 9999);
-    assert_eq!(h.highest_equivalent(10007), 10007);
-    assert_eq!(h.highest_equivalent(10008), 10015);
+    assert_eq!(h.highest_equivalent(10_007), 10_007);
+    assert_eq!(h.highest_equivalent(10_008), 10_015);
 }
 
 #[test]
@@ -206,8 +206,8 @@ fn scaled_highest_equivalent() {
     assert_eq!(h.highest_equivalent(8191 * 1024), 8191 * 1024 + 1023);
     assert_eq!(h.highest_equivalent(8193 * 1024), 8199 * 1024 + 1023);
     assert_eq!(h.highest_equivalent(9995 * 1024), 9999 * 1024 + 1023);
-    assert_eq!(h.highest_equivalent(10007 * 1024), 10007 * 1024 + 1023);
-    assert_eq!(h.highest_equivalent(10008 * 1024), 10015 * 1024 + 1023);
+    assert_eq!(h.highest_equivalent(10_007 * 1024), 10_007 * 1024 + 1023);
+    assert_eq!(h.highest_equivalent(10_008 * 1024), 10_015 * 1024 + 1023);
 }
 
 
@@ -218,7 +218,7 @@ fn median_equivalent() {
     assert_eq!(h.median_equivalent(5), 5);
     assert_eq!(h.median_equivalent(4000), 4001);
     assert_eq!(h.median_equivalent(8000), 8002);
-    assert_eq!(h.median_equivalent(10007), 10004);
+    assert_eq!(h.median_equivalent(10_007), 10_004);
 }
 
 #[test]
@@ -237,7 +237,7 @@ fn scaled_median_equivalent() {
     assert_eq!(h.median_equivalent(1024 * 5), 1024 * 5 + 512);
     assert_eq!(h.median_equivalent(1024 * 4000), 1024 * 4001);
     assert_eq!(h.median_equivalent(1024 * 8000), 1024 * 8002);
-    assert_eq!(h.median_equivalent(1024 * 10007), 1024 * 10004);
+    assert_eq!(h.median_equivalent(1024 * 10_007), 1024 * 10_004);
 }
 
 fn are_equal<T, B1, B2>(actual: B1, expected: B2)
@@ -270,7 +270,7 @@ fn clone() {
     h += 10 * TEST_VALUE_LEVEL;
 
     let max = h.high();
-    h.record_correct(max - 1, 31000).unwrap();
+    h.record_correct(max - 1, 31_000).unwrap();
 
     are_equal(h.clone(), h);
 }
@@ -282,7 +282,7 @@ fn scaled_clone() {
     h += 10 * TEST_VALUE_LEVEL;
 
     let max = h.high();
-    h.record_correct(max - 1, 31000).unwrap();
+    h.record_correct(max - 1, 31_000).unwrap();
 
     are_equal(h.clone(), h);
 }
@@ -295,7 +295,7 @@ fn set_to() {
     h1 += 10 * TEST_VALUE_LEVEL;
 
     let max = h1.high();
-    h1.record_correct(max - 1, 31000).unwrap();
+    h1.record_correct(max - 1, 31_000).unwrap();
 
     h2.set_to(&h1).unwrap();
     are_equal(&h1, &h2);
@@ -314,7 +314,7 @@ fn scaled_set_to() {
     h1 += 10 * TEST_VALUE_LEVEL;
 
     let max = h1.high();
-    h1.record_correct(max - 1, 31000).unwrap();
+    h1.record_correct(max - 1, 31_000).unwrap();
 
     h2.set_to(&h1).unwrap();
     are_equal(&h1, &h2);
@@ -382,7 +382,7 @@ fn value_count_overflow_from_record_saturates_u16() {
     // individual count has saturated
     assert_eq!(u16::max_value(), h.count_at(3));
     // total is a u64 though
-    assert_eq!((u16::max_value() - 1) as u64 * 2, h.count());
+    assert_eq!(u64::from(u16::max_value() - 1) * 2, h.count());
 }
 
 #[test]
@@ -398,7 +398,7 @@ fn value_count_overflow_from_record_saturates_u64() {
 
 #[test]
 fn value_count_overflow_from_record_autoresize_doesnt_panic_saturates() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, 10000, 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, 10_000, 3).unwrap();
     h.auto(true);
 
     h.record_n(1, u64::max_value() - 1).unwrap();
@@ -544,7 +544,7 @@ fn total_count_overflow_from_deserialize_saturates() {
     // can't go bigger than i64 max because it will be serialized
     h.record_n(1, i64::max_value() as u64).unwrap();
     h.record_n(1000, i64::max_value() as u64).unwrap();
-    h.record_n(1000_000, i64::max_value() as u64).unwrap();
+    h.record_n(1_000_000, i64::max_value() as u64).unwrap();
     assert_eq!(u64::max_value(), h.count());
 
     let mut vec = Vec::new();

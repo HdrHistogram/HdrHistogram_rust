@@ -197,8 +197,8 @@ use num::ToPrimitive;
 use iterators::HistogramIterator;
 
 /// Min value of a new histogram.
-/// Equivalent to u64::max_value(), but const functions aren't allowed (yet).
-/// See https://github.com/rust-lang/rust/issues/24111
+/// Equivalent to `u64::max_value()`, but const functions aren't allowed (yet).
+/// See <https://github.com/rust-lang/rust/issues/24111>
 const ORIGINAL_MIN: u64 = (-1_i64 >> 63) as u64;
 /// Max value of a new histogram.
 const ORIGINAL_MAX: u64 = 0;
@@ -308,6 +308,11 @@ impl<T: Counter> Histogram<T> {
         self.total_count
     }
 
+    /// Returns true if this histogram has no recorded values.
+    pub fn is_empty(&self) -> bool {
+        self.total_count == 0
+    }
+
     /// Get the number of buckets used by the histogram to cover the highest trackable value.
     ///
     /// This method differs from `.len()` in that it does not count the sub buckets within each
@@ -334,7 +339,8 @@ impl<T: Counter> Histogram<T> {
         // Calculate the index for the first entry that will be used in the bucket (halfway through
         // sub_bucket_count). For bucket_index 0, all sub_bucket_count entries may be used, but
         // bucket_base_index is still set in the middle.
-        let bucket_base_index = (bucket_index as i32 + 1) << self.sub_bucket_half_count_magnitude;
+        let bucket_base_index =
+            (i32::from(bucket_index) + 1) << self.sub_bucket_half_count_magnitude;
 
         // Calculate the offset in the bucket. This subtraction will result in a positive value in
         // all buckets except the 0th bucket (since a value in that bucket may be less than half
@@ -347,15 +353,15 @@ impl<T: Counter> Histogram<T> {
         // sub_bucket_half_count at most) for bucket 0, and bucket_base_index will be halfway into
         // bucket 0's sub buckets in that case.
         debug_assert!(index >= 0);
-        return index.to_usize();
+        index.to_usize()
     }
 
     /// Find the bucket the given value should be placed in.
     /// If the value is bigger than what this histogram can express, the last valid bucket index
     /// is returned instead.
     fn index_for_or_last(&self, value: u64) -> usize {
-        return self.index_for(value)
-            .map_or(self.last_index(), |i| cmp::min(i, self.last_index()));
+        self.index_for(value)
+            .map_or(self.last_index(), |i| cmp::min(i, self.last_index()))
     }
 
     /// Get a mutable reference to the count bucket for the given value, if it is in range.
@@ -606,7 +612,7 @@ impl<T: Counter> Histogram<T> {
 
     /// Clear the contents of this histogram while preserving its statistics and configuration.
     pub fn clear(&mut self) {
-        for c in self.counts.iter_mut() {
+        for c in &mut self.counts {
             *c = T::zero();
         }
         self.total_count = 0;
@@ -702,7 +708,7 @@ impl<T: Counter> Histogram<T> {
         // maintain single unit resolution to 2x 10^decimal_points.
 
         // largest value with single unit resolution, in [2, 200_000].
-        let largest = 2 * 10_u32.pow(sigfig as u32);
+        let largest = 2 * 10_u32.pow(u32::from(sigfig));
 
         let unit_magnitude = (low as f64).log2().floor() as u8;
         let unit_magnitude_mask = (1 << unit_magnitude) - 1;
@@ -714,9 +720,9 @@ impl<T: Counter> Histogram<T> {
         // that.
         // In [1, 18]. 2^18 > 2 * 10^5 (the largest possible
         // largest_value_with_single_unit_resolution)
-        let sub_bucket_count_magnitude = (largest as f64).log2().ceil() as u8;
+        let sub_bucket_count_magnitude = (f64::from(largest)).log2().ceil() as u8;
         let sub_bucket_half_count_magnitude = sub_bucket_count_magnitude - 1;
-        let sub_bucket_count = 1_u32 << (sub_bucket_count_magnitude as u32);
+        let sub_bucket_count = 1_u32 << u32::from(sub_bucket_count_magnitude);
 
         if unit_magnitude + sub_bucket_count_magnitude > 63 {
             // sub_bucket_count entries can't be represented, with unit_magnitude applied, in a
@@ -730,7 +736,7 @@ impl<T: Counter> Histogram<T> {
 
         let sub_bucket_half_count = sub_bucket_count / 2;
         // sub_bucket_count is always at least 2, so subtraction won't underflow
-        let sub_bucket_mask = (sub_bucket_count as u64 - 1) << unit_magnitude;
+        let sub_bucket_mask = (u64::from(sub_bucket_count) - 1) << unit_magnitude;
 
         let mut h = Histogram {
             auto_resize: false,
@@ -945,10 +951,10 @@ impl<T: Counter> Histogram<T> {
     /// );
     /// // etc...
     /// ```
-    pub fn iter_quantiles<'a>(
-        &'a self,
+    pub fn iter_quantiles(
+        &self,
         ticks_per_half_distance: u32,
-    ) -> HistogramIterator<'a, T, iterators::quantile::Iter<'a, T>> {
+    ) -> HistogramIterator<T, iterators::quantile::Iter<T>> {
         // TODO upper bound on ticks per half distance? 2^31 ticks is not useful
         iterators::quantile::Iter::new(self, ticks_per_half_distance)
     }
@@ -1008,10 +1014,7 @@ impl<T: Counter> Histogram<T> {
     /// );
     /// assert_eq!(perc.next(), None);
     /// ```
-    pub fn iter_linear<'a>(
-        &'a self,
-        step: u64,
-    ) -> HistogramIterator<'a, T, iterators::linear::Iter<'a, T>> {
+    pub fn iter_linear(&self, step: u64) -> HistogramIterator<T, iterators::linear::Iter<T>> {
         iterators::linear::Iter::new(self, step)
     }
 
@@ -1049,11 +1052,7 @@ impl<T: Counter> Histogram<T> {
     /// );
     /// assert_eq!(perc.next(), None);
     /// ```
-    pub fn iter_log<'a>(
-        &'a self,
-        start: u64,
-        exp: f64,
-    ) -> HistogramIterator<'a, T, iterators::log::Iter<'a, T>> {
+    pub fn iter_log(&self, start: u64, exp: f64) -> HistogramIterator<T, iterators::log::Iter<T>> {
         iterators::log::Iter::new(self, start, exp)
     }
 
@@ -1091,7 +1090,7 @@ impl<T: Counter> Histogram<T> {
     /// );
     /// assert_eq!(perc.next(), None);
     /// ```
-    pub fn iter_recorded<'a>(&'a self) -> HistogramIterator<'a, T, iterators::recorded::Iter> {
+    pub fn iter_recorded(&self) -> HistogramIterator<T, iterators::recorded::Iter> {
         iterators::recorded::Iter::new(self)
     }
 
@@ -1150,7 +1149,7 @@ impl<T: Counter> Histogram<T> {
     /// );
     /// assert_eq!(perc.next(), Some(IterationValue::new(10, 1.0, 1.0, 0, 0)));
     /// ```
-    pub fn iter_all<'a>(&'a self) -> HistogramIterator<'a, T, iterators::all::Iter> {
+    pub fn iter_all(&self) -> HistogramIterator<T, iterators::all::Iter> {
         iterators::all::Iter::new(self)
     }
 
@@ -1263,7 +1262,7 @@ impl<T: Counter> Histogram<T> {
         for i in 0..self.counts.len() {
             // Direct indexing is safe; indexes must reside in counts array.
             // TODO overflow
-            total_to_current_index = total_to_current_index + self.counts[i].as_u64();
+            total_to_current_index += self.counts[i].as_u64();
             if total_to_current_index >= count_at_quantile {
                 let value_at_index = self.value_for(i);
                 return if quantile == 0.0 {
@@ -1402,7 +1401,7 @@ impl<T: Counter> Histogram<T> {
     /// any two equivalent values are counted in a common total count.
     pub fn equivalent_range(&self, value: u64) -> u64 {
         let bucket_index = self.bucket_for(value);
-        1_u64 << self.unit_magnitude + bucket_index
+        1_u64 << (self.unit_magnitude + bucket_index)
     }
 
     // ********************************************************************************************
@@ -1444,7 +1443,7 @@ impl<T: Counter> Histogram<T> {
 
     /// Returns count at index, or None if out of bounds
     fn count_at_index(&self, index: usize) -> Option<T> {
-        self.counts.get(index).map(|&t| t)
+        self.counts.get(index).cloned()
     }
 
     /// Returns an error if the index doesn't exist.
@@ -1492,14 +1491,15 @@ impl<T: Counter> Histogram<T> {
         // However, the resulting shift may overflow given bogus input, e.g. if unit magnitude is
         // large and the input sub_bucket_index is for an entry in the counts index that shouldn't
         // be used (because this calculation will overflow).
-        (sub_bucket_index as u64) << (bucket_index + self.unit_magnitude)
+        u64::from(sub_bucket_index) << (bucket_index + self.unit_magnitude)
     }
 
     /// Find the number of buckets needed such that `value` is representable.
     fn buckets_to_cover(&self, value: u64) -> u8 {
         // Shift won't overflow because sub_bucket_magnitude + unit_magnitude <= 63.
         // the k'th bucket can express from 0 * 2^k to sub_bucket_count * 2^k in units of 2^k
-        let mut smallest_untrackable_value = (self.sub_bucket_count as u64) << self.unit_magnitude;
+        let mut smallest_untrackable_value =
+            u64::from(self.sub_bucket_count) << self.unit_magnitude;
 
         // always have at least 1 bucket
         let mut buckets_needed = 1;
@@ -1524,7 +1524,7 @@ impl<T: Counter> Histogram<T> {
     /// Or, equivalently, we need 1 more bucket to capture the max value if we consider the
     /// sub-bucket length to be halved.
     fn num_bins(&self, number_of_buckets: u8) -> u32 {
-        (number_of_buckets as u32 + 1) * (self.sub_bucket_half_count)
+        (u32::from(number_of_buckets) + 1) * (self.sub_bucket_half_count)
     }
 
     /// Resize the underlying counts array such that it can cover the given `high` value.

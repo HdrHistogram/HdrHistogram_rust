@@ -33,6 +33,12 @@ pub struct V2DeflateSerializer {
     v2_serializer: V2Serializer,
 }
 
+impl Default for V2DeflateSerializer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl V2DeflateSerializer {
     /// Create a new serializer.
     pub fn new() -> V2DeflateSerializer {
@@ -63,7 +69,7 @@ impl V2DeflateSerializer {
         // TODO serialize directly into uncompressed_buf without the buffering inside v2_serializer
         let uncompressed_len = self.v2_serializer
             .serialize(h, &mut self.uncompressed_buf)
-            .map_err(|e| V2DeflateSerializeError::InternalSerializationError(e))?;
+            .map_err(V2DeflateSerializeError::InternalSerializationError)?;
 
         debug_assert_eq!(self.uncompressed_buf.len(), uncompressed_len);
         // On randomized test histograms we get about 10% compression, but of course random data

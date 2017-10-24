@@ -34,6 +34,7 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
 }
 
 impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
+    #[cfg_attr(feature = "cargo-clippy", allow(float_cmp))]
     fn pick(&mut self, _: usize, running_total: u64, count_at_index: T) -> Option<PickMetadata> {
         if count_at_index == T::zero() {
             return None;
@@ -132,7 +133,7 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
         // tick, so we add an extra power of two to get ticks per whole distance.
         // Use u64 math so that there's less risk of overflow with large numbers of ticks and data
         // that ends up needing large numbers of halvings.
-        let total_ticks = (self.ticks_per_half_distance as u64)
+        let total_ticks = u64::from(self.ticks_per_half_distance)
             .checked_mul(
                 1_u64
                     .checked_shl(num_halvings + 1)

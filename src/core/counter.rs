@@ -24,33 +24,33 @@ pub trait Counter
 impl Counter for u8 {
     #[inline]
     fn as_f64(&self) -> f64 {
-        *self as f64
+        f64::from(*self)
     }
     #[inline]
     fn as_u64(&self) -> u64 {
-        *self as u64
+        u64::from(*self)
     }
 }
 
 impl Counter for u16 {
     #[inline]
     fn as_f64(&self) -> f64 {
-        *self as f64
+        f64::from(*self)
     }
     #[inline]
     fn as_u64(&self) -> u64 {
-        *self as u64
+        u64::from(*self)
     }
 }
 
 impl Counter for u32 {
     #[inline]
     fn as_f64(&self) -> f64 {
-        *self as f64
+        f64::from(*self)
     }
     #[inline]
     fn as_u64(&self) -> u64 {
-        *self as u64
+        u64::from(*self)
     }
 }
 

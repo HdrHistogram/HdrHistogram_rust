@@ -42,6 +42,12 @@ pub struct Deserializer {
     payload_buf: Vec<u8>,
 }
 
+impl Default for Deserializer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Deserializer {
     /// Create a new deserializer.
     pub fn new() -> Deserializer {
@@ -60,11 +66,11 @@ impl Deserializer {
     ) -> Result<Histogram<T>, DeserializeError> {
         let cookie = reader.read_u32::<BigEndian>()?;
 
-        return match cookie {
+        match cookie {
             V2_COOKIE => self.deser_v2(reader),
             V2_COMPRESSED_COOKIE => self.deser_v2_compressed(reader),
             _ => Err(DeserializeError::InvalidCookie),
-        };
+        }
     }
 
     fn deser_v2_compressed<T: Counter, R: Read>(
@@ -87,6 +93,7 @@ impl Deserializer {
     }
 
 
+    #[cfg_attr(feature = "cargo-clippy", allow(float_cmp))]
     fn deser_v2<T: Counter, R: Read>(
         &mut self,
         reader: &mut R,
@@ -172,39 +179,39 @@ pub fn varint_read_slice(slice: &[u8]) -> (u64, usize) {
         return (value, 2);
     }
     b = slice[2];
-    value |= low_7_bits(b) << 7 * 2;
+    value |= low_7_bits(b) << (7 * 2);
     if !is_high_bit_set(b) {
         return (value, 3);
     }
     b = slice[3];
-    value |= low_7_bits(b) << 7 * 3;
+    value |= low_7_bits(b) << (7 * 3);
     if !is_high_bit_set(b) {
         return (value, 4);
     }
     b = slice[4];
-    value |= low_7_bits(b) << 7 * 4;
+    value |= low_7_bits(b) << (7 * 4);
     if !is_high_bit_set(b) {
         return (value, 5);
     }
     b = slice[5];
-    value |= low_7_bits(b) << 7 * 5;
+    value |= low_7_bits(b) << (7 * 5);
     if !is_high_bit_set(b) {
         return (value, 6);
     }
     b = slice[6];
-    value |= low_7_bits(b) << 7 * 6;
+    value |= low_7_bits(b) << (7 * 6);
     if !is_high_bit_set(b) {
         return (value, 7);
     }
     b = slice[7];
-    value |= low_7_bits(b) << 7 * 7;
+    value |= low_7_bits(b) << (7 * 7);
     if !is_high_bit_set(b) {
         return (value, 8);
     }
 
     b = slice[8];
     // special case: use last byte as is
-    value |= (b as u64) << 7 * 8;
+    value |= u64::from(b) << (7 * 8);
 
     (value, 9)
 }
@@ -223,26 +230,26 @@ pub fn varint_read<R: Read>(reader: &mut R) -> io::Result<u64> {
         value |= low_7_bits(b) << 7;
         if is_high_bit_set(b) {
             b = reader.read_u8()?;
-            value |= low_7_bits(b) << 7 * 2;
+            value |= low_7_bits(b) << (7 * 2);
             if is_high_bit_set(b) {
                 b = reader.read_u8()?;
-                value |= low_7_bits(b) << 7 * 3;
+                value |= low_7_bits(b) << (7 * 3);
                 if is_high_bit_set(b) {
                     b = reader.read_u8()?;
-                    value |= low_7_bits(b) << 7 * 4;
+                    value |= low_7_bits(b) << (7 * 4);
                     if is_high_bit_set(b) {
                         b = reader.read_u8()?;
-                        value |= low_7_bits(b) << 7 * 5;
+                        value |= low_7_bits(b) << (7 * 5);
                         if is_high_bit_set(b) {
                             b = reader.read_u8()?;
-                            value |= low_7_bits(b) << 7 * 6;
+                            value |= low_7_bits(b) << (7 * 6);
                             if is_high_bit_set(b) {
                                 b = reader.read_u8()?;
-                                value |= low_7_bits(b) << 7 * 7;
+                                value |= low_7_bits(b) << (7 * 7);
                                 if is_high_bit_set(b) {
                                     b = reader.read_u8()?;
                                     // special case: use last byte as is
-                                    value |= (b as u64) << 7 * 8;
+                                    value |= u64::from(b) << (7 * 8);
                                 }
                             }
                         }
@@ -258,7 +265,7 @@ pub fn varint_read<R: Read>(reader: &mut R) -> io::Result<u64> {
 /// truncate byte to low 7 bits, cast to u64
 #[inline]
 fn low_7_bits(b: u8) -> u64 {
-    (b & 0x7F) as u64
+    u64::from(b & 0x7F)
 }
 
 #[inline]
