@@ -63,10 +63,8 @@ fn do_varint_write_rand(b: &mut Bencher, range: Range<u64>) {
     }
 
     let mut buf = [0; 9];
-    b.iter(|| {
-        for i in vec.iter() {
-            let _ = varint_write(*i, &mut buf);
-        }
+    b.iter(|| for i in vec.iter() {
+        let _ = varint_write(*i, &mut buf);
     });
 }
 

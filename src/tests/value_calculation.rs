@@ -197,7 +197,10 @@ fn highest_equivalent_unit_magnitude_2() {
 fn highest_equivalent_u64_max_value_saturates() {
     let h = histo64(1, u64::max_value(), 3);
 
-    assert_eq!(u64::max_value() - 1, h.highest_equivalent(u64::max_value() - 1));
+    assert_eq!(
+        u64::max_value() - 1,
+        h.highest_equivalent(u64::max_value() - 1)
+    );
 
     assert_eq!(u64::max_value(), h.highest_equivalent(u64::max_value()));
 }
@@ -251,7 +254,10 @@ fn next_non_equivalent_u64_max_value_saturates() {
     assert_eq!(1_u64 << 53, h.equivalent_range(u64::max_value()));
 
     // ... but it's capped.
-    assert_eq!(u64::max_value(), h.next_non_equivalent(u64::max_value() - 1));
+    assert_eq!(
+        u64::max_value(),
+        h.next_non_equivalent(u64::max_value() - 1)
+    );
     assert_eq!(u64::max_value(), h.next_non_equivalent(u64::max_value()));
 }
 
@@ -385,8 +391,13 @@ fn value_for_at_each_index() {
 
             // if we're at the last slot, count will be different
             let effective_count = cmp::min(remaining_count, expected_count);
-            assert_eq!(effective_count, h.count_at(expected_value),
-                       "index {} value {}", index, expected_value);
+            assert_eq!(
+                effective_count,
+                h.count_at(expected_value),
+                "index {} value {}",
+                index,
+                expected_value
+            );
 
             index += 1;
             remaining_count = remaining_count.saturating_sub(expected_count);

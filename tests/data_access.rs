@@ -48,14 +48,18 @@ fn load_histograms() -> Loaded {
     for _ in 0..10_000 {
         let v = 1_000; // 1ms
         hist.record_correct(v, EINTERVAL).unwrap();
-        scaled_hist.record_correct(v * SCALEF, EINTERVAL * SCALEF).unwrap();
+        scaled_hist
+            .record_correct(v * SCALEF, EINTERVAL * SCALEF)
+            .unwrap();
         raw += v;
         scaled_raw += v * SCALEF;
     }
 
     let v = 100_000_000;
     hist.record_correct(v, EINTERVAL).unwrap();
-    scaled_hist.record_correct(v * SCALEF, EINTERVAL * SCALEF).unwrap();
+    scaled_hist
+        .record_correct(v * SCALEF, EINTERVAL * SCALEF)
+        .unwrap();
     raw += v;
     scaled_raw += v * SCALEF;
 
@@ -74,7 +78,13 @@ fn load_histograms() -> Loaded {
 
 #[test]
 fn scaling_equivalence() {
-    let Loaded { hist, scaled_hist, post, scaled_post, .. } = load_histograms();
+    let Loaded {
+        hist,
+        scaled_hist,
+        post,
+        scaled_post,
+        ..
+    } = load_histograms();
 
     assert_near!(hist.mean() * SCALEF as f64, scaled_hist.mean(), 0.000001);
     assert_eq!(hist.count(), scaled_hist.count());
@@ -82,19 +92,25 @@ fn scaling_equivalence() {
     let expected_99th = hist.value_at_quantile(0.99) * 512;
     let scaled_99th = scaled_hist.value_at_quantile(0.99);
 
-    assert_eq!(hist.lowest_equivalent(expected_99th),
-               scaled_hist.lowest_equivalent(scaled_99th));
+    assert_eq!(
+        hist.lowest_equivalent(expected_99th),
+        scaled_hist.lowest_equivalent(scaled_99th)
+    );
 
     // averages should be equivalent
     assert_near!(hist.mean() * SCALEF as f64, scaled_hist.mean(), 0.000001);
     // total count should be the same
     assert_eq!(hist.count(), scaled_hist.count());
     // 99%'iles should be equivalent
-    assert_eq!(scaled_hist.highest_equivalent(hist.value_at_quantile(0.99) * 512),
-               scaled_hist.highest_equivalent(scaled_hist.value_at_quantile(0.99)));
+    assert_eq!(
+        scaled_hist.highest_equivalent(hist.value_at_quantile(0.99) * 512),
+        scaled_hist.highest_equivalent(scaled_hist.value_at_quantile(0.99))
+    );
     // Max should be equivalent
-    assert_eq!(scaled_hist.highest_equivalent(hist.max() * 512),
-               scaled_hist.max());
+    assert_eq!(
+        scaled_hist.highest_equivalent(hist.max() * 512),
+        scaled_hist.max()
+    );
 
     // Same for post-corrected:
 
@@ -103,11 +119,15 @@ fn scaling_equivalence() {
     // total count should be the same
     assert_eq!(post.count(), scaled_post.count());
     // 99%'iles should be equivalent
-    assert_eq!(post.lowest_equivalent(post.value_at_quantile(0.99)) * SCALEF,
-               scaled_post.lowest_equivalent(scaled_post.value_at_quantile(0.99)));
+    assert_eq!(
+        post.lowest_equivalent(post.value_at_quantile(0.99)) * SCALEF,
+        scaled_post.lowest_equivalent(scaled_post.value_at_quantile(0.99))
+    );
     // Max should be equivalent
-    assert_eq!(scaled_post.highest_equivalent(post.max() * 512),
-               scaled_post.max());
+    assert_eq!(
+        scaled_post.highest_equivalent(post.max() * 512),
+        scaled_post.max()
+    );
 }
 
 #[test]
@@ -152,9 +172,8 @@ fn get_stdev() {
 
     // direct avg. of raw results
     let expected_raw_mean: f64 = ((10000.0 * 1000.0) + (1.0 * 100000000.0)) / 10001.0;
-    let expected_raw_std_dev = (((10000.0 * (1000_f64 - expected_raw_mean).powi(2)) +
-        (100000000_f64 - expected_raw_mean).powi(2)) /
-        10001.0)
+    let expected_raw_std_dev = (((10000.0 * (1000_f64 - expected_raw_mean).powi(2))
+        + (100000000_f64 - expected_raw_mean).powi(2)) / 10001.0)
         .sqrt();
 
     // avg. 1 msec for half the time, and 50 sec for other half
@@ -295,7 +314,10 @@ fn count_at_beyond_max_value() {
 fn quantile_iter() {
     let Loaded { hist, .. } = load_histograms();
     for v in hist.iter_quantiles(5 /* ticks per half */) {
-        assert_eq!(v.value_iterated_to(), hist.highest_equivalent(hist.value_at_quantile(v.quantile())));
+        assert_eq!(
+            v.value_iterated_to(),
+            hist.highest_equivalent(hist.value_at_quantile(v.quantile()))
+        );
     }
 }
 
@@ -477,7 +499,8 @@ fn iter_all() {
             assert_eq!(v.count_since_last_iteration(), 10000);
         }
 
-        // The count in iter_all buckets should exactly match the amount added since the last iteration
+        // The count in iter_all buckets should exactly match the amount added since the last
+        // iteration
         assert_eq!(v.count_at_value(), v.count_since_last_iteration());
         total_added_counts += v.count_since_last_iteration();
         num += 1;
@@ -521,7 +544,11 @@ fn value_duplication() {
         histogram2.record_n(ranges[i], counts[i]).unwrap();
     }
 
-    assert_eq!(histogram1, histogram2, "histograms should be equal after re-recording");
+    assert_eq!(
+        histogram1,
+        histogram2,
+        "histograms should be equal after re-recording"
+    );
 }
 
 #[test]

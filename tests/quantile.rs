@@ -124,7 +124,8 @@ fn value_at_quantile_matches_quantile_iter_sequence_values() {
                 let q_count_rational = calculate_quantile_count(iter_val.quantile(), length);
 
                 println!(
-                    "len {} iter quantile {} q * count fp {} q count rational {} iter val {} -> {} calc val {} -> {}",
+                    "len {} iter quantile {} q * count fp {} q count rational {} \
+                     iter val {} -> {} calc val {} -> {}",
                     length,
                     iter_val.quantile(),
                     iter_val.quantile() * length as f64,
@@ -178,7 +179,8 @@ fn value_at_quantile_matches_quantile_iter_random_values() {
                 let q_count_rational = calculate_quantile_count(iter_val.quantile(), length as u64);
 
                 println!(
-                    "len {} iter quantile {} q * count fp {} q count rational {} iter val {} -> {} calc val {} -> {}",
+                    "len {} iter quantile {} q * count fp {} q count rational {} \
+                     iter val {} -> {} calc val {} -> {}",
                     length,
                     iter_val.quantile(),
                     iter_val.quantile() * length as f64,

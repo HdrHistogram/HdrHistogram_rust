@@ -1,7 +1,7 @@
 use super::super::Histogram;
 use core::counter::Counter;
 use super::V2_COMPRESSED_COOKIE;
-use super::v2_serializer::{V2Serializer, V2SerializeError};
+use super::v2_serializer::{V2SerializeError, V2Serializer};
 use super::byteorder::{BigEndian, WriteBytesExt};
 use super::flate2::Compression;
 use std;
@@ -14,7 +14,7 @@ pub enum V2DeflateSerializeError {
     /// The underlying serialization failed
     InternalSerializationError(V2SerializeError),
     /// An i/o operation failed.
-    IoError(ErrorKind)
+    IoError(ErrorKind),
 }
 
 impl std::convert::From<std::io::Error> for V2DeflateSerializeError {
@@ -30,7 +30,7 @@ impl std::convert::From<std::io::Error> for V2DeflateSerializeError {
 pub struct V2DeflateSerializer {
     uncompressed_buf: Vec<u8>,
     compressed_buf: Vec<u8>,
-    v2_serializer: V2Serializer
+    v2_serializer: V2Serializer,
 }
 
 impl V2DeflateSerializer {
@@ -39,7 +39,7 @@ impl V2DeflateSerializer {
         V2DeflateSerializer {
             uncompressed_buf: Vec::new(),
             compressed_buf: Vec::new(),
-            v2_serializer: V2Serializer::new()
+            v2_serializer: V2Serializer::new(),
         }
     }
 
@@ -47,8 +47,11 @@ impl V2DeflateSerializer {
     /// Returns the number of bytes written, or an error.
     ///
     /// Note that `Vec<u8>` is a reasonable `Write` implementation for simple usage.
-    pub fn serialize<T: Counter, W: Write>(&mut self, h: &Histogram<T>, writer: &mut W)
-                                           -> Result<usize, V2DeflateSerializeError> {
+    pub fn serialize<T: Counter, W: Write>(
+        &mut self,
+        h: &Histogram<T>,
+        writer: &mut W,
+    ) -> Result<usize, V2DeflateSerializeError> {
         // TODO benchmark serializing in chunks rather than all at once: each uncompressed v2 chunk
         // could be compressed and written to the compressed buf, possibly using an approach like
         // that of https://github.com/jonhoo/hdrsample/issues/32#issuecomment-287583055.
@@ -58,7 +61,8 @@ impl V2DeflateSerializer {
         self.uncompressed_buf.clear();
         self.compressed_buf.clear();
         // TODO serialize directly into uncompressed_buf without the buffering inside v2_serializer
-        let uncompressed_len = self.v2_serializer.serialize(h, &mut self.uncompressed_buf)
+        let uncompressed_len = self.v2_serializer
+            .serialize(h, &mut self.uncompressed_buf)
             .map_err(|e| V2DeflateSerializeError::InternalSerializationError(e))?;
 
         debug_assert_eq!(self.uncompressed_buf.len(), uncompressed_len);
@@ -68,7 +72,8 @@ impl V2DeflateSerializer {
         // still only one more allocation the first time it's needed.
         self.compressed_buf.reserve(self.uncompressed_buf.len() / 2);
 
-        self.compressed_buf.write_u32::<BigEndian>(V2_COMPRESSED_COOKIE)?;
+        self.compressed_buf
+            .write_u32::<BigEndian>(V2_COMPRESSED_COOKIE)?;
         // placeholder for length
         self.compressed_buf.write_u32::<BigEndian>(0)?;
 

@@ -1,4 +1,4 @@
-use super::{V2_COOKIE, V2_COMPRESSED_COOKIE};
+use super::{V2_COMPRESSED_COOKIE, V2_COOKIE};
 use super::super::{Counter, Histogram, RestatState};
 use super::super::num::ToPrimitive;
 use std::io::{self, Cursor, ErrorKind, Read};
@@ -25,7 +25,7 @@ pub enum DeserializeError {
     /// The current system's pointer width cannot represent the encoded histogram.
     UsizeTypeTooSmall,
     /// The encoded array is longer than it should be for the histogram's value range.
-    EncodedArrayTooLong
+    EncodedArrayTooLong,
 }
 
 impl std::convert::From<std::io::Error> for DeserializeError {
@@ -39,14 +39,14 @@ impl std::convert::From<std::io::Error> for DeserializeError {
 /// Since the serialization formats all include some magic bytes that allow reliable identification
 /// of the different formats, only one Deserializer implementation is needed.
 pub struct Deserializer {
-    payload_buf: Vec<u8>
+    payload_buf: Vec<u8>,
 }
 
 impl Deserializer {
     /// Create a new deserializer.
     pub fn new() -> Deserializer {
         Deserializer {
-            payload_buf: Vec::new()
+            payload_buf: Vec::new(),
         }
     }
 
@@ -54,19 +54,26 @@ impl Deserializer {
     ///
     /// Note that `&[u8]` and `Cursor` are convenient implementations of `Read` if you have some
     /// bytes already in slice or `Vec` form.
-    pub fn deserialize<T: Counter, R: Read>(&mut self, reader: &mut R)
-                                            -> Result<Histogram<T>, DeserializeError> {
+    pub fn deserialize<T: Counter, R: Read>(
+        &mut self,
+        reader: &mut R,
+    ) -> Result<Histogram<T>, DeserializeError> {
         let cookie = reader.read_u32::<BigEndian>()?;
 
         return match cookie {
             V2_COOKIE => self.deser_v2(reader),
             V2_COMPRESSED_COOKIE => self.deser_v2_compressed(reader),
-            _ => Err(DeserializeError::InvalidCookie)
-        }
+            _ => Err(DeserializeError::InvalidCookie),
+        };
     }
 
-    fn deser_v2_compressed<T: Counter, R: Read>(&mut self, reader: &mut R) -> Result<Histogram<T>, DeserializeError> {
-        let payload_len = reader.read_u32::<BigEndian>()?.to_usize()
+    fn deser_v2_compressed<T: Counter, R: Read>(
+        &mut self,
+        reader: &mut R,
+    ) -> Result<Histogram<T>, DeserializeError> {
+        let payload_len = reader
+            .read_u32::<BigEndian>()?
+            .to_usize()
             .ok_or(DeserializeError::UsizeTypeTooSmall)?;
 
         // TODO reuse deflate buf, or switch to lower-level flate2::Decompress
@@ -80,14 +87,21 @@ impl Deserializer {
     }
 
 
-    fn deser_v2<T: Counter, R: Read>(&mut self, reader: &mut R) -> Result<Histogram<T>, DeserializeError> {
-        let payload_len = reader.read_u32::<BigEndian>()?.to_usize()
+    fn deser_v2<T: Counter, R: Read>(
+        &mut self,
+        reader: &mut R,
+    ) -> Result<Histogram<T>, DeserializeError> {
+        let payload_len = reader
+            .read_u32::<BigEndian>()?
+            .to_usize()
             .ok_or(DeserializeError::UsizeTypeTooSmall)?;
         let normalizing_offset = reader.read_u32::<BigEndian>()?;
         if normalizing_offset != 0 {
             return Err(DeserializeError::UnsupportedFeature);
         }
-        let num_digits = reader.read_u32::<BigEndian>()?.to_u8()
+        let num_digits = reader
+            .read_u32::<BigEndian>()?
+            .to_u8()
             .ok_or(DeserializeError::InvalidParameters)?;
         let low = reader.read_u64::<BigEndian>()?;
         let high = reader.read_u64::<BigEndian>()?;
@@ -115,8 +129,8 @@ impl Deserializer {
             // so bail to slow version for the last few bytes.
 
             // payload_index math is safe because payload_len is a usize
-            let (zz_num, bytes_read) = varint_read_slice(
-                &payload_slice[payload_index..(payload_index + 9)]);
+            let (zz_num, bytes_read) =
+                varint_read_slice(&payload_slice[payload_index..(payload_index + 9)]);
             payload_index += bytes_read;
 
             let count_or_zeros = zig_zag_decode(zz_num);
@@ -262,31 +276,37 @@ pub fn zig_zag_decode(encoded: u64) -> i64 {
 /// of state.
 struct DecodeLoopState<T: Counter> {
     dest_index: usize,
-    phantom: PhantomData<T>
+    phantom: PhantomData<T>,
 }
 
 impl<T: Counter> DecodeLoopState<T> {
     fn new() -> DecodeLoopState<T> {
         DecodeLoopState {
             dest_index: 0,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
     #[inline]
-    fn on_decoded_num(&mut self, count_or_zeros: i64, restat_state: &mut RestatState<T>,
-                      h: &mut Histogram<T>) -> Result<(), DeserializeError> {
+    fn on_decoded_num(
+        &mut self,
+        count_or_zeros: i64,
+        restat_state: &mut RestatState<T>,
+        h: &mut Histogram<T>,
+    ) -> Result<(), DeserializeError> {
         if count_or_zeros < 0 {
             // For a valid histogram, negation won't overflow because you can't have anywhere close
             // to even 2^32 array length
-            let zero_count = (-count_or_zeros).to_usize()
+            let zero_count = (-count_or_zeros)
+                .to_usize()
                 .ok_or(DeserializeError::UsizeTypeTooSmall)?;
             // skip the zeros
-            self.dest_index = self.dest_index.checked_add(zero_count)
+            self.dest_index = self.dest_index
+                .checked_add(zero_count)
                 .ok_or(DeserializeError::UsizeTypeTooSmall)?;
         } else {
-            let count: T = T::from_i64(count_or_zeros)
-                .ok_or(DeserializeError::UnsuitableCounterType)?;
+            let count: T =
+                T::from_i64(count_or_zeros).ok_or(DeserializeError::UnsuitableCounterType)?;
 
             if count > T::zero() {
                 h.set_count_at_index(self.dest_index, count)
@@ -295,7 +315,8 @@ impl<T: Counter> DecodeLoopState<T> {
                 restat_state.on_nonzero_count(self.dest_index, count);
             }
 
-            self.dest_index = self.dest_index.checked_add(1)
+            self.dest_index = self.dest_index
+                .checked_add(1)
                 .ok_or(DeserializeError::UsizeTypeTooSmall)?;
         }
 

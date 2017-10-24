@@ -63,13 +63,27 @@ fn serialize_large_sparse_v2(b: &mut Bencher) {
 #[bench]
 fn serialize_large_dense_v2_deflate(b: &mut Bencher) {
     // 6291456 buckets
-    do_serialize_bench(b, &mut V2DeflateSerializer::new(), 1, u64::max_value(), 5, 1.5)
+    do_serialize_bench(
+        b,
+        &mut V2DeflateSerializer::new(),
+        1,
+        u64::max_value(),
+        5,
+        1.5,
+    )
 }
 
 #[bench]
 fn serialize_large_sparse_v2_deflate(b: &mut Bencher) {
     // 6291456 buckets
-    do_serialize_bench(b, &mut V2DeflateSerializer::new(), 1, u64::max_value(), 5, 0.1)
+    do_serialize_bench(
+        b,
+        &mut V2DeflateSerializer::new(),
+        1,
+        u64::max_value(),
+        5,
+        0.1,
+    )
 }
 
 #[bench]
@@ -123,17 +137,39 @@ fn deserialize_large_sparse_v2(b: &mut Bencher) {
 #[bench]
 fn deserialize_large_dense_v2_deflate(b: &mut Bencher) {
     // 6291456 buckets
-    do_deserialize_bench(b, &mut V2DeflateSerializer::new(), 1, u64::max_value(), 5, 1.5)
+    do_deserialize_bench(
+        b,
+        &mut V2DeflateSerializer::new(),
+        1,
+        u64::max_value(),
+        5,
+        1.5,
+    )
 }
 
 #[bench]
 fn deserialize_large_sparse_v2_deflate(b: &mut Bencher) {
     // 6291456 buckets
-    do_deserialize_bench(b, &mut V2DeflateSerializer::new(), 1, u64::max_value(), 5, 0.1)
+    do_deserialize_bench(
+        b,
+        &mut V2DeflateSerializer::new(),
+        1,
+        u64::max_value(),
+        5,
+        0.1,
+    )
 }
 
-fn do_serialize_bench<S>(b: &mut Bencher, s: &mut S, low: u64, high: u64, digits: u8, fraction_of_counts_len: f64)
-    where S: TestOnlyHypotheticalSerializerInterface {
+fn do_serialize_bench<S>(
+    b: &mut Bencher,
+    s: &mut S,
+    low: u64,
+    high: u64,
+    digits: u8,
+    fraction_of_counts_len: f64,
+) where
+    S: TestOnlyHypotheticalSerializerInterface,
+{
     let mut h = Histogram::<u64>::new_with_bounds(low, high, digits).unwrap();
     let random_counts = (fraction_of_counts_len * h.len() as f64) as usize;
     let mut vec = Vec::with_capacity(random_counts);
@@ -143,7 +179,7 @@ fn do_serialize_bench<S>(b: &mut Bencher, s: &mut S, low: u64, high: u64, digits
     let mut rng = rand::weak_rng();
     for _ in 0..random_counts {
         h.record(range.ind_sample(&mut rng)).unwrap();
-    };
+    }
 
     b.iter(|| {
         vec.clear();
@@ -152,8 +188,16 @@ fn do_serialize_bench<S>(b: &mut Bencher, s: &mut S, low: u64, high: u64, digits
     });
 }
 
-fn do_deserialize_bench<S>(b: &mut Bencher, s: &mut S, low: u64, high: u64, digits: u8, fraction_of_counts_len: f64)
-    where S: TestOnlyHypotheticalSerializerInterface {
+fn do_deserialize_bench<S>(
+    b: &mut Bencher,
+    s: &mut S,
+    low: u64,
+    high: u64,
+    digits: u8,
+    fraction_of_counts_len: f64,
+) where
+    S: TestOnlyHypotheticalSerializerInterface,
+{
     let mut h = Histogram::<u64>::new_with_bounds(low, high, digits).unwrap();
     let random_counts = (fraction_of_counts_len * h.len() as f64) as usize;
     let mut vec = Vec::with_capacity(random_counts);
@@ -163,7 +207,7 @@ fn do_deserialize_bench<S>(b: &mut Bencher, s: &mut S, low: u64, high: u64, digi
     let mut rng = rand::weak_rng();
     for _ in 0..random_counts {
         h.record(range.ind_sample(&mut rng)).unwrap();
-    };
+    }
 
     let _ = s.serialize(&h, &mut vec).unwrap();
 

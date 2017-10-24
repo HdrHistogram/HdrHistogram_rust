@@ -29,7 +29,10 @@ fn unit_magnitude_0_index_calculations() {
 
     // past last bucket -- not near u64::max_value(), so should still calculate ok.
     assert_eq!(23, h.bucket_for((2048_u64 << 22) + 3 * (1 << 23)));
-    assert_eq!(1024 + 3, h.sub_bucket_for((2048_u64 << 22) + 3 * (1 << 23), 23));
+    assert_eq!(
+        1024 + 3,
+        h.sub_bucket_for((2048_u64 << 22) + 3 * (1 << 23), 23)
+    );
 }
 
 #[test]
@@ -59,17 +62,26 @@ fn unit_magnitude_4_index_calculations() {
     // Middle of bucket is (sub_bucket_half_count = 2^10) of bucket scale, = unit << 11.
     // Add on 3 of bucket scale.
     assert_eq!(1, h.bucket_for((unit << 11) + 3 * (unit << 1)));
-    assert_eq!(1024 + 3, h.sub_bucket_for((unit << 11) + 3 * (unit << 1), 1));
+    assert_eq!(
+        1024 + 3,
+        h.sub_bucket_for((unit << 11) + 3 * (unit << 1), 1)
+    );
 
     // third bucket (top half), bucket scale = unit << 2.
     // Middle of bucket is (sub_bucket_half_count = 2^10) of bucket scale, = unit << 12.
     // Add on 3 of bucket scale.
     assert_eq!(2, h.bucket_for((unit << 12) + 3 * (unit << 2)));
-    assert_eq!(1024 + 3, h.sub_bucket_for((unit << 12) + 3 * (unit << 2), 2));
+    assert_eq!(
+        1024 + 3,
+        h.sub_bucket_for((unit << 12) + 3 * (unit << 2), 2)
+    );
 
     // past last bucket -- not near u64::max_value(), so should still calculate ok.
     assert_eq!(11, h.bucket_for((unit << 21) + 3 * (unit << 11)));
-    assert_eq!(1024 + 3, h.sub_bucket_for((unit << 21) + 3 * (unit << 11), 11));
+    assert_eq!(
+        1024 + 3,
+        h.sub_bucket_for((unit << 21) + 3 * (unit << 11), 11)
+    );
 }
 
 #[test]
@@ -105,7 +117,10 @@ fn unit_magnitude_52_sub_bucket_magnitude_11_index_calculations() {
     // Middle of bucket is (sub_bucket_half_count = 2^10) of bucket scale, = unit << 11.
     // Add on 3 of bucket scale.
     assert_eq!(1, h.bucket_for((unit << 11) + 3 * (unit << 1)));
-    assert_eq!(1024 + 3, h.sub_bucket_for((unit << 11) + 3 * (unit << 1), 1));
+    assert_eq!(
+        1024 + 3,
+        h.sub_bucket_for((unit << 11) + 3 * (unit << 1), 1)
+    );
 
     // upper half of second bucket, last slot
     assert_eq!(1, h.bucket_for(u64::max_value()));
@@ -114,8 +129,10 @@ fn unit_magnitude_52_sub_bucket_magnitude_11_index_calculations() {
 
 #[test]
 fn unit_magnitude_53_sub_bucket_magnitude_11_throws() {
-    assert_eq!(CreationError::CannotRepresentSigFigBeyondLow,
-        Histogram::<u64>::new_with_bounds(1_u64 << 53, 1_u64 << 63, 3).unwrap_err());
+    assert_eq!(
+        CreationError::CannotRepresentSigFigBeyondLow,
+        Histogram::<u64>::new_with_bounds(1_u64 << 53, 1_u64 << 63, 3).unwrap_err()
+    );
 }
 
 #[test]
@@ -322,7 +339,10 @@ fn sub_bucket_for_value_above_biggest_still_works() {
     // still in sub bucket count but nonsensical
     // In bucket 26, effective start is 1024 * 2^26 = 68,719,476,736.
     // 100b - start = 31,280,523,264. That / 2^26 = 466.1.
-    assert_eq!(466 + 1024, h.sub_bucket_for(100_000_000_000, h.bucket_for(100_000_000_000)));
+    assert_eq!(
+        466 + 1024,
+        h.sub_bucket_for(100_000_000_000, h.bucket_for(100_000_000_000))
+    );
 }
 
 #[test]

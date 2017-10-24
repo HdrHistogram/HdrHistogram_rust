@@ -5,7 +5,7 @@ extern crate rand;
 
 use self::rand::Rng;
 
-use hdrsample::{Histogram, SubtractionError, Counter};
+use hdrsample::{Counter, Histogram, SubtractionError};
 use std::borrow::Borrow;
 use std::fmt;
 
@@ -27,7 +27,8 @@ fn verify_max<T: Counter, B: Borrow<Histogram<T>>>(hist: B) -> bool {
     if let Some(mx) = hist.iter_recorded()
         .map(|v| v.value_iterated_to())
         .map(|v| hist.highest_equivalent(v))
-        .last() {
+        .last()
+    {
         hist.max() == mx
     } else {
         hist.max() == 0
@@ -85,7 +86,8 @@ fn record_past_trackable_max() {
 #[test]
 fn record_in_interval() {
     let mut h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
-    h.record_correct(TEST_VALUE_LEVEL, TEST_VALUE_LEVEL / 4).unwrap();
+    h.record_correct(TEST_VALUE_LEVEL, TEST_VALUE_LEVEL / 4)
+        .unwrap();
     let mut r = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     r += TEST_VALUE_LEVEL;
 
@@ -239,18 +241,23 @@ fn scaled_median_equivalent() {
 }
 
 fn are_equal<T, B1, B2>(actual: B1, expected: B2)
-    where T: Counter + fmt::Debug,
-          B1: Borrow<Histogram<T>>,
-          B2: Borrow<Histogram<T>>
+where
+    T: Counter + fmt::Debug,
+    B1: Borrow<Histogram<T>>,
+    B2: Borrow<Histogram<T>>,
 {
     let actual = actual.borrow();
     let expected = expected.borrow();
 
     assert_eq!(actual, expected);
-    assert_eq!(actual.count_at(TEST_VALUE_LEVEL),
-               expected.count_at(TEST_VALUE_LEVEL));
-    assert_eq!(actual.count_at(10 * TEST_VALUE_LEVEL),
-               expected.count_at(10 * TEST_VALUE_LEVEL));
+    assert_eq!(
+        actual.count_at(TEST_VALUE_LEVEL),
+        expected.count_at(TEST_VALUE_LEVEL)
+    );
+    assert_eq!(
+        actual.count_at(10 * TEST_VALUE_LEVEL),
+        expected.count_at(10 * TEST_VALUE_LEVEL)
+    );
     assert_eq!(actual.count(), expected.count());
     assert!(verify_max(expected));
     assert!(verify_max(actual));
@@ -531,7 +538,7 @@ fn total_count_overflow_from_add_with_resize_saturates() {
 #[test]
 #[cfg(feature = "serialization")]
 fn total_count_overflow_from_deserialize_saturates() {
-    use hdrsample::serialization::{V2Serializer, Deserializer};
+    use hdrsample::serialization::{Deserializer, V2Serializer};
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
 
     // can't go bigger than i64 max because it will be serialized
@@ -543,7 +550,9 @@ fn total_count_overflow_from_deserialize_saturates() {
     let mut vec = Vec::new();
 
     V2Serializer::new().serialize(&h, &mut vec).unwrap();
-    let deser_h: Histogram<u64> = Deserializer::new().deserialize(&mut vec.as_slice()).unwrap();
+    let deser_h: Histogram<u64> = Deserializer::new()
+        .deserialize(&mut vec.as_slice())
+        .unwrap();
     assert_eq!(u64::max_value(), deser_h.count());
 }
 
@@ -555,5 +564,8 @@ fn subtract_underflow_guarded_by_per_value_count_check() {
     h.record_n(1, 1).unwrap();
     h2.record_n(1, 100).unwrap();
 
-    assert_eq!(SubtractionError::SubtrahendCountExceedsMinuendCount, h.subtract(h2).unwrap_err());
+    assert_eq!(
+        SubtractionError::SubtrahendCountExceedsMinuendCount,
+        h.subtract(h2).unwrap_err()
+    );
 }

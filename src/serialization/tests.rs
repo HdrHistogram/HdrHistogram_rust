@@ -1,8 +1,10 @@
 extern crate rand;
 
-use super::{V2_COOKIE, V2_HEADER_SIZE, V2Serializer, V2SerializeError, V2DeflateSerializer, V2DeflateSerializeError};
-use super::v2_serializer::{counts_array_max_encoded_size, encode_counts, varint_write, zig_zag_encode};
-use super::deserializer::{Deserializer, varint_read, varint_read_slice, zig_zag_decode};
+use super::{V2DeflateSerializeError, V2DeflateSerializer, V2SerializeError, V2Serializer,
+            V2_COOKIE, V2_HEADER_SIZE};
+use super::v2_serializer::{counts_array_max_encoded_size, encode_counts, varint_write,
+                           zig_zag_encode};
+use super::deserializer::{varint_read, varint_read_slice, zig_zag_decode, Deserializer};
 use super::byteorder::{BigEndian, ReadBytesExt};
 use super::super::{Counter, Histogram};
 use num::ToPrimitive;
@@ -55,12 +57,21 @@ fn serialize_roundtrip_all_zeros() {
     let deser: Histogram<u64> = d.deserialize(&mut cursor).unwrap();
 
     assert_eq!(orig.highest_trackable_value, deser.highest_trackable_value);
-    assert_eq!(orig.lowest_discernible_value, deser.lowest_discernible_value);
-    assert_eq!(orig.significant_value_digits, deser.significant_value_digits);
+    assert_eq!(
+        orig.lowest_discernible_value,
+        deser.lowest_discernible_value
+    );
+    assert_eq!(
+        orig.significant_value_digits,
+        deser.significant_value_digits
+    );
     assert_eq!(orig.bucket_count, deser.bucket_count);
     assert_eq!(orig.sub_bucket_count, deser.sub_bucket_count);
     assert_eq!(orig.sub_bucket_half_count, deser.sub_bucket_half_count);
-    assert_eq!(orig.sub_bucket_half_count_magnitude, deser.sub_bucket_half_count_magnitude);
+    assert_eq!(
+        orig.sub_bucket_half_count_magnitude,
+        deser.sub_bucket_half_count_magnitude
+    );
     assert_eq!(orig.sub_bucket_mask, deser.sub_bucket_mask);
     assert_eq!(orig.leading_zero_count_base, deser.leading_zero_count_base);
     assert_eq!(orig.unit_magnitude, deser.unit_magnitude);
@@ -263,7 +274,10 @@ fn encode_counts_count_too_big() {
 
     // first position
     h.record_n(0, i64::max_value() as u64 + 1).unwrap();
-    assert_eq!(V2SerializeError::CountNotSerializable, encode_counts(&h, &mut vec[..]).unwrap_err());
+    assert_eq!(
+        V2SerializeError::CountNotSerializable,
+        encode_counts(&h, &mut vec[..]).unwrap_err()
+    );
 }
 
 
@@ -478,7 +492,7 @@ fn largest_number_in_7_bit_chunk_correct() {
         assert_eq!(64 - ((i as u32) + 1) * 7, largest.leading_zeros());
         // any larger and it will be in the next chunk
         assert_eq!(largest.leading_zeros() - 1, (largest + 1).leading_zeros());
-    };
+    }
 }
 
 fn do_varint_write_read_roundtrip_rand(byte_length: usize) {
@@ -490,19 +504,21 @@ fn do_varint_write_read_roundtrip_rand(byte_length: usize) {
     let mut buf = [0; 9];
     // Bunch of random numbers, plus the start and end of the range
     let range = Range::new(smallest_in_range, largest_in_range);
-    for i in RandomRangeIter::new(rand::weak_rng(), range).take(100_000)
+    for i in RandomRangeIter::new(rand::weak_rng(), range)
+        .take(100_000)
         .chain(once(smallest_in_range))
-        .chain(once(largest_in_range)) {
+        .chain(once(largest_in_range))
+    {
         for i in 0..(buf.len()) {
             buf[i] = 0;
-        };
+        }
         let bytes_written = varint_write(i, &mut buf);
         assert_eq!(byte_length, bytes_written);
         assert_eq!(i, varint_read(&mut &buf[..bytes_written]).unwrap());
 
         // make sure the other bytes are all still 0
         assert_eq!(vec![0; 9 - bytes_written], &buf[bytes_written..]);
-    };
+    }
 }
 
 fn do_varint_write_read_slice_roundtrip_rand(byte_length: usize) {
@@ -515,15 +531,20 @@ fn do_varint_write_read_slice_roundtrip_rand(byte_length: usize) {
 
     // Bunch of random numbers, plus the start and end of the range
     let range = Range::new(smallest_in_range, largest_in_range);
-    for i in RandomRangeIter::new(rand::weak_rng(), range).take(100_000)
+    for i in RandomRangeIter::new(rand::weak_rng(), range)
+        .take(100_000)
         .chain(once(smallest_in_range))
-        .chain(once(largest_in_range)) {
+        .chain(once(largest_in_range))
+    {
         for i in 0..(buf.len()) {
             buf[i] = 0;
-        };
+        }
         let bytes_written = varint_write(i, &mut buf);
         assert_eq!(byte_length, bytes_written);
-        assert_eq!((i, bytes_written), varint_read_slice(&mut &buf[..bytes_written]));
+        assert_eq!(
+            (i, bytes_written),
+            varint_read_slice(&mut &buf[..bytes_written])
+        );
 
         // make sure the other bytes are all still 0
         assert_eq!(vec![0; 9 - bytes_written], &buf[bytes_written..]);
@@ -531,8 +552,10 @@ fn do_varint_write_read_slice_roundtrip_rand(byte_length: usize) {
 }
 
 fn do_serialize_roundtrip_random<S, T>(mut serializer: S, max_count: T)
-    where S: TestOnlyHypotheticalSerializerInterface,
-          T: Counter + Debug + Display + Rand + ToPrimitive + SampleRange {
+where
+    S: TestOnlyHypotheticalSerializerInterface,
+    T: Counter + Debug + Display + Rand + ToPrimitive + SampleRange,
+{
     let mut d = Deserializer::new();
     let mut vec = Vec::new();
     let mut count_rng = rand::weak_rng();
@@ -566,14 +589,26 @@ fn do_serialize_roundtrip_random<S, T>(mut serializer: S, max_count: T)
     }
 }
 
-fn assert_deserialized_histogram_matches_orig<T: Counter + Debug>(orig: Histogram<T>, deser: Histogram<T>) {
+fn assert_deserialized_histogram_matches_orig<T: Counter + Debug>(
+    orig: Histogram<T>,
+    deser: Histogram<T>,
+) {
     assert_eq!(orig.highest_trackable_value, deser.highest_trackable_value);
-    assert_eq!(orig.lowest_discernible_value, deser.lowest_discernible_value);
-    assert_eq!(orig.significant_value_digits, deser.significant_value_digits);
+    assert_eq!(
+        orig.lowest_discernible_value,
+        deser.lowest_discernible_value
+    );
+    assert_eq!(
+        orig.significant_value_digits,
+        deser.significant_value_digits
+    );
     assert_eq!(orig.bucket_count, deser.bucket_count);
     assert_eq!(orig.sub_bucket_count, deser.sub_bucket_count);
     assert_eq!(orig.sub_bucket_half_count, deser.sub_bucket_half_count);
-    assert_eq!(orig.sub_bucket_half_count_magnitude, deser.sub_bucket_half_count_magnitude);
+    assert_eq!(
+        orig.sub_bucket_half_count_magnitude,
+        deser.sub_bucket_half_count_magnitude
+    );
     assert_eq!(orig.sub_bucket_mask, deser.sub_bucket_mask);
     assert_eq!(orig.leading_zero_count_base, deser.leading_zero_count_base);
     assert_eq!(orig.unit_magnitude, deser.unit_magnitude);
@@ -581,15 +616,23 @@ fn assert_deserialized_histogram_matches_orig<T: Counter + Debug>(orig: Histogra
 
     // in buckets past the first, can only match up to precision in that bucket
     assert_eq!(orig.highest_equivalent(orig.max_value), deser.max_value);
-    assert_eq!(orig.lowest_equivalent(orig.min_non_zero_value), deser.min_non_zero_value);
+    assert_eq!(
+        orig.lowest_equivalent(orig.min_non_zero_value),
+        deser.min_non_zero_value
+    );
 
     assert_eq!(orig.counts, deser.counts);
 
     // total counts will not equal if any individual count has saturated at a point where that did
     // *not* saturate the total count: the deserialized one will have missed the lost increments.
     assert!(orig.total_count >= deser.total_count);
-    assert_eq!(deser.total_count,
-    deser.counts.iter().fold(0_u64, |acc, &i| acc.saturating_add(i.as_u64())));
+    assert_eq!(
+        deser.total_count,
+        deser
+            .counts
+            .iter()
+            .fold(0_u64, |acc, &i| acc.saturating_add(i.as_u64()))
+    );
 }
 
 /// Smallest number in our varint encoding that takes the given number of bytes
@@ -599,7 +642,7 @@ fn smallest_number_in_n_byte_varint(byte_length: usize) -> u64 {
     match byte_length {
         1 => 0,
         // one greater than the largest of the previous length
-        _ => largest_number_in_n_byte_varint(byte_length - 1) + 1
+        _ => largest_number_in_n_byte_varint(byte_length - 1) + 1,
     }
 }
 
@@ -609,7 +652,7 @@ fn largest_number_in_n_byte_varint(byte_length: usize) -> u64 {
 
     match byte_length {
         9 => u64::max_value(),
-        _ => largest_number_in_7_bit_chunk(byte_length - 1)
+        _ => largest_number_in_7_bit_chunk(byte_length - 1),
     }
 }
 
@@ -621,7 +664,7 @@ fn largest_number_in_7_bit_chunk(chunk_index: usize) -> u64 {
     // 1 in every bit below the lowest bit in this chunk
     let lower_bits = match chunk_index {
         0 => 0,
-        _ => largest_number_in_7_bit_chunk(chunk_index - 1)
+        _ => largest_number_in_7_bit_chunk(chunk_index - 1),
     };
 
     // 1 in every bit in this chunk
@@ -633,14 +676,14 @@ fn largest_number_in_7_bit_chunk(chunk_index: usize) -> u64 {
 
 struct RandomRangeIter<T: SampleRange, R: Rng> {
     range: Range<T>,
-    rng: R
+    rng: R,
 }
 
 impl<T: SampleRange, R: Rng> RandomRangeIter<T, R> {
     fn new(rng: R, range: Range<T>) -> RandomRangeIter<T, R> {
         RandomRangeIter {
             rng: rng,
-            range: range
+            range: range,
         }
     }
 }
@@ -661,25 +704,52 @@ impl<T: SampleRange, R: Rng> Iterator for RandomRangeIter<T, R> {
 struct RandomVarintEncodedLengthIter<R: Rng> {
     ranges: [Range<u64>; 9],
     range_for_picking_range: Range<usize>,
-    rng: R
+    rng: R,
 }
 
 impl<R: Rng> RandomVarintEncodedLengthIter<R> {
     fn new(rng: R) -> RandomVarintEncodedLengthIter<R> {
         RandomVarintEncodedLengthIter {
             ranges: [
-                Range::new(smallest_number_in_n_byte_varint(1), largest_number_in_n_byte_varint(1) + 1),
-                Range::new(smallest_number_in_n_byte_varint(2), largest_number_in_n_byte_varint(2) + 1),
-                Range::new(smallest_number_in_n_byte_varint(3), largest_number_in_n_byte_varint(3) + 1),
-                Range::new(smallest_number_in_n_byte_varint(4), largest_number_in_n_byte_varint(4) + 1),
-                Range::new(smallest_number_in_n_byte_varint(5), largest_number_in_n_byte_varint(5) + 1),
-                Range::new(smallest_number_in_n_byte_varint(6), largest_number_in_n_byte_varint(6) + 1),
-                Range::new(smallest_number_in_n_byte_varint(7), largest_number_in_n_byte_varint(7) + 1),
-                Range::new(smallest_number_in_n_byte_varint(8), largest_number_in_n_byte_varint(8) + 1),
-                Range::new(smallest_number_in_n_byte_varint(9), largest_number_in_n_byte_varint(9)),
+                Range::new(
+                    smallest_number_in_n_byte_varint(1),
+                    largest_number_in_n_byte_varint(1) + 1,
+                ),
+                Range::new(
+                    smallest_number_in_n_byte_varint(2),
+                    largest_number_in_n_byte_varint(2) + 1,
+                ),
+                Range::new(
+                    smallest_number_in_n_byte_varint(3),
+                    largest_number_in_n_byte_varint(3) + 1,
+                ),
+                Range::new(
+                    smallest_number_in_n_byte_varint(4),
+                    largest_number_in_n_byte_varint(4) + 1,
+                ),
+                Range::new(
+                    smallest_number_in_n_byte_varint(5),
+                    largest_number_in_n_byte_varint(5) + 1,
+                ),
+                Range::new(
+                    smallest_number_in_n_byte_varint(6),
+                    largest_number_in_n_byte_varint(6) + 1,
+                ),
+                Range::new(
+                    smallest_number_in_n_byte_varint(7),
+                    largest_number_in_n_byte_varint(7) + 1,
+                ),
+                Range::new(
+                    smallest_number_in_n_byte_varint(8),
+                    largest_number_in_n_byte_varint(8) + 1,
+                ),
+                Range::new(
+                    smallest_number_in_n_byte_varint(9),
+                    largest_number_in_n_byte_varint(9),
+                ),
             ],
             range_for_picking_range: Range::new(0, 9),
-            rng: rng
+            rng: rng,
         }
     }
 }

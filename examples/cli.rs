@@ -1,58 +1,79 @@
-/// Reads numbers from stdin, one per line, and writes them to a serialized histogram on stdout.
-
-extern crate hdrsample;
 extern crate clap;
+/// Reads numbers from stdin, one per line, and writes them to a serialized histogram on stdout.
+extern crate hdrsample;
 
 use std::io;
-use std::io::{Write, BufRead};
+use std::io::{BufRead, Write};
 use std::fmt::Display;
 
 use clap::{App, Arg, SubCommand};
 
 use hdrsample::{Histogram, RecordError};
-use hdrsample::serialization::{V2Serializer, V2SerializeError, V2DeflateSerializer, V2DeflateSerializeError, Deserializer, DeserializeError};
+use hdrsample::serialization::{DeserializeError, Deserializer, V2DeflateSerializeError,
+                               V2DeflateSerializer, V2SerializeError, V2Serializer};
 
 fn main() {
     let default_max = format!("{}", u64::max_value());
     let matches = App::new("hdrsample cli")
-            .subcommand(SubCommand::with_name("serialize")
-                    .about("Transform number-per-line input from stdin into a serialized histogram on stdout")
-                    .arg(Arg::with_name("min")
-                            .long("min")
-                            .help("Minimum discernible value")
-                            .takes_value(true)
-                            .default_value("1"))
-                    .arg(Arg::with_name("max")
-                            .long("max")
-                            .help("Maximum trackable value")
-                            .takes_value(true)
-                            .default_value(default_max.as_str()))
-                    .arg(Arg::with_name("sigfig")
-                            .long("sigfig")
-                            .help("Number of significant digits")
-                            .takes_value(true)
-                            .default_value("3"))
-                    .arg(Arg::with_name("compression")
-                            .short("c")
-                            .long("compression")
-                            .help("Enable compression"))
-                    .arg(Arg::with_name("resize")
-                            .short("r")
-                            .long("resize")
-                            .help("Enable auto resize")))
-            .subcommand(SubCommand::with_name("iter-quantiles")
-                    .about("Display quantiles to stdout from serialized histogram stdin")
-                    .arg(Arg::with_name("ticks")
-                            .short("t")
-                            .long("ticks-per-half")
-                            .takes_value(true)
-                            .required(true)
-                            .help("Ticks per half distance"))
-                    .arg(Arg::with_name("quantile-precision")
-                            .long("quantile-precision")
-                            .takes_value(true)
-                            .default_value("20")))
-            .get_matches();
+        .subcommand(
+            SubCommand::with_name("serialize")
+                .about(
+                    "Transform number-per-line input from stdin \
+                     into a serialized histogram on stdout",
+                )
+                .arg(
+                    Arg::with_name("min")
+                        .long("min")
+                        .help("Minimum discernible value")
+                        .takes_value(true)
+                        .default_value("1"),
+                )
+                .arg(
+                    Arg::with_name("max")
+                        .long("max")
+                        .help("Maximum trackable value")
+                        .takes_value(true)
+                        .default_value(default_max.as_str()),
+                )
+                .arg(
+                    Arg::with_name("sigfig")
+                        .long("sigfig")
+                        .help("Number of significant digits")
+                        .takes_value(true)
+                        .default_value("3"),
+                )
+                .arg(
+                    Arg::with_name("compression")
+                        .short("c")
+                        .long("compression")
+                        .help("Enable compression"),
+                )
+                .arg(
+                    Arg::with_name("resize")
+                        .short("r")
+                        .long("resize")
+                        .help("Enable auto resize"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("iter-quantiles")
+                .about("Display quantiles to stdout from serialized histogram stdin")
+                .arg(
+                    Arg::with_name("ticks")
+                        .short("t")
+                        .long("ticks-per-half")
+                        .takes_value(true)
+                        .required(true)
+                        .help("Ticks per half distance"),
+                )
+                .arg(
+                    Arg::with_name("quantile-precision")
+                        .long("quantile-precision")
+                        .takes_value(true)
+                        .default_value("20"),
+                ),
+        )
+        .get_matches();
 
     let stdin = std::io::stdin();
     let stdin = stdin.lock();
@@ -78,18 +99,29 @@ fn main() {
         Some("iter-quantiles") => {
             let sub_matches = matches.subcommand_matches("iter-quantiles").unwrap();
             let ticks_per_half = sub_matches.value_of("ticks").unwrap().parse().unwrap();
-            let quantile_precision = sub_matches.value_of("quantile-precision").unwrap().parse().unwrap();
+            let quantile_precision = sub_matches
+                .value_of("quantile-precision")
+                .unwrap()
+                .parse()
+                .unwrap();
             quantiles(stdin, stdout, quantile_precision, ticks_per_half)
         }
-        _ => unreachable!()
+        _ => unreachable!(),
     }.expect("Subcommand failed")
 }
 
 /// Read numbers, one from each line, from stdin and output the resulting serialized histogram.
-fn serialize<R: BufRead, W: Write>(reader: R, mut writer: W, mut h: Histogram<u64>, compression: bool) -> Result<(), CliError> {
-    for num in reader.lines()
-            .map(|l| l.expect("Should be able to read stdin"))
-            .map(|s| s.parse().expect("Each line must be a u64")) {
+fn serialize<R: BufRead, W: Write>(
+    reader: R,
+    mut writer: W,
+    mut h: Histogram<u64>,
+    compression: bool,
+) -> Result<(), CliError> {
+    for num in reader
+        .lines()
+        .map(|l| l.expect("Should be able to read stdin"))
+        .map(|s| s.parse().expect("Each line must be a u64"))
+    {
         h.record(num)?;
     }
 
@@ -104,7 +136,12 @@ fn serialize<R: BufRead, W: Write>(reader: R, mut writer: W, mut h: Histogram<u6
 
 /// Output histogram data in a format similar to the Java impl's
 /// `AbstractHistogram#outputPercentileDistribution`.
-fn quantiles<R: BufRead, W: Write>(mut reader: R, mut writer: W, quantile_precision: usize, ticks_per_half: u32) -> Result<(), CliError> {
+fn quantiles<R: BufRead, W: Write>(
+    mut reader: R,
+    mut writer: W,
+    quantile_precision: usize,
+    ticks_per_half: u32,
+) -> Result<(), CliError> {
     let hist: Histogram<u64> = Deserializer::new().deserialize(&mut reader)?;
 
     writer.write_all(
@@ -151,14 +188,38 @@ fn quantiles<R: BufRead, W: Write>(mut reader: R, mut writer: W, quantile_precis
     }
 
     fn write_extra_data<T1: Display, T2: Display, W: Write>(
-        writer: &mut W, label1: &str, data1: T1, label2: &str, data2: T2) -> Result<(), io::Error> {
-        writer.write_all(format!("#[{:10} = {:12.2}, {:14} = {:12.2}]\n",
-                                 label1, data1, label2, data2).as_ref())
+        writer: &mut W,
+        label1: &str,
+        data1: T1,
+        label2: &str,
+        data2: T2,
+    ) -> Result<(), io::Error> {
+        writer.write_all(
+            format!(
+                "#[{:10} = {:12.2}, {:14} = {:12.2}]\n",
+                label1,
+                data1,
+                label2,
+                data2
+            ).as_ref(),
+        )
     }
 
-    write_extra_data(&mut writer, "Mean", hist.mean(), "StdDeviation", hist.stdev())?;
+    write_extra_data(
+        &mut writer,
+        "Mean",
+        hist.mean(),
+        "StdDeviation",
+        hist.stdev(),
+    )?;
     write_extra_data(&mut writer, "Max", hist.max(), "Total count", hist.count())?;
-    write_extra_data(&mut writer, "Buckets", hist.buckets(), "SubBuckets", hist.len())?;
+    write_extra_data(
+        &mut writer,
+        "Buckets",
+        hist.buckets(),
+        "SubBuckets",
+        hist.len(),
+    )?;
 
     Ok(())
 }
@@ -173,7 +234,7 @@ enum CliError {
     HistogramSerializeError(V2SerializeError),
     HistogramSerializeCompressedError(V2DeflateSerializeError),
     HistogramDeserializeError(DeserializeError),
-    HistogramRecordError(RecordError)
+    HistogramRecordError(RecordError),
 }
 
 impl From<io::Error> for CliError {

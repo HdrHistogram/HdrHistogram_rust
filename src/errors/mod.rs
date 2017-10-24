@@ -25,7 +25,7 @@ pub enum CreationError {
     CannotRepresentSigFigBeyondLow,
     /// The `usize` type is too small to represent the desired configuration. Use fewer significant
     /// figures or a lower max.
-    UsizeTypeTooSmall
+    UsizeTypeTooSmall,
 }
 
 // TODO like RecordError, this is also an awkward split along resizing.
@@ -38,7 +38,7 @@ pub enum AdditionError {
     /// The other histogram includes values that would map to indexes in this histogram that are
     /// not expressible for `usize`. Configure this histogram to use fewer significant digits. Only
     /// possible when resize is enabled.
-    ResizeFailedUsizeTypeTooSmall
+    ResizeFailedUsizeTypeTooSmall,
 }
 
 /// Errors that can occur when subtracting another histogram.
@@ -50,7 +50,7 @@ pub enum SubtractionError {
     /// The other histogram includes counts that are higher than the current count for a value, and
     /// counts cannot go negative. The subtraction may have been partially applied to some counts as
     /// this error is returned when the first impossible subtraction is detected.
-    SubtrahendCountExceedsMinuendCount
+    SubtrahendCountExceedsMinuendCount,
 }
 
 // TODO the error conditions here are awkward: one only possible when resize is disabled, the other
@@ -65,7 +65,7 @@ pub enum RecordError {
     /// Auto resizing is enabled and must be used to represent the provided value, but the histogram
     /// cannot be resized because `usize` cannot represent sufficient length. Configure this
     /// histogram to use fewer significant digits. Only possible when resizing is enabled.
-    ResizeFailedUsizeTypeTooSmall
+    ResizeFailedUsizeTypeTooSmall,
 }
 
 #[allow(missing_docs)]

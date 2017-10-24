@@ -14,7 +14,7 @@ pub enum V2SerializeError {
     /// hardware.
     UsizeTypeTooSmall,
     /// An i/o operation failed.
-    IoError(ErrorKind)
+    IoError(ErrorKind),
 }
 
 impl std::convert::From<std::io::Error> for V2SerializeError {
@@ -25,23 +25,24 @@ impl std::convert::From<std::io::Error> for V2SerializeError {
 
 /// Serializer for the V2 binary format.
 pub struct V2Serializer {
-    buf: Vec<u8>
+    buf: Vec<u8>,
 }
 
 impl V2Serializer {
     /// Create a new serializer.
     pub fn new() -> V2Serializer {
-        V2Serializer {
-            buf: Vec::new()
-        }
+        V2Serializer { buf: Vec::new() }
     }
 
     /// Serialize the histogram into the provided writer.
     /// Returns the number of bytes written, or an error.
     ///
     /// Note that `Vec<u8>` is a reasonable `Write` implementation for simple usage.
-    pub fn serialize<T: Counter, W: Write>(&mut self, h: &Histogram<T>, writer: &mut W)
-                                           -> Result<usize, V2SerializeError> {
+    pub fn serialize<T: Counter, W: Write>(
+        &mut self,
+        h: &Histogram<T>,
+        writer: &mut W,
+    ) -> Result<usize, V2SerializeError> {
         // TODO benchmark encoding directly into target Vec
 
         self.buf.clear();
@@ -53,7 +54,8 @@ impl V2Serializer {
         self.buf.write_u32::<BigEndian>(0)?;
         // normalizing index offset
         self.buf.write_u32::<BigEndian>(0)?;
-        self.buf.write_u32::<BigEndian>(h.significant_value_digits as u32)?;
+        self.buf
+            .write_u32::<BigEndian>(h.significant_value_digits as u32)?;
         self.buf.write_u64::<BigEndian>(h.lowest_discernible_value)?;
         self.buf.write_u64::<BigEndian>(h.highest_trackable_value)?;
         // int to double conversion
@@ -75,7 +77,8 @@ impl V2Serializer {
         // counts is always under 2^24
         (&mut self.buf[4..8]).write_u32::<BigEndian>(counts_len as u32)?;
 
-        writer.write_all(&mut self.buf[0..(total_len)])
+        writer
+            .write_all(&mut self.buf[0..(total_len)])
             .map(|_| total_len)
             .map_err(|e| V2SerializeError::IoError(e.kind()))
     }
@@ -99,8 +102,12 @@ pub fn counts_array_max_encoded_size(length: usize) -> Option<usize> {
 // Only public for testing.
 /// Encode counts array into slice.
 /// The slice must be at least 9 * the number of counts that will be encoded.
-pub fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usize, V2SerializeError> {
-    let index_limit = h.index_for(h.max()).expect("Index for max value must exist");
+pub fn encode_counts<T: Counter>(
+    h: &Histogram<T>,
+    buf: &mut [u8],
+) -> Result<usize, V2SerializeError> {
+    let index_limit = h.index_for(h.max())
+        .expect("Index for max value must exist");
     let mut index = 0;
     let mut bytes_written = 0;
 
@@ -119,14 +126,17 @@ pub fn encode_counts<T: Counter>(h: &Histogram<T>, buf: &mut [u8]) -> Result<usi
             zero_count = 1;
 
             // index is inside h.counts because of the assert above
-            while (index <= index_limit) && (unsafe { *(h.counts.get_unchecked(index)) } == T::zero()) {
+            while (index <= index_limit)
+                && (unsafe { *(h.counts.get_unchecked(index)) } == T::zero())
+            {
                 zero_count += 1;
                 index += 1;
             }
         }
 
         let count_or_zeros: i64 = if zero_count > 1 {
-            // zero count can be at most the entire counts array, which is at most 2^24, so will fit.
+            // zero count can be at most the entire counts array, which is at most 2^24, so will
+            // fit.
             -zero_count
         } else {
             // TODO while writing tests that serialize random counts, this was annoying.
@@ -204,7 +214,6 @@ pub fn varint_write(input: u64, buf: &mut [u8]) -> usize {
     // special case: write last whole byte as is
     buf[8] = (input >> 56) as u8;
     return 9;
-
 }
 
 /// input: a u64

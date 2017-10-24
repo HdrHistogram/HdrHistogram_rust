@@ -79,36 +79,44 @@ fn record_random_values_with_1_count_u64(b: &mut Bencher) {
     // This should be *slower* than the benchmarks above where we pre-calculate the values
     // outside of the hot loop. If it isn't, then those measurements are likely spurious.
 
-    b.iter(|| {
-        for _ in 0..1000_000 {
-            h.record(rng.gen()).unwrap()
-        }
+    b.iter(|| for _ in 0..1000_000 {
+        h.record(rng.gen()).unwrap()
     })
 }
 
 #[bench]
 fn add_precalc_random_value_1_count_same_dimensions_u64(b: &mut Bencher) {
-    do_add_benchmark(b, 1, || { Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap() })
+    do_add_benchmark(b, 1, || {
+        Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap()
+    })
 }
 
 #[bench]
 fn add_precalc_random_value_max_count_same_dimensions_u64(b: &mut Bencher) {
-    do_add_benchmark(b, u64::max_value(), || { Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap() })
+    do_add_benchmark(b, u64::max_value(), || {
+        Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap()
+    })
 }
 
 #[bench]
 fn add_precalc_random_value_1_count_different_precision_u64(b: &mut Bencher) {
-    do_add_benchmark(b, 1, || { Histogram::<u64>::new_with_bounds(1, u64::max_value(), 2).unwrap() })
+    do_add_benchmark(b, 1, || {
+        Histogram::<u64>::new_with_bounds(1, u64::max_value(), 2).unwrap()
+    })
 }
 
 #[bench]
 fn add_precalc_random_value_max_count_different_precision_u64(b: &mut Bencher) {
-    do_add_benchmark(b, u64::max_value(), || { Histogram::<u64>::new_with_bounds(1, u64::max_value(), 2).unwrap() })
+    do_add_benchmark(b, u64::max_value(), || {
+        Histogram::<u64>::new_with_bounds(1, u64::max_value(), 2).unwrap()
+    })
 }
 
 #[bench]
 fn subtract_precalc_random_value_1_count_same_dimensions_u64(b: &mut Bencher) {
-    do_subtract_benchmark(b, 1, || { Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap() })
+    do_subtract_benchmark(b, 1, || {
+        Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap()
+    })
 }
 
 // can't do subtraction with max count because it will error after the first iteration because
@@ -116,7 +124,11 @@ fn subtract_precalc_random_value_1_count_same_dimensions_u64(b: &mut Bencher) {
 // issue happens because the smallest equivalent value in the lower precision can map to a different
 // bucket in higher precision so we cannot easily pre-populate.
 
-fn do_subtract_benchmark<F: Fn() -> Histogram<u64>>(b: &mut Bencher, count_at_each_addend_value: u64, addend_factory: F) {
+fn do_subtract_benchmark<F: Fn() -> Histogram<u64>>(
+    b: &mut Bencher,
+    count_at_each_addend_value: u64,
+    addend_factory: F,
+) {
     let mut accum = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
     let mut subtrahends = Vec::new();
     let mut rng = rand::weak_rng();
@@ -142,7 +154,11 @@ fn do_subtract_benchmark<F: Fn() -> Histogram<u64>>(b: &mut Bencher, count_at_ea
     })
 }
 
-fn do_add_benchmark<F: Fn() -> Histogram<u64>>(b: &mut Bencher, count_at_each_addend_value: u64, addend_factory: F) {
+fn do_add_benchmark<F: Fn() -> Histogram<u64>>(
+    b: &mut Bencher,
+    count_at_each_addend_value: u64,
+    addend_factory: F,
+) {
     let mut accum = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
     let mut addends = Vec::new();
     let mut rng = rand::weak_rng();
@@ -158,9 +174,7 @@ fn do_add_benchmark<F: Fn() -> Histogram<u64>>(b: &mut Bencher, count_at_each_ad
         addends.push(h);
     }
 
-    b.iter(|| {
-        for h in addends.iter() {
-            accum.add(h).unwrap();
-        }
+    b.iter(|| for h in addends.iter() {
+        accum.add(h).unwrap();
     })
 }

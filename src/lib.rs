@@ -182,17 +182,8 @@
 //! and try to make sure you implement appropriate traits to make the use of the feature as
 //! ergonomic as possible.
 
-#![deny(
-    missing_docs,
-    trivial_casts,
-    trivial_numeric_casts,
-    unused_extern_crates,
-    unused_import_braces,
-    unused_results,
-    variant_size_differences,
-    warnings
-)]
-
+#![deny(missing_docs, trivial_casts, trivial_numeric_casts, unused_extern_crates,
+        unused_import_braces, unused_results, variant_size_differences, warnings)]
 // Enable feature(test) is enabled so that we can have benchmarks of private code
 #![cfg_attr(all(test, feature = "bench_private"), feature(test))]
 
@@ -364,12 +355,13 @@ impl<T: Counter> Histogram<T> {
     /// is returned instead.
     fn index_for_or_last(&self, value: u64) -> usize {
         return self.index_for(value)
-            .map_or(self.last_index(), |i| cmp::min(i, self.last_index()))
+            .map_or(self.last_index(), |i| cmp::min(i, self.last_index()));
     }
 
     /// Get a mutable reference to the count bucket for the given value, if it is in range.
     fn mut_at(&mut self, value: u64) -> Option<&mut T> {
-        self.index_for(value).and_then(move |i| self.counts.get_mut(i))
+        self.index_for(value)
+            .and_then(move |i| self.counts.get_mut(i))
     }
 
     /// Get the index of the last histogram bin.
@@ -417,10 +409,11 @@ impl<T: Counter> Histogram<T> {
     /// Overwrite this histogram with the given histogram while correcting for coordinated
     /// omission. All data and statistics in this histogram will be overwritten. See
     /// `clone_correct` for more detailed explanation about how correction is applied
-    pub fn set_to_corrected<B: Borrow<Histogram<T>>>(&mut self,
-                                                     source: B,
-                                                     interval: u64)
-                                                     -> Result<(), RecordError> {
+    pub fn set_to_corrected<B: Borrow<Histogram<T>>>(
+        &mut self,
+        source: B,
+        interval: u64,
+    ) -> Result<(), RecordError> {
         self.reset();
         self.add_correct(source, interval)
     }
@@ -442,23 +435,27 @@ impl<T: Counter> Histogram<T> {
                 return Err(AdditionError::OtherAddendValueExceedsRange);
             }
             // We're growing the histogram, so new high > old high and is therefore >= 2x low.
-            self.resize(source.max()).map_err(|_| AdditionError::ResizeFailedUsizeTypeTooSmall)?;
+            self.resize(source.max())
+                .map_err(|_| AdditionError::ResizeFailedUsizeTypeTooSmall)?;
         }
 
-        if self.bucket_count == source.bucket_count && self.sub_bucket_count == source.sub_bucket_count &&
-           self.unit_magnitude == source.unit_magnitude {
+        if self.bucket_count == source.bucket_count
+            && self.sub_bucket_count == source.sub_bucket_count
+            && self.unit_magnitude == source.unit_magnitude
+        {
             // Counts arrays are of the same length and meaning,
             // so we can just iterate and add directly:
             let mut observed_other_total_count: u64 = 0;
             for i in 0..source.len() {
-                let other_count = source.count_at_index(i)
+                let other_count = source
+                    .count_at_index(i)
                     .expect("iterating inside source length");
                 if other_count != T::zero() {
                     // indexing is safe: same configuration as `source`, and the index was valid for
                     // `source`.
                     self.counts[i] = self.counts[i].saturating_add(other_count);
-                    observed_other_total_count = observed_other_total_count
-                        .saturating_add(other_count.as_u64());
+                    observed_other_total_count =
+                        observed_other_total_count.saturating_add(other_count.as_u64());
                 }
             }
 
@@ -477,16 +474,19 @@ impl<T: Counter> Histogram<T> {
             // and add each non-zero value found at it's proper value:
 
             // Do max value first, to avoid max value updates on each iteration:
-            let other_max_index = source.index_for(source.max())
+            let other_max_index = source
+                .index_for(source.max())
                 .expect("Index for max value must exist");
-            let other_count = source.count_at_index(other_max_index)
+            let other_count = source
+                .count_at_index(other_max_index)
                 .expect("max's index must exist");
             self.record_n(source.value_for(other_max_index), other_count)
                 .expect("Record must succeed; already resized for max value");
 
             // Record the remaining values, up to but not including the max value:
             for i in 0..other_max_index {
-                let other_count = source.count_at_index(i)
+                let other_count = source
+                    .count_at_index(i)
                     .expect("index before max must exist");
                 if other_count != T::zero() {
                     self.record_n(source.value_for(i), other_count)
@@ -522,10 +522,11 @@ impl<T: Counter> Histogram<T> {
     /// corrective behavior is important.
     ///
     /// See `RecordError` for error conditions.
-    pub fn add_correct<B: Borrow<Histogram<T>>>(&mut self,
-                                                source: B,
-                                                interval: u64)
-                                                -> Result<(), RecordError> {
+    pub fn add_correct<B: Borrow<Histogram<T>>>(
+        &mut self,
+        source: B,
+        interval: u64,
+    ) -> Result<(), RecordError> {
         let source = source.borrow();
 
         for v in source.iter_recorded() {
@@ -537,7 +538,10 @@ impl<T: Counter> Histogram<T> {
     /// Subtract the contents of another histogram from this one.
     ///
     /// See `SubtractionError` for error conditions.
-    pub fn subtract<B: Borrow<Histogram<T>>>(&mut self, subtrahend: B) -> Result<(), SubtractionError> {
+    pub fn subtract<B: Borrow<Histogram<T>>>(
+        &mut self,
+        subtrahend: B,
+    ) -> Result<(), SubtractionError> {
         let subtrahend = subtrahend.borrow();
 
         // make sure we can take the values in source
@@ -553,7 +557,8 @@ impl<T: Counter> Histogram<T> {
         let mut needs_restat = self.total_count == u64::max_value();
 
         for i in 0..subtrahend.len() {
-            let other_count = subtrahend.count_at_index(i)
+            let other_count = subtrahend
+                .count_at_index(i)
                 .expect("index inside subtrahend len must exist");
             if other_count != T::zero() {
                 let other_value = subtrahend.value_for(i);
@@ -562,8 +567,9 @@ impl<T: Counter> Histogram<T> {
 
                     if let Some(c) = mut_count {
                         // TODO Perhaps we should saturating sub here? Or expose some form of
-                        // pluggability so users could choose to error or saturate? Both seem useful.
-                        // It's also sort of inconsistent with overflow, which now saturates.
+                        // pluggability so users could choose to error or saturate? Both seem
+                        // useful. It's also sort of inconsistent with overflow, which now
+                        // saturates.
                         *c = (*c).checked_sub(&other_count)
                             .ok_or(SubtractionError::SubtrahendCountExceedsMinuendCount)?;
                     } else {
@@ -579,13 +585,14 @@ impl<T: Counter> Histogram<T> {
                 if !needs_restat {
                     // if we're not already going to recalculate everything, subtract from
                     // total_count
-                    self.total_count = self.total_count.checked_sub(other_count.as_u64())
+                    self.total_count = self.total_count
+                        .checked_sub(other_count.as_u64())
                         .expect("total count underflow on subtraction");
                 }
             }
         }
 
-        if needs_restat{
+        if needs_restat {
             let l = self.len();
             self.restat(l);
         }
@@ -680,7 +687,7 @@ impl<T: Counter> Histogram<T> {
         }
         if low > u64::max_value() / 2 {
             // avoid overflow in 2 * low
-            return Err(CreationError::LowExceedsMax)
+            return Err(CreationError::LowExceedsMax);
         }
         if high < 2 * low {
             return Err(CreationError::HighLessThanTwiceLow);
@@ -736,7 +743,6 @@ impl<T: Counter> Histogram<T> {
             bucket_count: 0,
             sub_bucket_count,
 
-
             // Establish leading_zero_count_base, used in bucket_index_of() fast path:
             // subtract the bits that would be used by the largest value in bucket 0.
             leading_zero_count_base: 64 - unit_magnitude - sub_bucket_count_magnitude,
@@ -764,10 +770,11 @@ impl<T: Counter> Histogram<T> {
     /// Construct a `Histogram` with the same range settings as a given source histogram,
     /// duplicating the source's start/end timestamps (but NOT its contents).
     pub fn new_from<F: Counter>(source: &Histogram<F>) -> Histogram<T> {
-        let mut h = Self::new_with_bounds(source.lowest_discernible_value,
-                                          source.highest_trackable_value,
-                                          source.significant_value_digits)
-            .expect("Using another histogram's parameters failed");
+        let mut h = Self::new_with_bounds(
+            source.lowest_discernible_value,
+            source.highest_trackable_value,
+            source.significant_value_digits,
+        ).expect("Using another histogram's parameters failed");
 
         // h.start_time = source.start_time;
         // h.end_time = source.end_time;
@@ -807,13 +814,16 @@ impl<T: Counter> Histogram<T> {
             }
 
             // We're growing the histogram, so new high > old high and is therefore >= 2x low.
-            self.resize(value).map_err(|_| RecordError::ResizeFailedUsizeTypeTooSmall)?;
-            self.highest_trackable_value = self.highest_equivalent(self.value_for(self.last_index()));
+            self.resize(value)
+                .map_err(|_| RecordError::ResizeFailedUsizeTypeTooSmall)?;
+            self.highest_trackable_value =
+                self.highest_equivalent(self.value_for(self.last_index()));
 
             {
                 let c = self.mut_at(value).expect("value should fit after resize");
                 // after resize, should be no possibility of overflow because this is a new slot
-                *c = (*c).checked_add(&count).expect("count overflow after resize");
+                *c = (*c).checked_add(&count)
+                    .expect("count overflow after resize");
             }
         }
 
@@ -842,7 +852,12 @@ impl<T: Counter> Histogram<T> {
     ///
     /// Returns an error if `value` exceeds the highest trackable value and auto-resize is
     /// disabled.
-    pub fn record_n_correct(&mut self, value: u64, count: T, interval: u64) -> Result<(), RecordError> {
+    pub fn record_n_correct(
+        &mut self,
+        value: u64,
+        count: T,
+        interval: u64,
+    ) -> Result<(), RecordError> {
         self.record_n(value, count)?;
         if interval == 0 {
             return Ok(());
@@ -899,21 +914,41 @@ impl<T: Counter> Histogram<T> {
     ///
     /// println!("{:?}", hist.iter_quantiles(1).collect::<Vec<_>>());
     ///
-    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.0001), 0.0001, 0.0, 1, 1)));
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(hist.value_at_quantile(0.0001), 0.0001, 0.0, 1, 1))
+    /// );
     /// // step size = 50
-    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.5), 0.5, 0.5, 1, 5000 - 1)));
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(hist.value_at_quantile(0.5), 0.5, 0.5, 1, 5000 - 1))
+    /// );
     /// // step size = 25
-    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.75), 0.75, 0.75, 1, 2500)));
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(hist.value_at_quantile(0.75), 0.75, 0.75, 1, 2500))
+    /// );
     /// // step size = 12.5
-    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.875), 0.875, 0.875, 1, 1250)));
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(hist.value_at_quantile(0.875), 0.875, 0.875, 1, 1250))
+    /// );
     /// // step size = 6.25
-    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.9375), 0.9375, 0.9375, 1, 625)));
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(hist.value_at_quantile(0.9375), 0.9375, 0.9375, 1, 625))
+    /// );
     /// // step size = 3.125
-    /// assert_eq!(perc.next(), Some(IterationValue::new(hist.value_at_quantile(0.9688), 0.9688, 0.96875, 1, 313)));
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(hist.value_at_quantile(0.9688), 0.9688, 0.96875, 1, 313))
+    /// );
     /// // etc...
     /// ```
-    pub fn iter_quantiles<'a>(&'a self, ticks_per_half_distance: u32)
-            -> HistogramIterator<'a, T, iterators::quantile::Iter<'a, T>> {
+    pub fn iter_quantiles<'a>(
+        &'a self,
+        ticks_per_half_distance: u32,
+    ) -> HistogramIterator<'a, T, iterators::quantile::Iter<'a, T>> {
         // TODO upper bound on ticks per half distance? 2^31 ticks is not useful
         iterators::quantile::Iter::new(self, ticks_per_half_distance)
     }
@@ -935,19 +970,48 @@ impl<T: Counter> Histogram<T> {
     /// hist += 850;
     ///
     /// let mut perc = hist.iter_linear(100);
-    /// assert_eq!(perc.next(), Some(IterationValue::new(99, hist.quantile_below(99), hist.quantile_below(99), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(199, hist.quantile_below(199), hist.quantile_below(199), 0, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(299, hist.quantile_below(299), hist.quantile_below(299), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(399, hist.quantile_below(399), hist.quantile_below(399), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(499, hist.quantile_below(499), hist.quantile_below(499), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(599, hist.quantile_below(599), hist.quantile_below(599), 0, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(699, hist.quantile_below(699), hist.quantile_below(699), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(799, hist.quantile_below(799), hist.quantile_below(799), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(899, hist.quantile_below(899), hist.quantile_below(899), 0, 2)));
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(99, hist.quantile_below(99), hist.quantile_below(99), 0, 0))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(199, hist.quantile_below(199), hist.quantile_below(199), 0, 1))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(299, hist.quantile_below(299), hist.quantile_below(299), 0, 0))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(399, hist.quantile_below(399), hist.quantile_below(399), 0, 0))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(499, hist.quantile_below(499), hist.quantile_below(499), 0, 0))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(599, hist.quantile_below(599), hist.quantile_below(599), 0, 1))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(699, hist.quantile_below(699), hist.quantile_below(699), 0, 0))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(799, hist.quantile_below(799), hist.quantile_below(799), 0, 0))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(899, hist.quantile_below(899), hist.quantile_below(899), 0, 2))
+    /// );
     /// assert_eq!(perc.next(), None);
     /// ```
-    pub fn iter_linear<'a>(&'a self, step: u64)
-            -> HistogramIterator<'a, T, iterators::linear::Iter<'a, T>> {
+    pub fn iter_linear<'a>(
+        &'a self,
+        step: u64,
+    ) -> HistogramIterator<'a, T, iterators::linear::Iter<'a, T>> {
         iterators::linear::Iter::new(self, step)
     }
 
@@ -967,14 +1031,29 @@ impl<T: Counter> Histogram<T> {
     /// hist += 850;
     ///
     /// let mut perc = hist.iter_log(1, 10.0);
-    /// assert_eq!(perc.next(), Some(IterationValue::new(0, hist.quantile_below(0), hist.quantile_below(0), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(9, hist.quantile_below(9), hist.quantile_below(9), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(99, hist.quantile_below(99), hist.quantile_below(99), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(999, hist.quantile_below(999), hist.quantile_below(999), 0, 4)));
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(0, hist.quantile_below(0), hist.quantile_below(0), 0, 0))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(9, hist.quantile_below(9), hist.quantile_below(9), 0, 0))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(99, hist.quantile_below(99), hist.quantile_below(99), 0, 0))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(999, hist.quantile_below(999), hist.quantile_below(999), 0, 4))
+    /// );
     /// assert_eq!(perc.next(), None);
     /// ```
-    pub fn iter_log<'a>(&'a self, start: u64, exp: f64)
-            -> HistogramIterator<'a, T, iterators::log::Iter<'a, T>> {
+    pub fn iter_log<'a>(
+        &'a self,
+        start: u64,
+        exp: f64,
+    ) -> HistogramIterator<'a, T, iterators::log::Iter<'a, T>> {
         iterators::log::Iter::new(self, start, exp)
     }
 
@@ -994,14 +1073,25 @@ impl<T: Counter> Histogram<T> {
     /// hist += 850;
     ///
     /// let mut perc = hist.iter_recorded();
-    /// assert_eq!(perc.next(), Some(IterationValue::new(100, hist.quantile_below(100), hist.quantile_below(100), 1, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(500, hist.quantile_below(500), hist.quantile_below(500), 1, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(800, hist.quantile_below(800), hist.quantile_below(800), 1, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(850, hist.quantile_below(850), hist.quantile_below(850), 1, 1)));
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(100, hist.quantile_below(100), hist.quantile_below(100), 1, 1))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(500, hist.quantile_below(500), hist.quantile_below(500), 1, 1))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(800, hist.quantile_below(800), hist.quantile_below(800), 1, 1))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(850, hist.quantile_below(850), hist.quantile_below(850), 1, 1))
+    /// );
     /// assert_eq!(perc.next(), None);
     /// ```
-    pub fn iter_recorded<'a>(&'a self)
-            -> HistogramIterator<'a, T, iterators::recorded::Iter> {
+    pub fn iter_recorded<'a>(&'a self) -> HistogramIterator<'a, T, iterators::recorded::Iter> {
         iterators::recorded::Iter::new(self)
     }
 
@@ -1022,15 +1112,42 @@ impl<T: Counter> Histogram<T> {
     ///
     /// let mut perc = hist.iter_all();
     /// assert_eq!(perc.next(), Some(IterationValue::new(0, 0.0, 0.0, 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(1, hist.quantile_below(1), hist.quantile_below(1), 1, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(2, hist.quantile_below(2), hist.quantile_below(2), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(3, hist.quantile_below(3), hist.quantile_below(3), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(4, hist.quantile_below(4), hist.quantile_below(4), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(5, hist.quantile_below(5), hist.quantile_below(5), 1, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(6, hist.quantile_below(6), hist.quantile_below(6), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(7, hist.quantile_below(7), hist.quantile_below(7), 0, 0)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(8, hist.quantile_below(8), hist.quantile_below(8), 1, 1)));
-    /// assert_eq!(perc.next(), Some(IterationValue::new(9, hist.quantile_below(9), hist.quantile_below(9), 0, 0)));
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(1, hist.quantile_below(1), hist.quantile_below(1), 1, 1))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(2, hist.quantile_below(2), hist.quantile_below(2), 0, 0))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(3, hist.quantile_below(3), hist.quantile_below(3), 0, 0))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(4, hist.quantile_below(4), hist.quantile_below(4), 0, 0))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(5, hist.quantile_below(5), hist.quantile_below(5), 1, 1))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(6, hist.quantile_below(6), hist.quantile_below(6), 0, 0))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(7, hist.quantile_below(7), hist.quantile_below(7), 0, 0))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(8, hist.quantile_below(8), hist.quantile_below(8), 1, 1))
+    /// );
+    /// assert_eq!(
+    ///     perc.next(),
+    ///     Some(IterationValue::new(9, hist.quantile_below(9), hist.quantile_below(9), 0, 0))
+    /// );
     /// assert_eq!(perc.next(), Some(IterationValue::new(10, 1.0, 1.0, 0, 0)));
     /// ```
     pub fn iter_all<'a>(&'a self) -> HistogramIterator<'a, T, iterators::all::Iter> {
@@ -1044,8 +1161,10 @@ impl<T: Counter> Histogram<T> {
     /// Get the lowest recorded value level in the histogram.
     /// If the histogram has no recorded values, the value returned will be 0.
     pub fn min(&self) -> u64 {
-        if self.total_count == 0 ||
-            self.count_at_index(0).expect("counts array must be non-empty") != T::zero() {
+        if self.total_count == 0
+            || self.count_at_index(0)
+                .expect("counts array must be non-empty") != T::zero()
+        {
             0
         } else {
             self.min_nz()
@@ -1087,8 +1206,8 @@ impl<T: Counter> Histogram<T> {
 
         self.iter_recorded().fold(0.0_f64, |total, v| {
             // TODO overflow?
-            total +
-                self.median_equivalent(v.value_iterated_to()) as f64 * v.count_at_value().as_f64()
+            total
+                + self.median_equivalent(v.value_iterated_to()) as f64 * v.count_at_value().as_f64()
                     / self.total_count as f64
         })
     }
@@ -1129,11 +1248,7 @@ impl<T: Counter> Histogram<T> {
     /// inaccurate results.
     pub fn value_at_quantile(&self, quantile: f64) -> u64 {
         // Cap at 1.0
-        let quantile = if quantile > 1.0 {
-            1.0
-        } else {
-            quantile
-        };
+        let quantile = if quantile > 1.0 { 1.0 } else { quantile };
 
         let fractional_count = quantile * self.total_count as f64;
         // If we're part-way into the next highest int, we should use that as the count
@@ -1190,7 +1305,9 @@ impl<T: Counter> Histogram<T> {
         let target_index = self.index_for_or_last(value);
         // TODO use RangeInclusive when it's stable to avoid checked_add
         let total_to_current_index = (0..target_index.checked_add(1).expect("usize overflow"))
-            .map(|i| self.count_at_index(i).expect("index is <= last_index()"))
+            .map(|i| {
+                self.count_at_index(i).expect("index is <= last_index()")
+            })
             .fold(0_u64, |t, v| t.saturating_add(v.as_u64()));
         total_to_current_index.as_f64() / self.total_count as f64
     }
@@ -1213,7 +1330,9 @@ impl<T: Counter> Histogram<T> {
         let high_index = self.index_for_or_last(high);
         // TODO use RangeInclusive when it's stable to avoid checked_add
         (low_index..high_index.checked_add(1).expect("usize overflow"))
-            .map(|i| self.count_at_index(i).expect("index is <= last_index()"))
+            .map(|i| {
+                self.count_at_index(i).expect("index is <= last_index()")
+            })
             .fold(0_u64, |t, v| t.saturating_add(v.as_u64()))
     }
 
@@ -1226,7 +1345,8 @@ impl<T: Counter> Histogram<T> {
     /// If the value is larger than the maximum representable value, it will be clamped to the
     /// max representable value.
     pub fn count_at(&self, value: u64) -> T {
-        self.count_at_index(self.index_for_or_last(value)).expect("index is <= last_index()")
+        self.count_at_index(self.index_for_or_last(value))
+            .expect("index is <= last_index()")
     }
 
     // ********************************************************************************************
@@ -1262,7 +1382,8 @@ impl<T: Counter> Histogram<T> {
     /// Note that the return value is capped at `u64::max_value()`.
     pub fn median_equivalent(&self, value: u64) -> u64 {
         // adding half of the range to the bottom of the range shouldn't overflow
-        self.lowest_equivalent(value).checked_add(self.equivalent_range(value) >> 1)
+        self.lowest_equivalent(value)
+            .checked_add(self.equivalent_range(value) >> 1)
             .expect("median equivalent should not overflow")
     }
 
@@ -1272,7 +1393,8 @@ impl<T: Counter> Histogram<T> {
     ///
     /// Note that the return value is capped at `u64::max_value()`.
     pub fn next_non_equivalent(&self, value: u64) -> u64 {
-        self.lowest_equivalent(value).saturating_add(self.equivalent_range(value))
+        self.lowest_equivalent(value)
+            .saturating_add(self.equivalent_range(value))
     }
 
     /// Get the size (in value units) of the range of values that are equivalent to the given value
@@ -1308,9 +1430,9 @@ impl<T: Counter> Histogram<T> {
 
         // The subtraction won't underflow because half count is always at least 1.
         // TODO precalculate sub_bucket_half_count mask if benchmarks show improvement
-        let mut sub_bucket_index =
-            ((index.to_u32().expect("index must fit in u32")) & (self.sub_bucket_half_count - 1))
-                + self.sub_bucket_half_count;
+        let mut sub_bucket_index = ((index.to_u32().expect("index must fit in u32"))
+            & (self.sub_bucket_half_count - 1))
+            + self.sub_bucket_half_count;
         if bucket_index < 0 {
             // lower half of first bucket case; move sub bucket index back
             sub_bucket_index -= self.sub_bucket_half_count;
@@ -1413,12 +1535,16 @@ impl<T: Counter> Histogram<T> {
     fn resize(&mut self, high: u64) -> Result<(), UsizeTypeTooSmall> {
         // will not overflow because lowest_discernible_value must be at least as small as
         // u64::max_value() / 2 to have passed initial validation
-        assert!(high >= 2 * self.lowest_discernible_value,
-            "highest trackable value must be >= (2 * lowest discernible value)");
+        assert!(
+            high >= 2 * self.lowest_discernible_value,
+            "highest trackable value must be >= (2 * lowest discernible value)"
+        );
 
         // establish counts array length:
         let buckets_needed = self.buckets_to_cover(high);
-        let len = self.num_bins(buckets_needed).to_usize().ok_or(UsizeTypeTooSmall)?;
+        let len = self.num_bins(buckets_needed)
+            .to_usize()
+            .ok_or(UsizeTypeTooSmall)?;
 
         // establish exponent range needed to support the trackable value with no overflow:
         self.bucket_count = buckets_needed;
@@ -1500,16 +1626,16 @@ struct RestatState<T: Counter> {
     max_index: Option<usize>,
     min_index: Option<usize>,
     total_count: u64,
-    phantom: std::marker::PhantomData<T>
+    phantom: std::marker::PhantomData<T>,
 }
 
-impl <T: Counter> RestatState<T> {
+impl<T: Counter> RestatState<T> {
     fn new() -> RestatState<T> {
         RestatState {
             max_index: None,
             min_index: None,
             total_count: 0,
-            phantom: std::marker::PhantomData
+            phantom: std::marker::PhantomData,
         }
     }
 
@@ -1575,11 +1701,13 @@ impl<T: Counter> AddAssign<u64> for Histogram<T> {
 
 // allow comparing histograms
 impl<T: Counter, F: Counter> PartialEq<Histogram<F>> for Histogram<T>
-    where T: PartialEq<F>
+where
+    T: PartialEq<F>,
 {
     fn eq(&self, other: &Histogram<F>) -> bool {
-        if self.lowest_discernible_value != other.lowest_discernible_value ||
-           self.significant_value_digits != other.significant_value_digits {
+        if self.lowest_discernible_value != other.lowest_discernible_value
+            || self.significant_value_digits != other.significant_value_digits
+        {
             return false;
         }
         if self.total_count != other.total_count {
@@ -1592,9 +1720,11 @@ impl<T: Counter, F: Counter> PartialEq<Histogram<F>> for Histogram<T>
             return false;
         }
 
-        (0..self.counts.len()).all(|i| self.counts[i] == match other.count_at_index(i) {
-            Some(c) => c,
-            None => return false
+        (0..self.counts.len()).all(|i| {
+            self.counts[i] == match other.count_at_index(i) {
+                Some(c) => c,
+                None => return false,
+            }
         })
     }
 }

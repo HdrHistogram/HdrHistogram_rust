@@ -1,4 +1,4 @@
-use super::super::{Histogram, Counter, SubtractionError};
+use super::super::{Counter, Histogram, SubtractionError};
 use std::cmp;
 use std::borrow::Borrow;
 
@@ -90,7 +90,10 @@ fn subtract_to_negative_counts_error() {
     h2.record_n(TEST_VALUE_LEVEL, 2).unwrap();
     h2.record_n(1000 * TEST_VALUE_LEVEL, 2).unwrap();
 
-    assert_eq!(SubtractionError::SubtrahendCountExceedsMinuendCount, h1.subtract(&h2).unwrap_err());
+    assert_eq!(
+        SubtractionError::SubtrahendCountExceedsMinuendCount,
+        h1.subtract(&h2).unwrap_err()
+    );
 
     assert_min_max_count(h1);
     assert_min_max_count(h2);
@@ -109,7 +112,10 @@ fn subtract_subtrahend_values_outside_minuend_range_error() {
     big += 1000 * TEST_VALUE_LEVEL;
     big += 2 * max;
 
-    assert_eq!(SubtractionError::SubtrahendValueExceedsMinuendRange, h1.subtract(&big).unwrap_err());
+    assert_eq!(
+        SubtractionError::SubtrahendValueExceedsMinuendRange,
+        h1.subtract(&big).unwrap_err()
+    );
 
     assert_min_max_count(h1);
     assert_min_max_count(big);
