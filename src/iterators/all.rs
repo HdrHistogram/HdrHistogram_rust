@@ -26,4 +26,8 @@ impl<T: Counter> PickyIterator<T> for Iter {
     fn more(&mut self, _: usize) -> bool {
         true
     }
+
+    fn quantile_iterated_to(&self) -> Option<f64> {
+        None
+    }
 }

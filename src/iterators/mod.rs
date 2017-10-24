@@ -23,6 +23,11 @@ pub trait PickyIterator<T: Counter> {
     fn pick(&mut self, index: usize, total_count_to_index: u64) -> bool;
     /// should we keep iterating even though all future indices are zeros?
     fn more(&mut self, index: usize) -> bool;
+
+    /// Supply the quantile iterated to in the last `pick()`, if available. If `None` is returned,
+    /// the quantile of the current value will be used instead. Probably only useful for the
+    /// quantile iterator.
+    fn quantile_iterated_to(&self) -> Option<f64>;
 }
 
 /// `HistogramIterator` provides a base iterator for a `Histogram`.
@@ -53,43 +58,49 @@ pub struct HistogramIterator<'a, T: 'a + Counter, P: PickyIterator<T>> {
 pub struct IterationValue<T: Counter> {
     value: u64,
     quantile: f64,
+    quantile_iterated_to: f64,
     count_at_value: T,
     count_since_last_iteration: u64
 }
 
 impl<T: Counter> IterationValue<T> {
     /// Create a new IterationValue.
-    pub fn new(value: u64, quantile: f64, count_at_value: T, count_since_last_iteration: u64)
-            -> IterationValue<T> {
+    pub fn new(value: u64, quantile: f64, quantile_iterated_to: f64, count_at_value: T,
+               count_since_last_iteration: u64) -> IterationValue<T> {
         IterationValue {
             value,
             quantile,
+            quantile_iterated_to,
             count_at_value,
             count_since_last_iteration
         }
     }
 
-    /// the lowest value stored in the current histogram bin
+    /// The lowest value stored in the current histogram bin
     pub fn value(&self) -> u64 {
         self.value
     }
 
-    /// percent of recorded values that are equivalent to or below `value`.
+    /// Percent of recorded values that are equivalent to or below `value`.
     /// This is simply the quantile multiplied by 100.0, so if you care about maintaining the best
     /// floating-point precision, use `quantile()` instead.
     pub fn percentile(&self) -> f64 {
         self.quantile * 100.0
     }
 
-    /// quantile of recorded values that are equivalent to or below `value`
+    /// Quantile of recorded values that are equivalent to or below `value`
     pub fn quantile(&self) -> f64 { self.quantile }
 
-    /// recorded count for values equivalent to `value`
+    /// Quantile iterated to, which in the case of quantile iteration may be different from
+    /// `quantile` because slightly different quantiles can still map to the same bucket.
+    pub fn quantile_iterated_to(&self) -> f64 { self.quantile_iterated_to }
+
+    /// Recorded count for values equivalent to `value`
     pub fn count_at_value(&self) -> T {
         self.count_at_value
     }
 
-    /// number of values traversed since the last iteration step
+    /// Number of values traversed since the last iteration step
     pub fn count_since_last_iteration(&self) -> u64 {
         self.count_since_last_iteration
     }
@@ -109,9 +120,11 @@ impl<'a, T: Counter, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
     }
 
     fn current(&self) -> IterationValue<T> {
+        let quantile = self.total_count_to_index as f64 / self.hist.count() as f64;
         IterationValue {
             value: self.hist.highest_equivalent(self.hist.value_for(self.current_index)),
-            quantile: self.total_count_to_index as f64 / self.hist.count() as f64,
+            quantile,
+            quantile_iterated_to: self.picker.quantile_iterated_to().unwrap_or(quantile),
             count_at_value: self.hist.count_at_index(self.current_index)
                 .expect("current index cannot exceed counts length"),
             count_since_last_iteration: self.total_count_to_index - self.prev_total_count
@@ -142,7 +155,9 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
                 return None;
             }
 
-            // have we yielded all non-zeros in the histogram?
+            // TODO should check if we've reached max, not count, to avoid early termination
+            // on histograms with very large counts whose total would exceed u64::max_value()
+            // Have we yielded all non-zeros in the histogram?
             let total = self.hist.count();
             if self.prev_total_count == total {
                 // is the picker done?
@@ -163,7 +178,7 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
                     // if we've seen all counts, no other counts should be non-zero
                     if self.total_count_to_index == total {
                         // TODO this can fail when total count overflows
-                        assert!(count == T::zero());
+                        assert_eq!(count, T::zero());
                     }
 
                     // TODO overflow
@@ -182,6 +197,7 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
                 // exposed to the same value again after yielding. not sure why this is the
                 // behavior we want, but it's what the original Java implementation dictates.
 
+                // TODO count starting at 0 each time we emit a value to be less prone to overflow
                 self.prev_total_count = self.total_count_to_index;
                 return Some(val);
             }

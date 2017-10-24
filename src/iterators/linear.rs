@@ -20,8 +20,8 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
         assert!(value_units_per_bucket > 0, "value_units_per_bucket must be > 0");
         HistogramIterator::new(hist,
                                Iter {
-                                   hist: hist,
-                                   value_units_per_bucket: value_units_per_bucket,
+                                   hist,
+                                   value_units_per_bucket,
                                    // won't underflow because value_units_per_bucket > 0
                                    current_step_highest_value_reporting_level: value_units_per_bucket - 1,
                                    current_step_lowest_value_reporting_level:
@@ -50,5 +50,9 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
         // the last value that has a count. The difference is subtle but important)...
         // TODO index + 1 could overflow 16-bit usize
         self.current_step_highest_value_reporting_level + 1 < self.hist.value_for(index + 1)
+    }
+
+    fn quantile_iterated_to(&self) -> Option<f64> {
+        None
     }
 }
