@@ -428,7 +428,7 @@ fn iter_linear_bucket_values_size_8_all_buckets() {
     // two buckets: 32 sub-buckets with scale 1, 16 with scale 2
     let mut h = histo64(1, 63, 1);
 
-    assert_eq!(48, h.len());
+    assert_eq!(48, h.distinct_values());
 
     h.record(3).unwrap();
     h.record(4).unwrap();

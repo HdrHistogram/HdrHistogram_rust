@@ -180,7 +180,7 @@ where
         // unless we have ended.
         while !self.ended {
             // have we reached the end?
-            if self.current_index == self.hist.len() {
+            if self.current_index == self.hist.distinct_values() {
                 self.ended = true;
                 return None;
             }
@@ -194,7 +194,7 @@ where
                 }
             } else {
                 // nope -- alright, let's keep iterating
-                assert!(self.current_index < self.hist.len());
+                assert!(self.current_index < self.hist.distinct_values());
 
                 if self.fresh {
                     // at a new index, and not past the max, so there's nonzero counts to add
@@ -218,7 +218,7 @@ where
                 self.total_count_to_index,
                 self.count_at_index,
             ) {
-                let quantile = self.total_count_to_index as f64 / self.hist.count() as f64;
+                let quantile = self.total_count_to_index as f64 / self.hist.len() as f64;
                 let val = IterationValue {
                     value_iterated_to: metadata.value_iterated_to.unwrap_or_else(|| {
                         self.hist

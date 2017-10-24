@@ -73,7 +73,7 @@ fn record() {
     let mut h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     h += TEST_VALUE_LEVEL;
     assert_eq!(h.count_at(TEST_VALUE_LEVEL), 1);
-    assert_eq!(h.count(), 1);
+    assert_eq!(h.len(), 1);
     assert!(verify_max(h));
 }
 
@@ -96,13 +96,13 @@ fn record_in_interval() {
     assert_eq!(h.count_at((TEST_VALUE_LEVEL * 2) / 4), 1);
     assert_eq!(h.count_at((TEST_VALUE_LEVEL * 3) / 4), 1);
     assert_eq!(h.count_at((TEST_VALUE_LEVEL * 4) / 4), 1);
-    assert_eq!(h.count(), 4);
+    assert_eq!(h.len(), 4);
     // But the raw data will not:
     assert_eq!(r.count_at(TEST_VALUE_LEVEL / 4), 0);
     assert_eq!(r.count_at((TEST_VALUE_LEVEL * 2) / 4), 0);
     assert_eq!(r.count_at((TEST_VALUE_LEVEL * 3) / 4), 0);
     assert_eq!(r.count_at((TEST_VALUE_LEVEL * 4) / 4), 1);
-    assert_eq!(r.count(), 1);
+    assert_eq!(r.len(), 1);
 
     assert!(verify_max(h));
 }
@@ -114,7 +114,7 @@ fn reset() {
     h.reset();
 
     assert_eq!(h.count_at(TEST_VALUE_LEVEL), 0);
-    assert_eq!(h.count(), 0);
+    assert_eq!(h.len(), 0);
     assert!(verify_max(h));
 }
 
@@ -131,7 +131,7 @@ fn add() {
 
     assert_eq!(h1.count_at(TEST_VALUE_LEVEL), 2);
     assert_eq!(h1.count_at(1000 * TEST_VALUE_LEVEL), 2);
-    assert_eq!(h1.count(), 4);
+    assert_eq!(h1.len(), 4);
 
     let mut big = Histogram::<u64>::new_with_max(2 * TRACKABLE_MAX, SIGFIG).unwrap();
     big += TEST_VALUE_LEVEL;
@@ -143,7 +143,7 @@ fn add() {
     assert_eq!(big.count_at(TEST_VALUE_LEVEL), 3);
     assert_eq!(big.count_at(1000 * TEST_VALUE_LEVEL), 3);
     assert_eq!(big.count_at(2 * TRACKABLE_MAX), 1); // overflow smaller hist...
-    assert_eq!(big.count(), 7);
+    assert_eq!(big.len(), 7);
 
     // But trying to add a larger histogram into a smaller one should throw an AIOOB:
     assert!(h1.add(&big).is_err());
@@ -258,7 +258,7 @@ where
         actual.count_at(10 * TEST_VALUE_LEVEL),
         expected.count_at(10 * TEST_VALUE_LEVEL)
     );
-    assert_eq!(actual.count(), expected.count());
+    assert_eq!(actual.len(), expected.len());
     assert!(verify_max(expected));
     assert!(verify_max(actual));
 }
@@ -382,7 +382,7 @@ fn value_count_overflow_from_record_saturates_u16() {
     // individual count has saturated
     assert_eq!(u16::max_value(), h.count_at(3));
     // total is a u64 though
-    assert_eq!(u64::from(u16::max_value() - 1) * 2, h.count());
+    assert_eq!(u64::from(u16::max_value() - 1) * 2, h.len());
 }
 
 #[test]
@@ -393,7 +393,7 @@ fn value_count_overflow_from_record_saturates_u64() {
     h.record_n(1, u64::max_value() - 1).unwrap();
 
     assert_eq!(u64::max_value(), h.count_at(1));
-    assert_eq!(u64::max_value(), h.count());
+    assert_eq!(u64::max_value(), h.len());
 }
 
 #[test]
@@ -410,7 +410,7 @@ fn value_count_overflow_from_record_autoresize_doesnt_panic_saturates() {
 
     assert_eq!(u64::max_value(), h.count_at(1));
     assert_eq!(u64::max_value(), h.count_at(1_000_000_000));
-    assert_eq!(u64::max_value(), h.count());
+    assert_eq!(u64::max_value(), h.len());
 }
 
 #[test]
@@ -423,7 +423,7 @@ fn value_count_overflow_from_add_same_dimensions_saturates() {
 
     h.add(h2).unwrap();
     assert_eq!(u64::max_value(), h.count_at(1));
-    assert_eq!(u64::max_value(), h.count());
+    assert_eq!(u64::max_value(), h.len());
 }
 
 #[test]
@@ -437,7 +437,7 @@ fn value_count_overflow_from_add_different_precision_saturates() {
 
     h.add(h2).unwrap();
     assert_eq!(u64::max_value(), h.count_at(1));
-    assert_eq!(u64::max_value(), h.count());
+    assert_eq!(u64::max_value(), h.len());
 }
 
 #[test]
@@ -453,7 +453,7 @@ fn value_count_overflow_from_add_with_resize_to_same_dimensions_saturates() {
 
     h.add(h2).unwrap();
     assert_eq!(u64::max_value(), h.count_at(1));
-    assert_eq!(u64::max_value(), h.count());
+    assert_eq!(u64::max_value(), h.len());
 }
 
 #[test]
@@ -465,7 +465,7 @@ fn total_count_overflow_from_record_saturates() {
 
     assert_eq!(u64::max_value() - 1, h.count_at(1));
     assert_eq!(u64::max_value() - 1, h.count_at(10));
-    assert_eq!(u64::max_value(), h.count());
+    assert_eq!(u64::max_value(), h.len());
 }
 
 #[test]
@@ -484,7 +484,7 @@ fn total_count_overflow_from_add_same_dimensions_saturates_calculating_other_add
     assert_eq!(10, h.count_at(20));
 
     // if accumulating total count for h2 had overflowed, we would see max_value - 1000 + 9 here
-    assert_eq!(u64::max_value(), h.count());
+    assert_eq!(u64::max_value(), h.len());
 }
 
 #[test]
@@ -501,7 +501,7 @@ fn total_count_overflow_from_add_same_dimensions_saturates_when_added_to_orig_to
     h.add(h2).unwrap();
     assert_eq!(u64::max_value() - 10, h.count_at(1));
     assert_eq!(9, h.count_at(20));
-    assert_eq!(u64::max_value(), h.count());
+    assert_eq!(u64::max_value(), h.len());
 }
 
 #[test]
@@ -517,7 +517,7 @@ fn total_count_overflow_from_add_different_precision_saturates() {
     h.add(h2).unwrap();
     assert_eq!(u64::max_value() - 1, h.count_at(1));
     assert_eq!(u64::max_value() - 1, h.count_at(20));
-    assert_eq!(u64::max_value(), h.count());
+    assert_eq!(u64::max_value(), h.len());
 }
 
 #[test]
@@ -532,7 +532,7 @@ fn total_count_overflow_from_add_with_resize_saturates() {
 
     h.add(h2).unwrap();
     assert_eq!(u64::max_value(), h.count_at(1));
-    assert_eq!(u64::max_value(), h.count());
+    assert_eq!(u64::max_value(), h.len());
 }
 
 #[test]
@@ -545,7 +545,7 @@ fn total_count_overflow_from_deserialize_saturates() {
     h.record_n(1, i64::max_value() as u64).unwrap();
     h.record_n(1000, i64::max_value() as u64).unwrap();
     h.record_n(1_000_000, i64::max_value() as u64).unwrap();
-    assert_eq!(u64::max_value(), h.count());
+    assert_eq!(u64::max_value(), h.len());
 
     let mut vec = Vec::new();
 
@@ -553,7 +553,7 @@ fn total_count_overflow_from_deserialize_saturates() {
     let deser_h: Histogram<u64> = Deserializer::new()
         .deserialize(&mut vec.as_slice())
         .unwrap();
-    assert_eq!(u64::max_value(), deser_h.count());
+    assert_eq!(u64::max_value(), deser_h.len());
 }
 
 #[test]

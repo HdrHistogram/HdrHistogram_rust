@@ -171,7 +171,7 @@ fn do_serialize_bench<S>(
     S: TestOnlyHypotheticalSerializerInterface,
 {
     let mut h = Histogram::<u64>::new_with_bounds(low, high, digits).unwrap();
-    let random_counts = (fraction_of_counts_len * h.len() as f64) as usize;
+    let random_counts = (fraction_of_counts_len * h.distinct_values() as f64) as usize;
     let mut vec = Vec::with_capacity(random_counts);
 
     let range = Range::new(low, high);
@@ -199,7 +199,7 @@ fn do_deserialize_bench<S>(
     S: TestOnlyHypotheticalSerializerInterface,
 {
     let mut h = Histogram::<u64>::new_with_bounds(low, high, digits).unwrap();
-    let random_counts = (fraction_of_counts_len * h.len() as f64) as usize;
+    let random_counts = (fraction_of_counts_len * h.distinct_values() as f64) as usize;
     let mut vec = Vec::with_capacity(random_counts);
 
     let range = Range::new(low, high);

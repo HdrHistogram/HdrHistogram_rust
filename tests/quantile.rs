@@ -71,7 +71,7 @@ fn value_at_quantile_20k() {
         h.record(i).unwrap();
     }
 
-    assert_eq!(20_000, h.count());
+    assert_eq!(20_000, h.len());
 
     assert!(h.equivalent(19961, h.value_at_quantile(0.99805)));
 }
@@ -104,7 +104,7 @@ fn value_at_quantile_matches_quantile_iter_sequence_values() {
             h.record(i).unwrap();
         }
 
-        assert_eq!(length, h.count());
+        assert_eq!(length, h.len());
 
         let iter = h.iter_quantiles(100);
 
@@ -159,7 +159,7 @@ fn value_at_quantile_matches_quantile_iter_random_values() {
             h.record(v).unwrap();
         }
 
-        assert_eq!(length as u64, h.count());
+        assert_eq!(length as u64, h.len());
 
         let iter = h.iter_quantiles(100);
 
@@ -212,7 +212,7 @@ fn value_at_quantile_matches_quantile_at_each_value_sequence_values() {
             h.record(i).unwrap();
         }
 
-        assert_eq!(length, h.count());
+        assert_eq!(length, h.len());
 
         for v in 1..(length + 1) {
             let quantile = (Rational::from(Integer::from(v as u64))
@@ -261,7 +261,7 @@ fn value_at_quantile_matches_quantile_at_each_value_random_values() {
 
         values.sort();
 
-        assert_eq!(length as u64, h.count());
+        assert_eq!(length as u64, h.len());
 
         for (index, &v) in values.iter().enumerate() {
             let quantile = (Rational::from(Integer::from(index as u64 + 1))
@@ -311,7 +311,7 @@ fn value_at_quantile_matches_random_quantile_random_values() {
 
         values.sort();
 
-        assert_eq!(length as u64, h.count());
+        assert_eq!(length as u64, h.len());
 
         for _ in 0..1_000 {
             let quantile = quantile_range.ind_sample(&mut rng);

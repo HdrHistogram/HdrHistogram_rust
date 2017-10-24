@@ -87,7 +87,7 @@ fn scaling_equivalence() {
     } = load_histograms();
 
     assert_near!(hist.mean() * SCALEF as f64, scaled_hist.mean(), 0.000001);
-    assert_eq!(hist.count(), scaled_hist.count());
+    assert_eq!(hist.len(), scaled_hist.len());
 
     let expected_99th = hist.value_at_quantile(0.99) * 512;
     let scaled_99th = scaled_hist.value_at_quantile(0.99);
@@ -100,7 +100,7 @@ fn scaling_equivalence() {
     // averages should be equivalent
     assert_near!(hist.mean() * SCALEF as f64, scaled_hist.mean(), 0.000001);
     // total count should be the same
-    assert_eq!(hist.count(), scaled_hist.count());
+    assert_eq!(hist.len(), scaled_hist.len());
     // 99%'iles should be equivalent
     assert_eq!(
         scaled_hist.highest_equivalent(hist.value_at_quantile(0.99) * 512),
@@ -117,7 +117,7 @@ fn scaling_equivalence() {
     // averages should be equivalent
     assert_near!(post.mean() * SCALEF as f64, scaled_post.mean(), 0.000001);
     // total count should be the same
-    assert_eq!(post.count(), scaled_post.count());
+    assert_eq!(post.len(), scaled_post.len());
     // 99%'iles should be equivalent
     assert_eq!(
         post.lowest_equivalent(post.value_at_quantile(0.99)) * SCALEF,
@@ -134,8 +134,8 @@ fn scaling_equivalence() {
 fn total_count() {
     let Loaded { hist, raw, .. } = load_histograms();
 
-    assert_eq!(raw.count(), 10001);
-    assert_eq!(hist.count(), 20000);
+    assert_eq!(raw.len(), 10001);
+    assert_eq!(hist.len(), 20000);
 }
 
 #[test]
@@ -488,7 +488,7 @@ fn iter_all() {
         // TODO: also test total count and total value once the iterator exposes this
         num += 1;
     }
-    assert_eq!(num, hist.len());
+    assert_eq!(num, hist.distinct_values());
 
     num = 0;
     let mut total_added_counts = 0;
@@ -505,7 +505,7 @@ fn iter_all() {
         total_added_counts += v.count_since_last_iteration();
         num += 1;
     }
-    assert_eq!(num, hist.len());
+    assert_eq!(num, hist.distinct_values());
     assert_eq!(total_added_counts, 20000);
 }
 
@@ -528,8 +528,8 @@ fn value_duplication() {
     let histogram1 = hist.clone();
 
     let mut num = 0;
-    let mut ranges = Vec::with_capacity(histogram1.len());
-    let mut counts = Vec::with_capacity(histogram1.len());
+    let mut ranges = Vec::with_capacity(histogram1.distinct_values());
+    let mut counts = Vec::with_capacity(histogram1.distinct_values());
     for v in histogram1.iter_all() {
         if v.count_since_last_iteration() > 0 {
             ranges.push(v.value_iterated_to());
@@ -537,7 +537,7 @@ fn value_duplication() {
         }
         num += 1;
     }
-    assert_eq!(num, histogram1.len());
+    assert_eq!(num, histogram1.distinct_values());
 
     let mut histogram2 = Histogram::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     for i in 0..ranges.len() {
@@ -564,5 +564,5 @@ fn total_count_exceeds_bucket_type() {
         h.record(100_000).unwrap();
     }
 
-    assert_eq!(400, h.count());
+    assert_eq!(400, h.len());
 }

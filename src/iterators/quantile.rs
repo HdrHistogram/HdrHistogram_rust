@@ -42,7 +42,7 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
 
         // This calculation, combined with the `quantile * count` in `value_at_quantile`, tends
         // to produce a count_at_quantile that is 1 ulp wrong. That's just the way IEEE754 works.
-        let current_quantile = running_total as f64 / self.hist.count() as f64;
+        let current_quantile = running_total as f64 / self.hist.len() as f64;
         if current_quantile < self.quantile_to_iterate_to {
             return None;
         }

@@ -212,13 +212,13 @@ fn quantiles<R: BufRead, W: Write>(
         "StdDeviation",
         hist.stdev(),
     )?;
-    write_extra_data(&mut writer, "Max", hist.max(), "Total count", hist.count())?;
+    write_extra_data(&mut writer, "Max", hist.max(), "Total count", hist.len())?;
     write_extra_data(
         &mut writer,
         "Buckets",
         hist.buckets(),
         "SubBuckets",
-        hist.len(),
+        hist.distinct_values(),
     )?;
 
     Ok(())

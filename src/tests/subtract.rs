@@ -11,7 +11,7 @@ fn assert_min_max_count<T: Counter, B: Borrow<Histogram<T>>>(hist: B) {
     let mut min = None;
     let mut max = None;
     let mut total = 0;
-    for i in 0..h.len() {
+    for i in 0..h.distinct_values() {
         let value = h.value_for(i);
         let count = h.count_at(value);
         if count == T::zero() {
@@ -28,7 +28,7 @@ fn assert_min_max_count<T: Counter, B: Borrow<Histogram<T>>>(hist: B) {
 
     assert_eq!(min, h.min());
     assert_eq!(max, h.max());
-    assert_eq!(total, h.count());
+    assert_eq!(total, h.len());
 }
 
 #[test]
@@ -44,17 +44,17 @@ fn subtract_after_add() {
     h1.add(&h2).unwrap();
     assert_eq!(h1.count_at(TEST_VALUE_LEVEL), 2);
     assert_eq!(h1.count_at(1000 * TEST_VALUE_LEVEL), 2);
-    assert_eq!(h1.count(), 4);
+    assert_eq!(h1.len(), 4);
 
     h1 += &h2;
     assert_eq!(h1.count_at(TEST_VALUE_LEVEL), 3);
     assert_eq!(h1.count_at(1000 * TEST_VALUE_LEVEL), 3);
-    assert_eq!(h1.count(), 6);
+    assert_eq!(h1.len(), 6);
 
     h1.subtract(&h2).unwrap();
     assert_eq!(h1.count_at(TEST_VALUE_LEVEL), 2);
     assert_eq!(h1.count_at(1000 * TEST_VALUE_LEVEL), 2);
-    assert_eq!(h1.count(), 4);
+    assert_eq!(h1.len(), 4);
 
     assert_min_max_count(h1);
     assert_min_max_count(h2);
@@ -69,13 +69,13 @@ fn subtract_to_zero_counts() {
 
     assert_eq!(h1.count_at(TEST_VALUE_LEVEL), 1);
     assert_eq!(h1.count_at(1000 * TEST_VALUE_LEVEL), 1);
-    assert_eq!(h1.count(), 2);
+    assert_eq!(h1.len(), 2);
 
     let clone = h1.clone();
     h1.subtract(&clone).unwrap();
     assert_eq!(h1.count_at(TEST_VALUE_LEVEL), 0);
     assert_eq!(h1.count_at(1000 * TEST_VALUE_LEVEL), 0);
-    assert_eq!(h1.count(), 0);
+    assert_eq!(h1.len(), 0);
 
     assert_min_max_count(h1);
 }
@@ -141,14 +141,14 @@ fn subtract_values_inside_minuend_range_works() {
     assert_eq!(big.count_at(TEST_VALUE_LEVEL), 3);
     assert_eq!(big.count_at(1000 * TEST_VALUE_LEVEL), 3);
     assert_eq!(big.count_at(2 * max), 3); // overflow smaller hist...
-    assert_eq!(big.count(), 9);
+    assert_eq!(big.len(), 9);
 
     // Subtracting the smaller histogram from the bigger one should work:
     big -= &h1;
     assert_eq!(big.count_at(TEST_VALUE_LEVEL), 2);
     assert_eq!(big.count_at(1000 * TEST_VALUE_LEVEL), 2);
     assert_eq!(big.count_at(2 * max), 3); // overflow smaller hist...
-    assert_eq!(big.count(), 7);
+    assert_eq!(big.len(), 7);
 
     assert_min_max_count(h1);
     assert_min_max_count(big);
@@ -172,7 +172,7 @@ fn subtract_values_strictly_inside_minuend_range_yields_same_min_max_no_restat()
 
     assert_eq!(1, h1.min());
     assert_eq!(1000, h1.max());
-    assert_eq!(2, h1.count());
+    assert_eq!(2, h1.len());
 
     assert_min_max_count(h1);
     assert_min_max_count(h2);
@@ -340,7 +340,7 @@ fn subtract_values_minuend_saturated_total_recalculates_saturated() {
     assert_eq!(1, h1.min());
     assert_eq!(1000, h1.max());
     // still saturated
-    assert_eq!(u64::max_value(), h1.count());
+    assert_eq!(u64::max_value(), h1.len());
 
     assert_min_max_count(h1);
     assert_min_max_count(h2);
@@ -368,7 +368,7 @@ fn subtract_values_minuend_saturated_total_recalculates_not_saturated() {
     assert_eq!(1, h1.min());
     assert_eq!(1000, h1.max());
     // not saturated
-    assert_eq!(u64::max_value() / 16 * 15, h1.count());
+    assert_eq!(u64::max_value() / 16 * 15, h1.len());
 
     assert_min_max_count(h1);
     assert_min_max_count(h2);

@@ -9,7 +9,7 @@ fn histogram_autosizing_edges() {
     let mut histogram = Histogram::<u64>::new(3).unwrap();
     histogram += (1_u64 << 62) - 1;
     assert_eq!(histogram.buckets(), 52);
-    assert_eq!(histogram.len(), 54272);
+    assert_eq!(histogram.distinct_values(), 54272);
     histogram += u64::max_value();
     assert_eq!(histogram.buckets(), 54);
     // unit magnitude = floor(log_2 (1 / 2)) = 0
@@ -17,7 +17,7 @@ fn histogram_autosizing_edges() {
     // sub bucket half count mag = 9
     // sub bucket count = 2^(sbhcm + 1) = 2^9 = 1024
     // total array size = (54 + 1) * (sub bucket count / 2) = 56320
-    assert_eq!(histogram.len(), 56320);
+    assert_eq!(histogram.distinct_values(), 56320);
 }
 
 #[test]
@@ -27,7 +27,7 @@ fn histogram_autosizing() {
         histogram += 1_u64 << i;
     }
     assert_eq!(histogram.buckets(), 53);
-    assert_eq!(histogram.len(), 55296);
+    assert_eq!(histogram.distinct_values(), 55296);
 }
 
 #[test]

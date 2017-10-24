@@ -284,7 +284,7 @@ impl<T: Counter> Histogram<T> {
     // ********************************************************************************************
 
     /// Get the current number of distinct values that can be represented in the histogram.
-    pub fn len(&self) -> usize {
+    pub fn distinct_values(&self) -> usize {
         self.counts.len()
     }
 
@@ -304,7 +304,13 @@ impl<T: Counter> Histogram<T> {
     }
 
     /// Get the total number of samples recorded.
+    #[deprecated(since = "6.0.0", note = "use `len` instead")]
     pub fn count(&self) -> u64 {
+        self.total_count
+    }
+
+    /// Get the total number of samples recorded.
+    pub fn len(&self) -> u64 {
         self.total_count
     }
 
@@ -372,7 +378,9 @@ impl<T: Counter> Histogram<T> {
 
     /// Get the index of the last histogram bin.
     fn last_index(&self) -> usize {
-        self.len().checked_sub(1).expect("Empty counts array?")
+        self.distinct_values()
+            .checked_sub(1)
+            .expect("Empty counts array?")
     }
 
     // ********************************************************************************************
@@ -452,7 +460,7 @@ impl<T: Counter> Histogram<T> {
             // Counts arrays are of the same length and meaning,
             // so we can just iterate and add directly:
             let mut observed_other_total_count: u64 = 0;
-            for i in 0..source.len() {
+            for i in 0..source.distinct_values() {
                 let other_count = source
                     .count_at_index(i)
                     .expect("iterating inside source length");
@@ -562,7 +570,7 @@ impl<T: Counter> Histogram<T> {
         // If total_count is at the max value, it may have saturated, so we must restat
         let mut needs_restat = self.total_count == u64::max_value();
 
-        for i in 0..subtrahend.len() {
+        for i in 0..subtrahend.distinct_values() {
             let other_count = subtrahend
                 .count_at_index(i)
                 .expect("index inside subtrahend len must exist");
@@ -599,7 +607,7 @@ impl<T: Counter> Histogram<T> {
         }
 
         if needs_restat {
-            let l = self.len();
+            let l = self.distinct_values();
             self.restat(l);
         }
 
@@ -785,7 +793,7 @@ impl<T: Counter> Histogram<T> {
         // h.start_time = source.start_time;
         // h.end_time = source.end_time;
         h.auto_resize = source.auto_resize;
-        h.counts.resize(source.len(), T::zero());
+        h.counts.resize(source.distinct_values(), T::zero());
         h
     }
 
