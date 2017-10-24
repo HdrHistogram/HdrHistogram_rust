@@ -31,7 +31,7 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
 }
 
 impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
-    fn pick(&mut self, index: usize, _: u64) -> Option<PickMetadata> {
+    fn pick(&mut self, index: usize, _: u64, _: T) -> Option<PickMetadata> {
         let val = self.hist.value_for(index);
         if val >= self.current_step_lowest_value_reporting_level || index == self.hist.last_index() {
             let metadata = PickMetadata::new(None, Some(self.current_step_highest_value_reporting_level));

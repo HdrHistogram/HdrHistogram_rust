@@ -37,7 +37,7 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
 }
 
 impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
-    fn pick(&mut self, index: usize, _: u64) -> Option<PickMetadata> {
+    fn pick(&mut self, index: usize, _: u64, _: T) -> Option<PickMetadata> {
         let val = self.hist.value_for(index);
         if val >= self.current_step_lowest_value_reporting_level || index == self.hist.last_index() {
             let metadata = PickMetadata::new(None, Some(self.current_step_highest_value_reporting_level));
@@ -46,7 +46,7 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
             // won't underflow since next_value_reporting_level starts > 0 and only grows
             self.current_step_highest_value_reporting_level = self.next_value_reporting_level as u64 - 1;
             self.current_step_lowest_value_reporting_level = self.hist
-            .lowest_equivalent(self.current_step_highest_value_reporting_level);
+                    .lowest_equivalent(self.current_step_highest_value_reporting_level);
             Some(metadata)
         } else {
             None

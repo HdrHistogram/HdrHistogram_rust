@@ -990,6 +990,16 @@ impl<T: Counter> Histogram<T> {
     ///
     /// The iterator yields an `iterators::IterationValue` struct.
     ///
+    /// One subtlety of this iterator is that you can reach a value whose cumulative count yields
+    /// a quantile of 1.0 far sooner than the quantile iteration would reach 1.0. Consider a
+    /// histogram with count 1 at value 1, and count 1000000 at value 1000. At any quantile
+    /// iteration above `1/1000001 = 0.000000999`, iteration will have necessarily proceeded to
+    /// the index for value 1000, which has all the remaining counts, and therefore quantile (for
+    /// the value) of 1.0. This is why `IterationValue` has both `quantile()` and
+    /// `quantile_iterated_to()`. Additionally, to avoid a bunch of unhelpful iterations once
+    /// iteration has reached the last value with non-zero count, quantile iteration will skip
+    /// straight to 1.0 as well.
+    ///
     /// ```
     /// use hdrsample::Histogram;
     /// use hdrsample::iterators::IterationValue;
@@ -1104,7 +1114,7 @@ impl<T: Counter> Histogram<T> {
     /// assert_eq!(perc.next(), None);
     /// ```
     pub fn iter_recorded<'a>(&'a self)
-            -> HistogramIterator<'a, T, iterators::recorded::Iter<'a, T>> {
+            -> HistogramIterator<'a, T, iterators::recorded::Iter> {
         iterators::recorded::Iter::new(self)
     }
 

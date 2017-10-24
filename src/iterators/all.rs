@@ -13,7 +13,7 @@ impl Iter {
 }
 
 impl<T: Counter> PickyIterator<T> for Iter {
-    fn pick(&mut self, index: usize, _: u64) -> Option<PickMetadata> {
+    fn pick(&mut self, index: usize, _: u64, _: T) -> Option<PickMetadata> {
         if self.visited.map(|i| i != index).unwrap_or(true) {
             // haven't visited this index yet
             self.visited = Some(index);

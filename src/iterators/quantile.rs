@@ -6,7 +6,8 @@ use iterators::{HistogramIterator, PickyIterator, PickMetadata};
 pub struct Iter<'a, T: 'a + Counter> {
     hist: &'a Histogram<T>,
     ticks_per_half_distance: u32,
-    quantile_to_iterate_to: f64
+    quantile_to_iterate_to: f64,
+    reached_end: bool
 }
 
 impl<'a, T: 'a + Counter> Iter<'a, T> {
@@ -19,16 +20,15 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
                                Iter {
                                    hist,
                                    ticks_per_half_distance,
-                                   quantile_to_iterate_to: 0.0
+                                   quantile_to_iterate_to: 0.0,
+                                   reached_end: false
                                })
     }
 }
 
 impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
-    fn pick(&mut self, index: usize, running_total: u64) -> Option<PickMetadata> {
-        let count = &self.hist.count_at_index(index)
-            .expect("index must be valid by PickyIterator contract");
-        if *count == T::zero() {
+    fn pick(&mut self, _: usize, running_total: u64, count_at_index: T) -> Option<PickMetadata> {
+        if count_at_index == T::zero() {
             return None;
         }
 
@@ -39,13 +39,65 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
             return None;
         }
 
-        if self.quantile_to_iterate_to == 1.0 {
-            // We incremented to 1.0 just at the point where we finally got to the last non-zero
-            // bucket. We want to pick this value but not do the math below because it doesn't work
-            // when quantile >= 1.0.
-            // TODO we should be picking here, once
+        // Because there are effectively two quantiles in play (the quantile of the value for the
+        // bucket we're at aka "value quantile", and the quantile we're iterating to aka "iteration
+        // quantile", which may be significantly different, especially in highly non-uniform
+        // distributions), the behavior around 1.0 is a little tricky.
+        //
+        // The desired behavior is that we always iterate until the iteration quantile reaches 1.0,
+        // but if the value quantile reaches 1.0 (by reaching the last index with a non-zero count)
+        // before that point, we skip the remaining intermediate iterations in that same index and
+        // jump straight to iteration quantile 1.0.
+        // This is effectively a policy decision, but it is consistent with other iterators: they
+        // don't just stop when the quantile reaches 1.0 upon first entering the final bucket.
+        // At the same time, it's arguably unhelpful to have a bunch of all-but-identical quantile
+        // ticks, hence skipping the intermediate iterations. (This is also how the Java impl
+        // behaves.)
+        //
+        // Note that it is impossible to have the value quantile lower than the iteration quantile
+        // since the value quantile incorporates the count for the entire bucket when it's first
+        // entered, while the hypothetical fractional count that the iteration quantile would use is
+        // necessarily less than that.
+        //
+        // Cases for ending iteration:
+        // 1. Iteration quantile reaches 1.0 along with the value quantile reaching 1.0 at the max
+        //    value index
+        // 2. Iteration quantile is below 1.0 when the value quantile reaches 1.0 at the max value
+        //    index
+        // 3. Same as #1, but not at the max value index because total count has saturated. This
+        //    means that more() will not be called.
+        // 4. Same as #2, but not at the max value index because total count has saturated. See #3.
+
+        if self.reached_end {
+            // #3, #4 part 2: Need to check here, not just in `more()`: when we see quantile 1.0 and
+            // set `reached_end`, `more()` will not be called (because we haven't reached the last
+            // non-zero-count index) so it can't stop iteration, and we must stop it here.
+            //
+            // This will be hit for all remaining non-zero-count indices, then control will proceed
+            // to `more()`.
             return None;
         }
+
+        // #1: If we reach iteration quantile 1.0 at the same time as value quantile 1.0 (because we
+        // moved to the final non-zero-count index exactly when the iteration ticked over to 1.0),
+        // we want to emit a value at that point, but not proceed past that.
+        // #2, last phase: This could also be the second visit to the max value index in the #2 case
+        // where `quantile_to_iterate_to` has been set to 1.0.
+        // #3, #4 last phase: Similar, but iteration proceeded normally up to 1.0 without any
+        // last-bucket skipping because it wasn't at the last bucket.
+        if self.quantile_to_iterate_to == 1.0 {
+            // We want to pick this value but not do the math below because it doesn't work when
+            // quantile >= 1.0.
+            //
+            // We also want to prevent any further iteration.
+            self.reached_end = true;
+            return Some(PickMetadata::new(Some(1.0), None));
+        }
+
+        // #2, first phase:
+        // Value quantile reached 1.0 while the iteration quantile is somewhere below 1.0 (it can be
+        // arbitrarily close to 0 for lopsided histograms). So, we continue with normal quantile
+        // tick logic for the first time, and pick up the #2 case in `more()` below.
 
         // The choice to maintain fixed-sized "ticks" in each half-distance to 100% [starting from
         // 0%], as opposed to a "tick" size that varies with each interval, was made to make the
@@ -74,21 +126,36 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
         // Use u64 math so that there's less risk of overflow with large numbers of ticks and data
         // that ends up needing large numbers of halvings.
         let total_ticks = (self.ticks_per_half_distance as u64)
-            .checked_mul(1_u64.checked_shl(num_halvings + 1).expect("too many halvings"))
-            .expect("too many total ticks");
-        let increment_size = 1.0 / total_ticks as f64;
+                .checked_mul(1_u64.checked_shl(num_halvings + 1).expect("too many halvings"))
+                .expect("too many total ticks");
+        let increment_size = 1.0_f64 / total_ticks as f64;
+
         let metadata = PickMetadata::new(Some(self.quantile_to_iterate_to), None);
-        // Unclear if it's possible for adding a very small increment to 0.999999... to yield > 1.0
-        // but let's just be safe since FP is weird and this code is not likely to be very hot.
-        self.quantile_to_iterate_to = 1.0_f64.min(self.quantile_to_iterate_to + increment_size);
+
+        let sum = self.quantile_to_iterate_to + increment_size;
+        self.quantile_to_iterate_to = if sum == self.quantile_to_iterate_to {
+            // the iteration has reached the point where the increment is too small to actually
+            // change an f64 slightly smaller than 1.0, so just short circuit to 1.0.
+            // This happens easily in case #4, and plausibly in #3: it will iterate up to 1.0
+            // without any skipping, which will
+            1.0
+        } else {
+            sum
+        };
         Some(metadata)
     }
 
     fn more(&mut self, _: usize) -> bool {
-        // TODO this should probably be more like the Java impl
-        // No need to go past the point where cumulative count == total count, because that's
-        // quantile 1.0 and will be reported as such in the IterationValue, even if
-        // `quantile_to_iterate_to` is somewhere below 1.0 -- we still got to the final bucket.
-        false
+        // One of the end cases has already declared we're done.
+        if self.reached_end {
+            return false;
+        }
+
+        // #2, middle phase: already picked the max-value index once with iteration quantile < 1.0,
+        // and `more()` is now called (for the first time), so iterate one more time, but jump to
+        // quantile 1.0 while doing so. We don't set `reached_end` here because we do want 1 more
+        // iteration.
+        self.quantile_to_iterate_to = 1.0;
+        true
     }
 }

@@ -45,10 +45,14 @@ pub trait PickyIterator<T: Counter> {
     ///
     /// This will be called with the same index until it returns `None`. This enables modes of
     /// iteration that pick different values represented by the same bucket, for instance.
-    fn pick(&mut self, index: usize, total_count_to_index: u64) -> Option<PickMetadata>;
+    fn pick(&mut self, index: usize, total_count_to_index: u64, count_at_index: T) -> Option<PickMetadata>;
 
-    /// Should we keep iterating even though the last non-zero index has already been picked at
-    /// least once?
+    /// Should we keep iterating even though the last index with non-zero count has already been
+    /// picked at least once?
+    ///
+    /// This will be called on every iteration once the last index with non-zero count has been
+    /// picked, even if the index was not advanced in the last iteration (because `pick()` returned
+    /// `Some`).
     fn more(&mut self, index_to_pick: usize) -> bool;
 }
 
@@ -63,6 +67,7 @@ pub struct HistogramIterator<'a, T: 'a + Counter, P: PickyIterator<T>> {
     hist: &'a Histogram<T>,
     total_count_to_index: u64,
     count_since_last_iteration: u64,
+    count_at_index: T,
     current_index: usize,
     last_picked_index: usize,
     max_value_index: usize,
@@ -100,18 +105,18 @@ impl<T: Counter> IterationValue<T> {
         self.value_iterated_to
     }
 
-    /// Percent of recorded values that are equivalent to or below `value`.
+    /// Percent of recorded values that are at or below the current bucket.
     /// This is simply the quantile multiplied by 100.0, so if you care about maintaining the best
     /// floating-point precision, use `quantile()` instead.
     pub fn percentile(&self) -> f64 {
         self.quantile * 100.0
     }
 
-    /// Quantile of recorded values that are equivalent to or below `value`
+    /// Quantile of recorded values that are at or below the current bucket.
     pub fn quantile(&self) -> f64 { self.quantile }
 
-    /// Quantile iterated to, which in the case of quantile iteration may be different from
-    /// `quantile` because slightly different quantiles can still map to the same bucket.
+    /// Quantile iterated to, which may be different than `quantile()` when an iterator provides
+    /// information about the specific quantile it's iterating to.
     pub fn quantile_iterated_to(&self) -> f64 { self.quantile_iterated_to }
 
     /// Recorded count for values equivalent to `value`
@@ -131,6 +136,7 @@ impl<'a, T: Counter, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
             hist: h,
             total_count_to_index: 0,
             count_since_last_iteration: 0,
+            count_at_index: T::zero(),
             current_index: 0,
             last_picked_index: 0,
             max_value_index: h.index_for(h.max()).expect("Either 0 or an existing index"),
@@ -177,11 +183,13 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
 
                 if self.fresh {
                     // at a new index, and not past the max, so there's nonzero counts to add
-                    let count = self.hist.count_at_index(self.current_index)
+                    self.count_at_index = self.hist.count_at_index(self.current_index)
                             .expect("Already checked that current_index is < counts len");
 
-                    self.total_count_to_index = self.total_count_to_index.saturating_add(count.as_u64());
-                    self.count_since_last_iteration = self.count_since_last_iteration.saturating_add(count.as_u64());
+                    self.total_count_to_index =
+                            self.total_count_to_index.saturating_add(self.count_at_index.as_u64());
+                    self.count_since_last_iteration =
+                            self.count_since_last_iteration.saturating_add(self.count_at_index.as_u64());
 
                     // make sure we don't add this index again
                     self.fresh = false;
@@ -189,7 +197,7 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
             }
 
             // figure out if picker thinks we should yield this value
-            if let Some(metadata) = self.picker.pick(self.current_index, self.total_count_to_index) {
+            if let Some(metadata) = self.picker.pick(self.current_index, self.total_count_to_index, self.count_at_index) {
                 let quantile = self.total_count_to_index as f64 / self.hist.count() as f64;
                 let val = IterationValue {
                     value_iterated_to: metadata.value_iterated_to
