@@ -1,6 +1,6 @@
 use Counter;
 use Histogram;
-use iterators::{HistogramIterator, PickyIterator, PickMetadata};
+use iterators::{HistogramIterator, PickMetadata, PickyIterator};
 
 /// An iterator that will yield only bins with at least one sample.
 pub struct Iter {
@@ -10,10 +10,7 @@ pub struct Iter {
 impl Iter {
     /// Construct a new sampled iterator. See `Histogram::iter_recorded` for details.
     pub fn new<T: Counter>(hist: &Histogram<T>) -> HistogramIterator<T, Iter> {
-        HistogramIterator::new(hist,
-                               Iter {
-                                   visited: None,
-                               })
+        HistogramIterator::new(hist, Iter { visited: None })
     }
 }
 

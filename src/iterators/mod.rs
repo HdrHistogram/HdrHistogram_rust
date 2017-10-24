@@ -25,14 +25,14 @@ pub struct PickMetadata {
 
     /// Supply the value iterated to in the last `pick()`, if the picker can supply a more useful
     /// value than the largest value represented by the bucket.
-    value_iterated_to: Option<u64>
+    value_iterated_to: Option<u64>,
 }
 
 impl PickMetadata {
     fn new(quantile_iterated_to: Option<f64>, value_iterated_to: Option<u64>) -> PickMetadata {
         PickMetadata {
             quantile_iterated_to,
-            value_iterated_to
+            value_iterated_to,
         }
     }
 }
@@ -45,7 +45,12 @@ pub trait PickyIterator<T: Counter> {
     ///
     /// This will be called with the same index until it returns `None`. This enables modes of
     /// iteration that pick different values represented by the same bucket, for instance.
-    fn pick(&mut self, index: usize, total_count_to_index: u64, count_at_index: T) -> Option<PickMetadata>;
+    fn pick(
+        &mut self,
+        index: usize,
+        total_count_to_index: u64,
+        count_at_index: T,
+    ) -> Option<PickMetadata>;
 
     /// Should we keep iterating even though the last index with non-zero count has already been
     /// picked at least once?
@@ -83,19 +88,24 @@ pub struct IterationValue<T: Counter> {
     quantile: f64,
     quantile_iterated_to: f64,
     count_at_value: T,
-    count_since_last_iteration: u64
+    count_since_last_iteration: u64,
 }
 
 impl<T: Counter> IterationValue<T> {
     /// Create a new IterationValue.
-    pub fn new(value_iterated_to: u64, quantile: f64, quantile_iterated_to: f64, count_at_value: T,
-               count_since_last_iteration: u64) -> IterationValue<T> {
+    pub fn new(
+        value_iterated_to: u64,
+        quantile: f64,
+        quantile_iterated_to: f64,
+        count_at_value: T,
+        count_since_last_iteration: u64,
+    ) -> IterationValue<T> {
         IterationValue {
             value_iterated_to,
             quantile,
             quantile_iterated_to,
             count_at_value,
-            count_since_last_iteration
+            count_since_last_iteration,
         }
     }
 
@@ -113,11 +123,15 @@ impl<T: Counter> IterationValue<T> {
     }
 
     /// Quantile of recorded values that are at or below the current bucket.
-    pub fn quantile(&self) -> f64 { self.quantile }
+    pub fn quantile(&self) -> f64 {
+        self.quantile
+    }
 
     /// Quantile iterated to, which may be different than `quantile()` when an iterator provides
     /// information about the specific quantile it's iterating to.
-    pub fn quantile_iterated_to(&self) -> f64 { self.quantile_iterated_to }
+    pub fn quantile_iterated_to(&self) -> f64 {
+        self.quantile_iterated_to
+    }
 
     /// Recorded count for values equivalent to `value`
     pub fn count_at_value(&self) -> T {
@@ -148,8 +162,9 @@ impl<'a, T: Counter, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
 }
 
 impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
-    where T: Counter,
-          P: PickyIterator<T>
+where
+    T: Counter,
+    P: PickyIterator<T>,
 {
     type Item = IterationValue<T>;
     fn next(&mut self) -> Option<Self::Item> {
@@ -183,13 +198,14 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
 
                 if self.fresh {
                     // at a new index, and not past the max, so there's nonzero counts to add
-                    self.count_at_index = self.hist.count_at_index(self.current_index)
-                            .expect("Already checked that current_index is < counts len");
+                    self.count_at_index = self.hist
+                        .count_at_index(self.current_index)
+                        .expect("Already checked that current_index is < counts len");
 
-                    self.total_count_to_index =
-                            self.total_count_to_index.saturating_add(self.count_at_index.as_u64());
-                    self.count_since_last_iteration =
-                            self.count_since_last_iteration.saturating_add(self.count_at_index.as_u64());
+                    self.total_count_to_index = self.total_count_to_index
+                        .saturating_add(self.count_at_index.as_u64());
+                    self.count_since_last_iteration = self.count_since_last_iteration
+                        .saturating_add(self.count_at_index.as_u64());
 
                     // make sure we don't add this index again
                     self.fresh = false;
@@ -197,16 +213,23 @@ impl<'a, T: 'a, P> Iterator for HistogramIterator<'a, T, P>
             }
 
             // figure out if picker thinks we should yield this value
-            if let Some(metadata) = self.picker.pick(self.current_index, self.total_count_to_index, self.count_at_index) {
+            if let Some(metadata) = self.picker.pick(
+                self.current_index,
+                self.total_count_to_index,
+                self.count_at_index,
+            ) {
                 let quantile = self.total_count_to_index as f64 / self.hist.count() as f64;
                 let val = IterationValue {
-                    value_iterated_to: metadata.value_iterated_to
-                            .unwrap_or(self.hist.highest_equivalent(self.hist.value_for(self.current_index))),
+                    value_iterated_to: metadata.value_iterated_to.unwrap_or(
+                        self.hist
+                            .highest_equivalent(self.hist.value_for(self.current_index)),
+                    ),
                     quantile,
                     quantile_iterated_to: metadata.quantile_iterated_to.unwrap_or(quantile),
-                    count_at_value: self.hist.count_at_index(self.current_index)
-                            .expect("current index cannot exceed counts length"),
-                    count_since_last_iteration: self.count_since_last_iteration
+                    count_at_value: self.hist
+                        .count_at_index(self.current_index)
+                        .expect("current index cannot exceed counts length"),
+                    count_since_last_iteration: self.count_since_last_iteration,
                 };
 
                 // Note that we *don't* increment self.current_index here. The picker will be

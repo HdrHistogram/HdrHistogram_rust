@@ -1,28 +1,35 @@
 use Counter;
 use Histogram;
-use iterators::{HistogramIterator, PickyIterator, PickMetadata};
+use iterators::{HistogramIterator, PickMetadata, PickyIterator};
 
 /// An iterator that will yield at quantile steps through the histogram's value range.
 pub struct Iter<'a, T: 'a + Counter> {
     hist: &'a Histogram<T>,
     ticks_per_half_distance: u32,
     quantile_to_iterate_to: f64,
-    reached_end: bool
+    reached_end: bool,
 }
 
 impl<'a, T: 'a + Counter> Iter<'a, T> {
     /// Construct a new iterator. See `Histogram::iter_quantiles` for details.
-    pub fn new(hist: &'a Histogram<T>, ticks_per_half_distance: u32)
-               -> HistogramIterator<'a, T, Iter<'a, T>> {
-        assert!(ticks_per_half_distance > 0, "Ticks per half distance must be > 0");
+    pub fn new(
+        hist: &'a Histogram<T>,
+        ticks_per_half_distance: u32,
+    ) -> HistogramIterator<'a, T, Iter<'a, T>> {
+        assert!(
+            ticks_per_half_distance > 0,
+            "Ticks per half distance must be > 0"
+        );
 
-        HistogramIterator::new(hist,
-                               Iter {
-                                   hist,
-                                   ticks_per_half_distance,
-                                   quantile_to_iterate_to: 0.0,
-                                   reached_end: false
-                               })
+        HistogramIterator::new(
+            hist,
+            Iter {
+                hist,
+                ticks_per_half_distance,
+                quantile_to_iterate_to: 0.0,
+                reached_end: false,
+            },
+        )
     }
 }
 
@@ -126,8 +133,12 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
         // Use u64 math so that there's less risk of overflow with large numbers of ticks and data
         // that ends up needing large numbers of halvings.
         let total_ticks = (self.ticks_per_half_distance as u64)
-                .checked_mul(1_u64.checked_shl(num_halvings + 1).expect("too many halvings"))
-                .expect("too many total ticks");
+            .checked_mul(
+                1_u64
+                    .checked_shl(num_halvings + 1)
+                    .expect("too many halvings"),
+            )
+            .expect("too many total ticks");
         let increment_size = 1.0_f64 / total_ticks as f64;
 
         let metadata = PickMetadata::new(Some(self.quantile_to_iterate_to), None);

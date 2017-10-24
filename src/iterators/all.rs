@@ -1,14 +1,16 @@
 use Counter;
 use Histogram;
-use iterators::{HistogramIterator, PickyIterator, PickMetadata};
+use iterators::{HistogramIterator, PickMetadata, PickyIterator};
 
 /// An iterator that will yield every bin.
-pub struct Iter { visited: Option<usize> }
+pub struct Iter {
+    visited: Option<usize>,
+}
 
 impl Iter {
     /// Construct a new full iterator. See `Histogram::iter_all` for details.
     pub fn new<'a, T: Counter>(hist: &'a Histogram<T>) -> HistogramIterator<'a, T, Iter> {
-        HistogramIterator::new(hist, Iter{ visited: None })
+        HistogramIterator::new(hist, Iter { visited: None })
     }
 }
 

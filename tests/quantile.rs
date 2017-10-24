@@ -3,13 +3,13 @@ extern crate ieee754;
 extern crate rand;
 extern crate rug;
 
-use hdrsample::{Histogram, Counter};
+use hdrsample::{Counter, Histogram};
 
 use rand::Rng;
 use rand::distributions::range::Range;
 use rand::distributions::IndependentSample;
 use ieee754::Ieee754;
-use rug::{Rational, Integer};
+use rug::{Integer, Rational};
 
 #[test]
 fn value_at_quantile_internal_count_exceeds_bucket_type() {
@@ -118,15 +118,22 @@ fn value_at_quantile_matches_quantile_iter_sequence_values() {
             // artifacts, so this test will frequently fail if you expect the actual value to
             // match the calculated value. Instead, we allow it to be one bucket high or low.
 
-            if calculated_value != v
-                    && calculated_value != prev_value_nonzero_count(&h, v)
-                    && calculated_value != next_value_nonzero_count(&h, v) {
+            if calculated_value != v && calculated_value != prev_value_nonzero_count(&h, v)
+                && calculated_value != next_value_nonzero_count(&h, v)
+            {
                 let q_count_rational = calculate_quantile_count(iter_val.quantile(), length);
 
-                println!("len {} iter quantile {} q * count fp {} q count rational {} iter val {} -> {} calc val {} -> {}",
-                         length, iter_val.quantile(), iter_val.quantile() * length as f64,
-                         q_count_rational, v, h.highest_equivalent(v),
-                         calculated_value, h.highest_equivalent(calculated_value));
+                println!(
+                    "len {} iter quantile {} q * count fp {} q count rational {} iter val {} -> {} calc val {} -> {}",
+                    length,
+                    iter_val.quantile(),
+                    iter_val.quantile() * length as f64,
+                    q_count_rational,
+                    v,
+                    h.highest_equivalent(v),
+                    calculated_value,
+                    h.highest_equivalent(calculated_value)
+                );
                 errors += 1;
             }
         }
@@ -165,15 +172,22 @@ fn value_at_quantile_matches_quantile_iter_random_values() {
             // artifacts, so this test will frequently fail if you expect the actual value to
             // match the calculated value. Instead, we allow it to be one bucket high or low.
 
-            if calculated_value != v
-                    && calculated_value != prev_value_nonzero_count(&h, v)
-                    && calculated_value != next_value_nonzero_count(&h, v) {
+            if calculated_value != v && calculated_value != prev_value_nonzero_count(&h, v)
+                && calculated_value != next_value_nonzero_count(&h, v)
+            {
                 let q_count_rational = calculate_quantile_count(iter_val.quantile(), length as u64);
 
-                println!("len {} iter quantile {} q * count fp {} q count rational {} iter val {} -> {} calc val {} -> {}",
-                         length, iter_val.quantile(), iter_val.quantile() * length as f64,
-                         q_count_rational, v, h.highest_equivalent(v),
-                         calculated_value, h.highest_equivalent(calculated_value));
+                println!(
+                    "len {} iter quantile {} q * count fp {} q count rational {} iter val {} -> {} calc val {} -> {}",
+                    length,
+                    iter_val.quantile(),
+                    iter_val.quantile() * length as f64,
+                    q_count_rational,
+                    v,
+                    h.highest_equivalent(v),
+                    calculated_value,
+                    h.highest_equivalent(calculated_value)
+                );
                 errors += 1;
             }
         }
@@ -200,13 +214,21 @@ fn value_at_quantile_matches_quantile_at_each_value_sequence_values() {
 
         for v in 1..(length + 1) {
             let quantile = (Rational::from(Integer::from(v as u64))
-                    / Rational::from(Integer::from(length as u64))).to_f64();
+                / Rational::from(Integer::from(length as u64)))
+                .to_f64();
             let calculated_value = h.value_at_quantile(quantile);
             if !h.equivalent(v, calculated_value) {
-                println!("len {} value {} quantile {} q * count fp {} actual {} -> {} calc {} -> {}",
-                         length, v, quantile, quantile * length as f64,
-                         v, h.highest_equivalent(v),
-                         calculated_value, h.highest_equivalent(calculated_value));
+                println!(
+                    "len {} value {} quantile {} q * count fp {} actual {} -> {} calc {} -> {}",
+                    length,
+                    v,
+                    quantile,
+                    quantile * length as f64,
+                    v,
+                    h.highest_equivalent(v),
+                    calculated_value,
+                    h.highest_equivalent(calculated_value)
+                );
                 errors += 1;
             }
         }
@@ -241,13 +263,22 @@ fn value_at_quantile_matches_quantile_at_each_value_random_values() {
 
         for (index, &v) in values.iter().enumerate() {
             let quantile = (Rational::from(Integer::from(index as u64 + 1))
-                    / Rational::from(Integer::from(length as u64))).to_f64();
+                / Rational::from(Integer::from(length as u64)))
+                .to_f64();
             let calculated_value = h.value_at_quantile(quantile);
             if !h.equivalent(v, calculated_value) {
                 errors += 1;
-                println!("len {} index {} quantile {} q * count fp {} actual {} -> {} calc {} -> {}",
-                         length, index, quantile, quantile * length as f64, v, h.highest_equivalent(v),
-                         calculated_value, h.highest_equivalent(calculated_value));
+                println!(
+                    "len {} index {} quantile {} q * count fp {} actual {} -> {} calc {} -> {}",
+                    length,
+                    index,
+                    quantile,
+                    quantile * length as f64,
+                    v,
+                    h.highest_equivalent(v),
+                    calculated_value,
+                    h.highest_equivalent(calculated_value)
+                );
             }
         }
     }
@@ -283,15 +314,25 @@ fn value_at_quantile_matches_random_quantile_random_values() {
         for _ in 0..1_000 {
             let quantile = quantile_range.ind_sample(&mut rng);
             let index_at_quantile = (Rational::from_f64(quantile).unwrap()
-                    * Rational::from(Integer::from(length as u64)))
-                    .to_integer().to_u64().unwrap() as usize;
+                * Rational::from(Integer::from(length as u64)))
+                .to_integer()
+                .to_u64()
+                .unwrap() as usize;
             let calculated_value = h.value_at_quantile(quantile);
             let v = values[index_at_quantile];
             if !h.equivalent(v, calculated_value) {
                 errors += 1;
-                println!("len {} index {} quantile {} q * count fp {} actual {} -> {} calc {} -> {}",
-                         length, index_at_quantile, quantile, quantile * length as f64, v, h.highest_equivalent(v),
-                         calculated_value, h.highest_equivalent(calculated_value));
+                println!(
+                    "len {} index {} quantile {} q * count fp {} actual {} -> {} calc {} -> {}",
+                    length,
+                    index_at_quantile,
+                    quantile,
+                    quantile * length as f64,
+                    v,
+                    h.highest_equivalent(v),
+                    calculated_value,
+                    h.highest_equivalent(calculated_value)
+                );
             }
         }
     }
@@ -305,14 +346,12 @@ fn value_at_quantile_matches_random_quantile_random_values() {
 /// This helps create somewhat more realistic distributions of numbers. A simple random u64 is very
 /// likely to be a HUGE number; this helps scatter some numbers down in the smaller end.
 struct RandomMaxIter<'a, R: Rng + 'a> {
-    rng: &'a mut R
+    rng: &'a mut R,
 }
 
 impl<'a, R: Rng + 'a> RandomMaxIter<'a, R> {
     fn new(rng: &'a mut R) -> RandomMaxIter<R> {
-        RandomMaxIter {
-            rng
-        }
+        RandomMaxIter { rng }
     }
 }
 
@@ -325,7 +364,7 @@ impl<'a, R: Rng + 'a> Iterator for RandomMaxIter<'a, R> {
         return Some(match bit_length {
             0 => 0,
             64 => u64::max_value(),
-            x => self.rng.gen_range(0, 1 << x)
+            x => self.rng.gen_range(0, 1 << x),
         });
     }
 }

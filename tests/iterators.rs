@@ -11,9 +11,12 @@ fn iter_recorded_non_saturated_total_count() {
     h.record(1_000_000).unwrap();
 
     let expected = vec![1, 1_000, h.highest_equivalent(1_000_000)];
-    assert_eq!(expected, h.iter_recorded()
+    assert_eq!(
+        expected,
+        h.iter_recorded()
             .map(|iv| iv.value_iterated_to())
-            .collect::<Vec<u64>>());
+            .collect::<Vec<u64>>()
+    );
 }
 
 #[test]
@@ -25,9 +28,12 @@ fn iter_recorded_saturated_total_count() {
     h.record_n(1_000_000, u64::max_value()).unwrap();
 
     let expected = vec![1, 1_000, h.highest_equivalent(1_000_000)];
-    assert_eq!(expected, h.iter_recorded()
+    assert_eq!(
+        expected,
+        h.iter_recorded()
             .map(|iv| iv.value_iterated_to())
-            .collect::<Vec<u64>>());
+            .collect::<Vec<u64>>()
+    );
 }
 
 #[test]
@@ -53,12 +59,18 @@ fn iter_linear_count_since_last_iteration_saturates() {
         // 8-9 has nothing
         (9, 0),
         // 10-11 has just 10's count
-        (11, 400)];
+        (11, 400),
+    ];
 
     // step in 2s to test count accumulation for each step
-    assert_eq!(expected, h.iter_linear(2)
-            .map(|iv| (iv.value_iterated_to(), iv.count_since_last_iteration()))
-            .collect::<Vec<(u64, u64)>>());
+    assert_eq!(
+        expected,
+        h.iter_linear(2)
+            .map(|iv| {
+                (iv.value_iterated_to(), iv.count_since_last_iteration())
+            })
+            .collect::<Vec<(u64, u64)>>()
+    );
 }
 
 #[test]
@@ -80,8 +92,10 @@ fn iter_linear_visits_buckets_wider_than_step_size_multiple_times() {
     h.record(4100).unwrap();
 
     let iter_values = h.iter_linear(1)
-            .map(|iv| (iv.value_iterated_to(), iv.count_since_last_iteration()))
-            .collect::<Vec<(u64, u64)>>();
+        .map(|iv| {
+            (iv.value_iterated_to(), iv.count_since_last_iteration())
+        })
+        .collect::<Vec<(u64, u64)>>();
 
     // bucket size 1
     assert_eq!((0, 0), iter_values[0]);
@@ -128,8 +142,10 @@ fn iter_linear_visits_buckets_once_when_step_size_equals_bucket_size() {
     h.record(4100).unwrap();
 
     let iter_values = h.iter_linear(4)
-            .map(|iv| (iv.value_iterated_to(), iv.count_since_last_iteration()))
-            .collect::<Vec<(u64, u64)>>();
+        .map(|iv| {
+            (iv.value_iterated_to(), iv.count_since_last_iteration())
+        })
+        .collect::<Vec<(u64, u64)>>();
 
     // bucket size 1
     assert_eq!((3, 1), iter_values[0]);
@@ -161,8 +177,8 @@ fn iter_all_values_all_buckets() {
     h.record(8192 - 4).unwrap();
 
     let iter_values: Vec<(u64, u64)> = h.iter_all()
-            .map(|v| (v.value_iterated_to(), v.count_at_value()))
-            .collect();
+        .map(|v| (v.value_iterated_to(), v.count_at_value()))
+        .collect();
 
     // 4096 distinct expressible values
     assert_eq!(2048 + 2 * 1024, iter_values.len());
@@ -174,12 +190,14 @@ fn iter_all_values_all_buckets() {
         (1024, 1),
         (2048 + 1, 1),
         (4096 + 3, 1),
-        (8192 - 1, 1)];
+        (8192 - 1, 1),
+    ];
 
-    let nonzero_count = iter_values.iter()
-            .filter(|v| v.1 != 0)
-            .map(|&v| v)
-            .collect::<Vec<(u64, u64)>>();
+    let nonzero_count = iter_values
+        .iter()
+        .filter(|v| v.1 != 0)
+        .map(|&v| v)
+        .collect::<Vec<(u64, u64)>>();
 
     assert_eq!(expected, nonzero_count);
 }
@@ -197,23 +215,20 @@ fn iter_all_values_all_buckets_unit_magnitude_2() {
     h.record(16384 - 8).unwrap();
 
     let iter_values: Vec<(u64, u64)> = h.iter_all()
-            .map(|v| (v.value_iterated_to(), v.count_at_value()))
-            .collect();
+        .map(|v| (v.value_iterated_to(), v.count_at_value()))
+        .collect();
 
     // magnitude 2 means 2nd bucket is scale of 8 = 2 * 2^2
     assert_eq!(2048 + 1024, iter_values.len());
 
     // value to expected count
-    let expected = vec![
-        (4 + 3, 1),
-        (4096 + 3, 1),
-        (8192 + 7, 1),
-        (16384 - 1, 1)];
+    let expected = vec![(4 + 3, 1), (4096 + 3, 1), (8192 + 7, 1), (16384 - 1, 1)];
 
-    let nonzero_count = iter_values.iter()
-            .filter(|v| v.1 != 0)
-            .map(|&v| v)
-            .collect::<Vec<(u64, u64)>>();
+    let nonzero_count = iter_values
+        .iter()
+        .filter(|v| v.1 != 0)
+        .map(|&v| v)
+        .collect::<Vec<(u64, u64)>>();
 
     assert_eq!(expected, nonzero_count);
 }
@@ -235,8 +250,8 @@ fn iter_recorded_values_all_buckets() {
     h.record(8192 - 4).unwrap();
 
     let iter_values: Vec<(u64, u64)> = h.iter_recorded()
-            .map(|v| (v.value_iterated_to(), v.count_at_value()))
-            .collect();
+        .map(|v| (v.value_iterated_to(), v.count_at_value()))
+        .collect();
 
     let expected = vec![
         (1, 1),
@@ -244,7 +259,8 @@ fn iter_recorded_values_all_buckets() {
         (1024, 1),
         (2048 + 1, 1),
         (4096 + 3, 1),
-        (8192 - 1, 1)];
+        (8192 - 1, 1),
+    ];
 
     assert_eq!(expected, iter_values);
 }
@@ -262,14 +278,10 @@ fn iter_recorded_values_all_buckets_unit_magnitude_2() {
     h.record(16384 - 8).unwrap();
 
     let iter_values: Vec<(u64, u64)> = h.iter_recorded()
-            .map(|v| (v.value_iterated_to(), v.count_at_value()))
-            .collect();
+        .map(|v| (v.value_iterated_to(), v.count_at_value()))
+        .collect();
 
-    let expected = vec![
-        (4 + 3, 1),
-        (4096 + 3, 1),
-        (8192 + 7, 1),
-        (16384 - 1, 1)];
+    let expected = vec![(4 + 3, 1), (4096 + 3, 1), (8192 + 7, 1), (16384 - 1, 1)];
 
     assert_eq!(expected, iter_values);
 }
@@ -279,8 +291,14 @@ fn iter_logarithmic_bucket_values_min_1_base_2_all_buckets() {
     let h = prepare_histo_for_logarithmic_iterator();
 
     let iter_values: Vec<(u64, u64, u64)> = h.iter_log(1, 2.0)
-            .map(|v| (v.value_iterated_to(), v.count_since_last_iteration(), v.count_at_value()))
-            .collect();
+        .map(|v| {
+            (
+                v.value_iterated_to(),
+                v.count_since_last_iteration(),
+                v.count_at_value(),
+            )
+        })
+        .collect();
 
     let expected = vec![
         (0, 0, 0),
@@ -295,7 +313,8 @@ fn iter_logarithmic_bucket_values_min_1_base_2_all_buckets() {
         (511, 0, 0),
         (1023, 0, 0),
         (2047, 3, 0),
-        (4095, 1, 1)];
+        (4095, 1, 1),
+    ];
 
     assert_eq!(expected, iter_values);
 }
@@ -305,8 +324,14 @@ fn iter_logarithmic_bucket_values_min_4_base_2_all_buckets() {
     let h = prepare_histo_for_logarithmic_iterator();
 
     let iter_values: Vec<(u64, u64, u64)> = h.iter_log(4, 2.0)
-            .map(|v| (v.value_iterated_to(), v.count_since_last_iteration(), v.count_at_value()))
-            .collect();
+        .map(|v| {
+            (
+                v.value_iterated_to(),
+                v.count_since_last_iteration(),
+                v.count_at_value(),
+            )
+        })
+        .collect();
 
     let expected = vec![
         (3, 2, 0),
@@ -319,7 +344,8 @@ fn iter_logarithmic_bucket_values_min_4_base_2_all_buckets() {
         (511, 0, 0),
         (1023, 0, 0),
         (2047, 3, 0),
-        (4095, 1, 1)];
+        (4095, 1, 1),
+    ];
 
     assert_eq!(expected, iter_values);
 }
@@ -346,8 +372,14 @@ fn iter_logarithmic_bucket_values_min_1_base_2_all_buckets_unit_magnitude_2() {
     h.record(16384 - 1).unwrap();
 
     let iter_values: Vec<(u64, u64, u64)> = h.iter_log(1, 2.0)
-            .map(|v| (v.value_iterated_to(), v.count_since_last_iteration(), v.count_at_value()))
-            .collect();
+        .map(|v| {
+            (
+                v.value_iterated_to(),
+                v.count_since_last_iteration(),
+                v.count_at_value(),
+            )
+        })
+        .collect();
 
     // first 3 iterations are just getting up to 3, which is still the '0' sub bucket.
     // All at the same index, so count_at_value stays at 1 for the first 3
@@ -366,7 +398,8 @@ fn iter_logarithmic_bucket_values_min_1_base_2_all_buckets_unit_magnitude_2() {
         (2047, 0, 0),
         (4095, 0, 0),
         (8191, 3, 0),
-        (16383, 1, 1)];
+        (16383, 1, 1),
+    ];
 
     assert_eq!(expected, iter_values);
 }
@@ -376,15 +409,16 @@ fn iter_logarithmic_bucket_values_min_1_base_10_all_buckets() {
     let h = prepare_histo_for_logarithmic_iterator();
 
     let iter_values: Vec<(u64, u64, u64)> = h.iter_log(1, 10.0)
-            .map(|v| (v.value_iterated_to(), v.count_since_last_iteration(), v.count_at_value()))
-            .collect();
+        .map(|v| {
+            (
+                v.value_iterated_to(),
+                v.count_since_last_iteration(),
+                v.count_at_value(),
+            )
+        })
+        .collect();
 
-    let expected = vec![
-        (0, 0, 0),
-        (9, 2, 0),
-        (99, 3, 0),
-        (999, 0, 0),
-        (9999, 4, 1)];
+    let expected = vec![(0, 0, 0), (9, 2, 0), (99, 3, 0), (999, 0, 0), (9999, 4, 1)];
 
     assert_eq!(expected, iter_values);
 }
@@ -411,8 +445,14 @@ fn iter_linear_bucket_values_size_8_all_buckets() {
     h.record(63).unwrap();
 
     let iter_values: Vec<(u64, u64, u64)> = h.iter_linear(8)
-            .map(|v| (v.value_iterated_to(), v.count_since_last_iteration(), v.count_at_value()))
-            .collect();
+        .map(|v| {
+            (
+                v.value_iterated_to(),
+                v.count_since_last_iteration(),
+                v.count_at_value(),
+            )
+        })
+        .collect();
 
     let expected = vec![
         (7, 3, 1),
@@ -422,7 +462,8 @@ fn iter_linear_bucket_values_size_8_all_buckets() {
         (39, 0, 0),
         (47, 0, 0),
         (55, 0, 0),
-        (63, 3, 2)];
+        (63, 3, 2),
+    ];
 
     assert_eq!(expected, iter_values);
 }
@@ -437,12 +478,16 @@ fn iter_quantiles_smorgasboard() {
     }
 
     let iter_values: Vec<(u64, u64, u64, f64, f64)> = h.iter_quantiles(2)
-            .map(|v| (v.value_iterated_to(),
-                      v.count_since_last_iteration(),
-                      v.count_at_value(),
-                      v.quantile(),
-                      v.quantile_iterated_to()))
-            .collect();
+        .map(|v| {
+            (
+                v.value_iterated_to(),
+                v.count_since_last_iteration(),
+                v.count_at_value(),
+                v.quantile(),
+                v.quantile_iterated_to(),
+            )
+        })
+        .collect();
 
     // penultimate percentile is 100.0 because 99.96% of 4095 is 4093.36, so it falls into last
     // sub bucket, thus gets to 100.0% of count.
@@ -472,7 +517,8 @@ fn iter_quantiles_smorgasboard() {
         (4093, 2, 2, 0.99951171875, 0.999267578125),
         (4093, 0, 2, 0.99951171875, 0.99951171875),
         (4095, 2, 2, 1.0, 0.9996337890625),
-        (4095, 0, 2, 1.0, 1.0)];
+        (4095, 0, 2, 1.0, 1.0),
+    ];
 
     assert_eq!(expected, iter_values);
 }
@@ -485,19 +531,24 @@ fn iter_quantiles_iterates_to_end_skips_intermediate_at_final_value() {
     h.record_n(1_000, 1_000_000).unwrap();
 
     let iter_values: Vec<(u64, u64, u64, f64, f64)> = h.iter_quantiles(2)
-            .map(|v| (v.value_iterated_to(),
-                      v.count_since_last_iteration(),
-                      v.count_at_value(),
-                      v.quantile(),
-                      v.quantile_iterated_to()))
-            .collect();
+        .map(|v| {
+            (
+                v.value_iterated_to(),
+                v.count_since_last_iteration(),
+                v.count_at_value(),
+                v.quantile(),
+                v.quantile_iterated_to(),
+            )
+        })
+        .collect();
 
     // almost every nonzero quantile is in the bucket whose value is at quantile 1.0, so we should
     // iterate into that bucket (at quantile iteration 0.25), then skip to quantile iteration 1.0
     let expected = vec![
         (1, 1, 1, 0.000000999999000001, 0.0),
         (1000, 1000_000, 1000_000, 1.0, 0.25),
-        (1000, 0, 1000_000, 1.0, 1.0)];
+        (1000, 0, 1000_000, 1.0, 1.0),
+    ];
 
     assert_eq!(expected, iter_values);
 }
@@ -509,130 +560,136 @@ fn iter_quantiles_saturated_count_before_max_value() {
     for i in 0..1000 {
         // this will quickly saturate total count as well as count since last iteration
         h.record_n(i, u64::max_value() / 100).unwrap();
-    };
+    }
 
     let iter_values: Vec<(u64, u64, u64, f64, f64)> = h.iter_quantiles(2)
-            .map(|v| (v.value_iterated_to(),
-                      v.count_since_last_iteration(),
-                      v.count_at_value(),
-                      v.quantile(),
-                      v.quantile_iterated_to()))
-            .collect();
+        .map(|v| {
+            (
+                v.value_iterated_to(),
+                v.count_since_last_iteration(),
+                v.count_at_value(),
+                v.quantile(),
+                v.quantile_iterated_to(),
+            )
+        })
+        .collect();
 
     // here we do NOT skip to 1.0 because we haven't detected that we're at the max value (because
     // we aren't!).
     // This will iterate towards quantile 1.0  and will reach a point where a fraction very close to
     // 1.0 + a tiny tiny increment = the same fraction. It should then skip to 1.0.
-    let expected = vec![(0, 184467440737095516, 184467440737095516, 0.01, 0.0),
-                        (24, 4427218577690292384, 184467440737095516, 0.25, 0.25),
-                        (49, 4611686018427387900, 184467440737095516, 0.5, 0.5),
-                        (62, 2398076729582241708, 184467440737095516, 0.63, 0.625),
-                        (74, 2213609288845146192, 184467440737095516, 0.75, 0.75),
-                        (81, 1291272085159668612, 184467440737095516, 0.82, 0.8125),
-                        (87, 1106804644422573096, 184467440737095516, 0.88, 0.875),
-                        (90, 553402322211286548, 184467440737095516, 0.91, 0.90625),
-                        (93, 553402322211286548, 184467440737095516, 0.94, 0.9375),
-                        (95, 368934881474191032, 184467440737095516, 0.96, 0.953125),
-                        (96, 184467440737095516, 184467440737095516, 0.97, 0.96875),
-                        (97, 184467440737095516, 184467440737095516, 0.98, 0.9765625),
-                        (98, 184467440737095516, 184467440737095516, 0.99, 0.984375),
-                        (98, 0, 184467440737095516, 0.99, 0.98828125),
-                        (99, 184467440737095516, 184467440737095516, 1.0, 0.9921875),
-                        (99, 0, 184467440737095516, 1.0, 0.994140625),
-                        (99, 0, 184467440737095516, 1.0, 0.99609375),
-                        (99, 0, 184467440737095516, 1.0, 0.9970703125),
-                        (99, 0, 184467440737095516, 1.0, 0.998046875),
-                        (99, 0, 184467440737095516, 1.0, 0.99853515625),
-                        (99, 0, 184467440737095516, 1.0, 0.9990234375),
-                        (99, 0, 184467440737095516, 1.0, 0.999267578125),
-                        (99, 0, 184467440737095516, 1.0, 0.99951171875),
-                        (99, 0, 184467440737095516, 1.0, 0.9996337890625),
-                        (99, 0, 184467440737095516, 1.0, 0.999755859375),
-                        (99, 0, 184467440737095516, 1.0, 0.99981689453125),
-                        (99, 0, 184467440737095516, 1.0, 0.9998779296875),
-                        (99, 0, 184467440737095516, 1.0, 0.999908447265625),
-                        (99, 0, 184467440737095516, 1.0, 0.99993896484375),
-                        (99, 0, 184467440737095516, 1.0, 0.9999542236328125),
-                        (99, 0, 184467440737095516, 1.0, 0.999969482421875),
-                        (99, 0, 184467440737095516, 1.0, 0.9999771118164063),
-                        (99, 0, 184467440737095516, 1.0, 0.9999847412109375),
-                        (99, 0, 184467440737095516, 1.0, 0.9999885559082031),
-                        (99, 0, 184467440737095516, 1.0, 0.9999923706054688),
-                        (99, 0, 184467440737095516, 1.0, 0.9999942779541016),
-                        (99, 0, 184467440737095516, 1.0, 0.9999961853027344),
-                        (99, 0, 184467440737095516, 1.0, 0.9999971389770508),
-                        (99, 0, 184467440737095516, 1.0, 0.9999980926513672),
-                        (99, 0, 184467440737095516, 1.0, 0.9999985694885254),
-                        (99, 0, 184467440737095516, 1.0, 0.9999990463256836),
-                        (99, 0, 184467440737095516, 1.0, 0.9999992847442627),
-                        (99, 0, 184467440737095516, 1.0, 0.9999995231628418),
-                        (99, 0, 184467440737095516, 1.0, 0.9999996423721313),
-                        (99, 0, 184467440737095516, 1.0, 0.9999997615814209),
-                        (99, 0, 184467440737095516, 1.0, 0.9999998211860657),
-                        (99, 0, 184467440737095516, 1.0, 0.9999998807907104),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999105930328),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999403953552),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999552965164),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999701976776),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999776482582),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999850988388),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999888241291),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999925494194),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999944120646),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999962747097),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999972060323),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999981373549),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999986030161),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999990686774),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999993015081),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999995343387),
-                        (99, 0, 184467440737095516, 1.0, 0.999999999650754),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999997671694),
-                        (99, 0, 184467440737095516, 1.0, 0.999999999825377),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999998835847),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999126885),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999417923),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999563443),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999708962),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999781721),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999854481),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999890861),
-                        (99, 0, 184467440737095516, 1.0, 0.999999999992724),
-                        (99, 0, 184467440737095516, 1.0, 0.999999999994543),
-                        (99, 0, 184467440737095516, 1.0, 0.999999999996362),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999972715),
-                        (99, 0, 184467440737095516, 1.0, 0.999999999998181),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999986358),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999990905),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999993179),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999995453),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999996589),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999997726),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999998295),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999998863),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999999147),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999999432),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999999574),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999999716),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999999787),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999999858),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999999893),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999999929),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999999947),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999999964),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999999973),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999999982),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999999987),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999999991),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999999993),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999999996),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999999997),
-                        (99, 0, 184467440737095516, 1.0, 0.9999999999999998),
-                        // at 0.99...98, adding the resulting increment = the same 0.999...9998.
-                        // The increment calculations at this point involve 1 / (1 << 54), and f64
-                        // has 53 significand bits, so it's not too surprising that this is where
-                        // things get noticeably imprecise.
-                        (99, 0, 184467440737095516, 1.0, 1.0)];
+    let expected = vec![
+        (0, 184467440737095516, 184467440737095516, 0.01, 0.0),
+        (24, 4427218577690292384, 184467440737095516, 0.25, 0.25),
+        (49, 4611686018427387900, 184467440737095516, 0.5, 0.5),
+        (62, 2398076729582241708, 184467440737095516, 0.63, 0.625),
+        (74, 2213609288845146192, 184467440737095516, 0.75, 0.75),
+        (81, 1291272085159668612, 184467440737095516, 0.82, 0.8125),
+        (87, 1106804644422573096, 184467440737095516, 0.88, 0.875),
+        (90, 553402322211286548, 184467440737095516, 0.91, 0.90625),
+        (93, 553402322211286548, 184467440737095516, 0.94, 0.9375),
+        (95, 368934881474191032, 184467440737095516, 0.96, 0.953125),
+        (96, 184467440737095516, 184467440737095516, 0.97, 0.96875),
+        (97, 184467440737095516, 184467440737095516, 0.98, 0.9765625),
+        (98, 184467440737095516, 184467440737095516, 0.99, 0.984375),
+        (98, 0, 184467440737095516, 0.99, 0.98828125),
+        (99, 184467440737095516, 184467440737095516, 1.0, 0.9921875),
+        (99, 0, 184467440737095516, 1.0, 0.994140625),
+        (99, 0, 184467440737095516, 1.0, 0.99609375),
+        (99, 0, 184467440737095516, 1.0, 0.9970703125),
+        (99, 0, 184467440737095516, 1.0, 0.998046875),
+        (99, 0, 184467440737095516, 1.0, 0.99853515625),
+        (99, 0, 184467440737095516, 1.0, 0.9990234375),
+        (99, 0, 184467440737095516, 1.0, 0.999267578125),
+        (99, 0, 184467440737095516, 1.0, 0.99951171875),
+        (99, 0, 184467440737095516, 1.0, 0.9996337890625),
+        (99, 0, 184467440737095516, 1.0, 0.999755859375),
+        (99, 0, 184467440737095516, 1.0, 0.99981689453125),
+        (99, 0, 184467440737095516, 1.0, 0.9998779296875),
+        (99, 0, 184467440737095516, 1.0, 0.999908447265625),
+        (99, 0, 184467440737095516, 1.0, 0.99993896484375),
+        (99, 0, 184467440737095516, 1.0, 0.9999542236328125),
+        (99, 0, 184467440737095516, 1.0, 0.999969482421875),
+        (99, 0, 184467440737095516, 1.0, 0.9999771118164063),
+        (99, 0, 184467440737095516, 1.0, 0.9999847412109375),
+        (99, 0, 184467440737095516, 1.0, 0.9999885559082031),
+        (99, 0, 184467440737095516, 1.0, 0.9999923706054688),
+        (99, 0, 184467440737095516, 1.0, 0.9999942779541016),
+        (99, 0, 184467440737095516, 1.0, 0.9999961853027344),
+        (99, 0, 184467440737095516, 1.0, 0.9999971389770508),
+        (99, 0, 184467440737095516, 1.0, 0.9999980926513672),
+        (99, 0, 184467440737095516, 1.0, 0.9999985694885254),
+        (99, 0, 184467440737095516, 1.0, 0.9999990463256836),
+        (99, 0, 184467440737095516, 1.0, 0.9999992847442627),
+        (99, 0, 184467440737095516, 1.0, 0.9999995231628418),
+        (99, 0, 184467440737095516, 1.0, 0.9999996423721313),
+        (99, 0, 184467440737095516, 1.0, 0.9999997615814209),
+        (99, 0, 184467440737095516, 1.0, 0.9999998211860657),
+        (99, 0, 184467440737095516, 1.0, 0.9999998807907104),
+        (99, 0, 184467440737095516, 1.0, 0.9999999105930328),
+        (99, 0, 184467440737095516, 1.0, 0.9999999403953552),
+        (99, 0, 184467440737095516, 1.0, 0.9999999552965164),
+        (99, 0, 184467440737095516, 1.0, 0.9999999701976776),
+        (99, 0, 184467440737095516, 1.0, 0.9999999776482582),
+        (99, 0, 184467440737095516, 1.0, 0.9999999850988388),
+        (99, 0, 184467440737095516, 1.0, 0.9999999888241291),
+        (99, 0, 184467440737095516, 1.0, 0.9999999925494194),
+        (99, 0, 184467440737095516, 1.0, 0.9999999944120646),
+        (99, 0, 184467440737095516, 1.0, 0.9999999962747097),
+        (99, 0, 184467440737095516, 1.0, 0.9999999972060323),
+        (99, 0, 184467440737095516, 1.0, 0.9999999981373549),
+        (99, 0, 184467440737095516, 1.0, 0.9999999986030161),
+        (99, 0, 184467440737095516, 1.0, 0.9999999990686774),
+        (99, 0, 184467440737095516, 1.0, 0.9999999993015081),
+        (99, 0, 184467440737095516, 1.0, 0.9999999995343387),
+        (99, 0, 184467440737095516, 1.0, 0.999999999650754),
+        (99, 0, 184467440737095516, 1.0, 0.9999999997671694),
+        (99, 0, 184467440737095516, 1.0, 0.999999999825377),
+        (99, 0, 184467440737095516, 1.0, 0.9999999998835847),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999126885),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999417923),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999563443),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999708962),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999781721),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999854481),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999890861),
+        (99, 0, 184467440737095516, 1.0, 0.999999999992724),
+        (99, 0, 184467440737095516, 1.0, 0.999999999994543),
+        (99, 0, 184467440737095516, 1.0, 0.999999999996362),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999972715),
+        (99, 0, 184467440737095516, 1.0, 0.999999999998181),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999986358),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999990905),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999993179),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999995453),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999996589),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999997726),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999998295),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999998863),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999999147),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999999432),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999999574),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999999716),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999999787),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999999858),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999999893),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999999929),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999999947),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999999964),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999999973),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999999982),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999999987),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999999991),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999999993),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999999996),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999999997),
+        (99, 0, 184467440737095516, 1.0, 0.9999999999999998),
+        // at 0.99...98, adding the resulting increment = the same 0.999...9998.
+        // The increment calculations at this point involve 1 / (1 << 54), and f64
+        // has 53 significand bits, so it's not too surprising that this is where
+        // things get noticeably imprecise.
+        (99, 0, 184467440737095516, 1.0, 1.0),
+    ];
 
     assert_eq!(expected, iter_values);
 }
@@ -653,120 +710,126 @@ fn iter_quantiles_iterates_to_quantile_10_as_it_reaches_last_bucket() {
     h.record_n(2, 2).unwrap();
 
     let iter_values: Vec<(u64, u64, u64, f64, f64)> = h.iter_quantiles(2)
-            .map(|v| (v.value_iterated_to(),
-                      v.count_since_last_iteration(),
-                      v.count_at_value(),
-                      v.quantile(),
-                      v.quantile_iterated_to()))
-            .collect();
+        .map(|v| {
+            (
+                v.value_iterated_to(),
+                v.count_since_last_iteration(),
+                v.count_at_value(),
+                v.quantile(),
+                v.quantile_iterated_to(),
+            )
+        })
+        .collect();
 
-    let expected = vec![(1, first_bucket, first_bucket, quantile, 0.0),
-                        (1, 0, first_bucket, quantile, 0.25),
-                        (1, 0, first_bucket, quantile, 0.5),
-                        (1, 0, first_bucket, quantile, 0.625),
-                        (1, 0, first_bucket, quantile, 0.75),
-                        (1, 0, first_bucket, quantile, 0.8125),
-                        (1, 0, first_bucket, quantile, 0.875),
-                        (1, 0, first_bucket, quantile, 0.90625),
-                        (1, 0, first_bucket, quantile, 0.9375),
-                        (1, 0, first_bucket, quantile, 0.953125),
-                        (1, 0, first_bucket, quantile, 0.96875),
-                        (1, 0, first_bucket, quantile, 0.9765625),
-                        (1, 0, first_bucket, quantile, 0.984375),
-                        (1, 0, first_bucket, quantile, 0.98828125),
-                        (1, 0, first_bucket, quantile, 0.9921875),
-                        (1, 0, first_bucket, quantile, 0.994140625),
-                        (1, 0, first_bucket, quantile, 0.99609375),
-                        (1, 0, first_bucket, quantile, 0.9970703125),
-                        (1, 0, first_bucket, quantile, 0.998046875),
-                        (1, 0, first_bucket, quantile, 0.99853515625),
-                        (1, 0, first_bucket, quantile, 0.9990234375),
-                        (1, 0, first_bucket, quantile, 0.999267578125),
-                        (1, 0, first_bucket, quantile, 0.99951171875),
-                        (1, 0, first_bucket, quantile, 0.9996337890625),
-                        (1, 0, first_bucket, quantile, 0.999755859375),
-                        (1, 0, first_bucket, quantile, 0.99981689453125),
-                        (1, 0, first_bucket, quantile, 0.9998779296875),
-                        (1, 0, first_bucket, quantile, 0.999908447265625),
-                        (1, 0, first_bucket, quantile, 0.99993896484375),
-                        (1, 0, first_bucket, quantile, 0.9999542236328125),
-                        (1, 0, first_bucket, quantile, 0.999969482421875),
-                        (1, 0, first_bucket, quantile, 0.9999771118164063),
-                        (1, 0, first_bucket, quantile, 0.9999847412109375),
-                        (1, 0, first_bucket, quantile, 0.9999885559082031),
-                        (1, 0, first_bucket, quantile, 0.9999923706054688),
-                        (1, 0, first_bucket, quantile, 0.9999942779541016),
-                        (1, 0, first_bucket, quantile, 0.9999961853027344),
-                        (1, 0, first_bucket, quantile, 0.9999971389770508),
-                        (1, 0, first_bucket, quantile, 0.9999980926513672),
-                        (1, 0, first_bucket, quantile, 0.9999985694885254),
-                        (1, 0, first_bucket, quantile, 0.9999990463256836),
-                        (1, 0, first_bucket, quantile, 0.9999992847442627),
-                        (1, 0, first_bucket, quantile, 0.9999995231628418),
-                        (1, 0, first_bucket, quantile, 0.9999996423721313),
-                        (1, 0, first_bucket, quantile, 0.9999997615814209),
-                        (1, 0, first_bucket, quantile, 0.9999998211860657),
-                        (1, 0, first_bucket, quantile, 0.9999998807907104),
-                        (1, 0, first_bucket, quantile, 0.9999999105930328),
-                        (1, 0, first_bucket, quantile, 0.9999999403953552),
-                        (1, 0, first_bucket, quantile, 0.9999999552965164),
-                        (1, 0, first_bucket, quantile, 0.9999999701976776),
-                        (1, 0, first_bucket, quantile, 0.9999999776482582),
-                        (1, 0, first_bucket, quantile, 0.9999999850988388),
-                        (1, 0, first_bucket, quantile, 0.9999999888241291),
-                        (1, 0, first_bucket, quantile, 0.9999999925494194),
-                        (1, 0, first_bucket, quantile, 0.9999999944120646),
-                        (1, 0, first_bucket, quantile, 0.9999999962747097),
-                        (1, 0, first_bucket, quantile, 0.9999999972060323),
-                        (1, 0, first_bucket, quantile, 0.9999999981373549),
-                        (1, 0, first_bucket, quantile, 0.9999999986030161),
-                        (1, 0, first_bucket, quantile, 0.9999999990686774),
-                        (1, 0, first_bucket, quantile, 0.9999999993015081),
-                        (1, 0, first_bucket, quantile, 0.9999999995343387),
-                        (1, 0, first_bucket, quantile, 0.999999999650754),
-                        (1, 0, first_bucket, quantile, 0.9999999997671694),
-                        (1, 0, first_bucket, quantile, 0.999999999825377),
-                        (1, 0, first_bucket, quantile, 0.9999999998835847),
-                        (1, 0, first_bucket, quantile, 0.9999999999126885),
-                        (1, 0, first_bucket, quantile, 0.9999999999417923),
-                        (1, 0, first_bucket, quantile, 0.9999999999563443),
-                        (1, 0, first_bucket, quantile, 0.9999999999708962),
-                        (1, 0, first_bucket, quantile, 0.9999999999781721),
-                        (1, 0, first_bucket, quantile, 0.9999999999854481),
-                        (1, 0, first_bucket, quantile, 0.9999999999890861),
-                        (1, 0, first_bucket, quantile, 0.999999999992724),
-                        (1, 0, first_bucket, quantile, 0.999999999994543),
-                        (1, 0, first_bucket, quantile, 0.999999999996362),
-                        (1, 0, first_bucket, quantile, 0.9999999999972715),
-                        (1, 0, first_bucket, quantile, 0.999999999998181),
-                        (1, 0, first_bucket, quantile, 0.9999999999986358),
-                        (1, 0, first_bucket, quantile, 0.9999999999990905),
-                        (1, 0, first_bucket, quantile, 0.9999999999993179),
-                        (1, 0, first_bucket, quantile, 0.9999999999995453),
-                        (1, 0, first_bucket, quantile, 0.9999999999996589),
-                        (1, 0, first_bucket, quantile, 0.9999999999997726),
-                        (1, 0, first_bucket, quantile, 0.9999999999998295),
-                        (1, 0, first_bucket, quantile, 0.9999999999998863),
-                        (1, 0, first_bucket, quantile, 0.9999999999999147),
-                        (1, 0, first_bucket, quantile, 0.9999999999999432),
-                        (1, 0, first_bucket, quantile, 0.9999999999999574),
-                        (1, 0, first_bucket, quantile, 0.9999999999999716),
-                        (1, 0, first_bucket, quantile, 0.9999999999999787),
-                        (1, 0, first_bucket, quantile, 0.9999999999999858),
-                        (1, 0, first_bucket, quantile, 0.9999999999999893),
-                        (1, 0, first_bucket, quantile, 0.9999999999999929),
-                        (1, 0, first_bucket, quantile, 0.9999999999999947),
-                        (1, 0, first_bucket, quantile, 0.9999999999999964),
-                        (1, 0, first_bucket, quantile, 0.9999999999999973),
-                        (1, 0, first_bucket, quantile, 0.9999999999999982),
-                        (1, 0, first_bucket, quantile, 0.9999999999999987),
-                        (1, 0, first_bucket, quantile, 0.9999999999999991),
-                        (1, 0, first_bucket, quantile, 0.9999999999999993),
-                        (1, 0, first_bucket, quantile, 0.9999999999999996),
-                        (1, 0, first_bucket, quantile, 0.9999999999999997),
-                        (1, 0, first_bucket, quantile, 0.9999999999999998),
-                        // goes to next bucket just as it reaches 1.0
-                        (2, 2, 2, 1.0, 1.0)];
+    let expected = vec![
+        (1, first_bucket, first_bucket, quantile, 0.0),
+        (1, 0, first_bucket, quantile, 0.25),
+        (1, 0, first_bucket, quantile, 0.5),
+        (1, 0, first_bucket, quantile, 0.625),
+        (1, 0, first_bucket, quantile, 0.75),
+        (1, 0, first_bucket, quantile, 0.8125),
+        (1, 0, first_bucket, quantile, 0.875),
+        (1, 0, first_bucket, quantile, 0.90625),
+        (1, 0, first_bucket, quantile, 0.9375),
+        (1, 0, first_bucket, quantile, 0.953125),
+        (1, 0, first_bucket, quantile, 0.96875),
+        (1, 0, first_bucket, quantile, 0.9765625),
+        (1, 0, first_bucket, quantile, 0.984375),
+        (1, 0, first_bucket, quantile, 0.98828125),
+        (1, 0, first_bucket, quantile, 0.9921875),
+        (1, 0, first_bucket, quantile, 0.994140625),
+        (1, 0, first_bucket, quantile, 0.99609375),
+        (1, 0, first_bucket, quantile, 0.9970703125),
+        (1, 0, first_bucket, quantile, 0.998046875),
+        (1, 0, first_bucket, quantile, 0.99853515625),
+        (1, 0, first_bucket, quantile, 0.9990234375),
+        (1, 0, first_bucket, quantile, 0.999267578125),
+        (1, 0, first_bucket, quantile, 0.99951171875),
+        (1, 0, first_bucket, quantile, 0.9996337890625),
+        (1, 0, first_bucket, quantile, 0.999755859375),
+        (1, 0, first_bucket, quantile, 0.99981689453125),
+        (1, 0, first_bucket, quantile, 0.9998779296875),
+        (1, 0, first_bucket, quantile, 0.999908447265625),
+        (1, 0, first_bucket, quantile, 0.99993896484375),
+        (1, 0, first_bucket, quantile, 0.9999542236328125),
+        (1, 0, first_bucket, quantile, 0.999969482421875),
+        (1, 0, first_bucket, quantile, 0.9999771118164063),
+        (1, 0, first_bucket, quantile, 0.9999847412109375),
+        (1, 0, first_bucket, quantile, 0.9999885559082031),
+        (1, 0, first_bucket, quantile, 0.9999923706054688),
+        (1, 0, first_bucket, quantile, 0.9999942779541016),
+        (1, 0, first_bucket, quantile, 0.9999961853027344),
+        (1, 0, first_bucket, quantile, 0.9999971389770508),
+        (1, 0, first_bucket, quantile, 0.9999980926513672),
+        (1, 0, first_bucket, quantile, 0.9999985694885254),
+        (1, 0, first_bucket, quantile, 0.9999990463256836),
+        (1, 0, first_bucket, quantile, 0.9999992847442627),
+        (1, 0, first_bucket, quantile, 0.9999995231628418),
+        (1, 0, first_bucket, quantile, 0.9999996423721313),
+        (1, 0, first_bucket, quantile, 0.9999997615814209),
+        (1, 0, first_bucket, quantile, 0.9999998211860657),
+        (1, 0, first_bucket, quantile, 0.9999998807907104),
+        (1, 0, first_bucket, quantile, 0.9999999105930328),
+        (1, 0, first_bucket, quantile, 0.9999999403953552),
+        (1, 0, first_bucket, quantile, 0.9999999552965164),
+        (1, 0, first_bucket, quantile, 0.9999999701976776),
+        (1, 0, first_bucket, quantile, 0.9999999776482582),
+        (1, 0, first_bucket, quantile, 0.9999999850988388),
+        (1, 0, first_bucket, quantile, 0.9999999888241291),
+        (1, 0, first_bucket, quantile, 0.9999999925494194),
+        (1, 0, first_bucket, quantile, 0.9999999944120646),
+        (1, 0, first_bucket, quantile, 0.9999999962747097),
+        (1, 0, first_bucket, quantile, 0.9999999972060323),
+        (1, 0, first_bucket, quantile, 0.9999999981373549),
+        (1, 0, first_bucket, quantile, 0.9999999986030161),
+        (1, 0, first_bucket, quantile, 0.9999999990686774),
+        (1, 0, first_bucket, quantile, 0.9999999993015081),
+        (1, 0, first_bucket, quantile, 0.9999999995343387),
+        (1, 0, first_bucket, quantile, 0.999999999650754),
+        (1, 0, first_bucket, quantile, 0.9999999997671694),
+        (1, 0, first_bucket, quantile, 0.999999999825377),
+        (1, 0, first_bucket, quantile, 0.9999999998835847),
+        (1, 0, first_bucket, quantile, 0.9999999999126885),
+        (1, 0, first_bucket, quantile, 0.9999999999417923),
+        (1, 0, first_bucket, quantile, 0.9999999999563443),
+        (1, 0, first_bucket, quantile, 0.9999999999708962),
+        (1, 0, first_bucket, quantile, 0.9999999999781721),
+        (1, 0, first_bucket, quantile, 0.9999999999854481),
+        (1, 0, first_bucket, quantile, 0.9999999999890861),
+        (1, 0, first_bucket, quantile, 0.999999999992724),
+        (1, 0, first_bucket, quantile, 0.999999999994543),
+        (1, 0, first_bucket, quantile, 0.999999999996362),
+        (1, 0, first_bucket, quantile, 0.9999999999972715),
+        (1, 0, first_bucket, quantile, 0.999999999998181),
+        (1, 0, first_bucket, quantile, 0.9999999999986358),
+        (1, 0, first_bucket, quantile, 0.9999999999990905),
+        (1, 0, first_bucket, quantile, 0.9999999999993179),
+        (1, 0, first_bucket, quantile, 0.9999999999995453),
+        (1, 0, first_bucket, quantile, 0.9999999999996589),
+        (1, 0, first_bucket, quantile, 0.9999999999997726),
+        (1, 0, first_bucket, quantile, 0.9999999999998295),
+        (1, 0, first_bucket, quantile, 0.9999999999998863),
+        (1, 0, first_bucket, quantile, 0.9999999999999147),
+        (1, 0, first_bucket, quantile, 0.9999999999999432),
+        (1, 0, first_bucket, quantile, 0.9999999999999574),
+        (1, 0, first_bucket, quantile, 0.9999999999999716),
+        (1, 0, first_bucket, quantile, 0.9999999999999787),
+        (1, 0, first_bucket, quantile, 0.9999999999999858),
+        (1, 0, first_bucket, quantile, 0.9999999999999893),
+        (1, 0, first_bucket, quantile, 0.9999999999999929),
+        (1, 0, first_bucket, quantile, 0.9999999999999947),
+        (1, 0, first_bucket, quantile, 0.9999999999999964),
+        (1, 0, first_bucket, quantile, 0.9999999999999973),
+        (1, 0, first_bucket, quantile, 0.9999999999999982),
+        (1, 0, first_bucket, quantile, 0.9999999999999987),
+        (1, 0, first_bucket, quantile, 0.9999999999999991),
+        (1, 0, first_bucket, quantile, 0.9999999999999993),
+        (1, 0, first_bucket, quantile, 0.9999999999999996),
+        (1, 0, first_bucket, quantile, 0.9999999999999997),
+        (1, 0, first_bucket, quantile, 0.9999999999999998),
+        // goes to next bucket just as it reaches 1.0
+        (2, 2, 2, 1.0, 1.0),
+    ];
 
     assert_eq!(expected, iter_values);
 }
@@ -778,17 +841,19 @@ fn iter_quantiles_one_value() {
     h.record_n(1, 1).unwrap();
 
     let iter_values: Vec<(u64, u64, u64, f64, f64)> = h.iter_quantiles(2)
-            .map(|v| (v.value_iterated_to(),
-                      v.count_since_last_iteration(),
-                      v.count_at_value(),
-                      v.quantile(),
-                      v.quantile_iterated_to()))
-            .collect();
+        .map(|v| {
+            (
+                v.value_iterated_to(),
+                v.count_since_last_iteration(),
+                v.count_at_value(),
+                v.quantile(),
+                v.quantile_iterated_to(),
+            )
+        })
+        .collect();
 
     // at first iteration, we're already in the last index, so we should jump to 1.0 and stop
-    let expected = vec![
-        (1, 1, 1, 1.0, 0.0),
-        (1, 0, 1, 1.0, 1.0)];
+    let expected = vec![(1, 1, 1, 1.0, 0.0), (1, 0, 1, 1.0, 1.0)];
 
     assert_eq!(expected, iter_values);
 }
@@ -823,6 +888,14 @@ fn prepare_histo_for_logarithmic_iterator() -> Histogram<u64> {
     h
 }
 
-fn histo64(lowest_discernible_value: u64, highest_trackable_value: u64, num_significant_digits: u8) -> Histogram<u64> {
-    Histogram::<u64>::new_with_bounds(lowest_discernible_value, highest_trackable_value, num_significant_digits).unwrap()
+fn histo64(
+    lowest_discernible_value: u64,
+    highest_trackable_value: u64,
+    num_significant_digits: u8,
+) -> Histogram<u64> {
+    Histogram::<u64>::new_with_bounds(
+        lowest_discernible_value,
+        highest_trackable_value,
+        num_significant_digits,
+    ).unwrap()
 }
