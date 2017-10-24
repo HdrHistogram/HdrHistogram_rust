@@ -109,7 +109,7 @@
 //! // ...
 //! for v in hist.iter_recorded() {
 //!     println!("{}'th percentile of data is {} with {} samples",
-//!         v.percentile(), v.value(), v.count_at_value());
+//!         v.percentile(), v.value_iterated_to(), v.count_at_value());
 //! }
 //! ```
 //!
@@ -401,7 +401,7 @@ impl<T: Counter> Histogram<T> {
     pub fn clone_correct(&self, interval: u64) -> Histogram<T> {
         let mut h = Histogram::new_from(self);
         for v in self.iter_recorded() {
-            h.record_n_correct(v.value(), v.count_at_value(), interval)
+            h.record_n_correct(v.value_iterated_to(), v.count_at_value(), interval)
                 .expect("Same dimensions; all values should be representable");
         }
         h
@@ -529,7 +529,7 @@ impl<T: Counter> Histogram<T> {
         let source = source.borrow();
 
         for v in source.iter_recorded() {
-            self.record_n_correct(v.value(), v.count_at_value(), interval)?;
+            self.record_n_correct(v.value_iterated_to(), v.count_at_value(), interval)?;
         }
         Ok(())
     }
@@ -877,6 +877,16 @@ impl<T: Counter> Histogram<T> {
     ///
     /// The iterator yields an `iterators::IterationValue` struct.
     ///
+    /// One subtlety of this iterator is that you can reach a value whose cumulative count yields
+    /// a quantile of 1.0 far sooner than the quantile iteration would reach 1.0. Consider a
+    /// histogram with count 1 at value 1, and count 1000000 at value 1000. At any quantile
+    /// iteration above `1/1000001 = 0.000000999`, iteration will have necessarily proceeded to
+    /// the index for value 1000, which has all the remaining counts, and therefore quantile (for
+    /// the value) of 1.0. This is why `IterationValue` has both `quantile()` and
+    /// `quantile_iterated_to()`. Additionally, to avoid a bunch of unhelpful iterations once
+    /// iteration has reached the last value with non-zero count, quantile iteration will skip
+    /// straight to 1.0 as well.
+    ///
     /// ```
     /// use hdrsample::Histogram;
     /// use hdrsample::iterators::IterationValue;
@@ -991,7 +1001,7 @@ impl<T: Counter> Histogram<T> {
     /// assert_eq!(perc.next(), None);
     /// ```
     pub fn iter_recorded<'a>(&'a self)
-            -> HistogramIterator<'a, T, iterators::recorded::Iter<'a, T>> {
+            -> HistogramIterator<'a, T, iterators::recorded::Iter> {
         iterators::recorded::Iter::new(self)
     }
 
@@ -1078,7 +1088,7 @@ impl<T: Counter> Histogram<T> {
         self.iter_recorded().fold(0.0_f64, |total, v| {
             // TODO overflow?
             total +
-                self.median_equivalent(v.value()) as f64 * v.count_at_value().as_f64()
+                self.median_equivalent(v.value_iterated_to()) as f64 * v.count_at_value().as_f64()
                     / self.total_count as f64
         })
     }
@@ -1091,7 +1101,7 @@ impl<T: Counter> Histogram<T> {
 
         let mean = self.mean();
         let geom_dev_tot = self.iter_recorded().fold(0.0_f64, |gdt, v| {
-            let dev = self.median_equivalent(v.value()) as f64 - mean;
+            let dev = self.median_equivalent(v.value_iterated_to()) as f64 - mean;
             gdt + (dev * dev) * v.count_since_last_iteration() as f64
         });
 

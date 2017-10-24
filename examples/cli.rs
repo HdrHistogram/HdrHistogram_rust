@@ -121,24 +121,24 @@ fn quantiles<R: BufRead, W: Write>(mut reader: R, mut writer: W, quantile_precis
     let mut sum = 0;
     for v in hist.iter_quantiles(ticks_per_half) {
         sum += v.count_since_last_iteration();
-        if v.quantile() < 1.0 {
+        if v.quantile_iterated_to() < 1.0 {
             writer.write_all(
                 format!(
                     "{:12} {:1.*} {:1.*} {:10} {:14.2}\n",
-                    v.value(),
+                    v.value_iterated_to(),
                     quantile_precision,
                     v.quantile(),
                     quantile_precision,
                     v.quantile_iterated_to(),
                     sum,
-                    1_f64 / (1_f64 - v.quantile())
+                    1_f64 / (1_f64 - v.quantile_iterated_to())
                 ).as_ref(),
             )?;
         } else {
             writer.write_all(
                 format!(
                     "{:12} {:1.*} {:1.*} {:10} {:>14}\n",
-                    v.value(),
+                    v.value_iterated_to(),
                     quantile_precision,
                     v.quantile(),
                     quantile_precision,

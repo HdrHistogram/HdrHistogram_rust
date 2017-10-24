@@ -1,17 +1,10 @@
 //! Tests from HistogramDataAccessTest.java
 
 extern crate hdrsample;
-extern crate rand;
 extern crate ieee754;
 extern crate rug;
 
-use hdrsample::{Histogram, Counter};
-
-use rand::Rng;
-use rand::distributions::range::Range;
-use rand::distributions::IndependentSample;
-use ieee754::Ieee754;
-use rug::{Rational, Integer};
+use hdrsample::Histogram;
 
 macro_rules! assert_near {
     ($a: expr, $b: expr, $tolerance: expr) => {{
@@ -52,15 +45,15 @@ fn load_histograms() -> Loaded {
     // 100 times per second (10,000 results), followed by a 100 second pause with a single (100
     // second) recorded result. Recording is done indicating an expected EINTERVAL between samples
     // of 10 msec:
-    for _ in 0..10000 {
-        let v = 1000; // 1ms
+    for _ in 0..10_000 {
+        let v = 1_000; // 1ms
         hist.record_correct(v, EINTERVAL).unwrap();
         scaled_hist.record_correct(v * SCALEF, EINTERVAL * SCALEF).unwrap();
         raw += v;
         scaled_raw += v * SCALEF;
     }
 
-    let v = 100000000;
+    let v = 100_000_000;
     hist.record_correct(v, EINTERVAL).unwrap();
     scaled_hist.record_correct(v * SCALEF, EINTERVAL * SCALEF).unwrap();
     raw += v;
@@ -302,13 +295,13 @@ fn count_at_beyond_max_value() {
 fn quantile_iter() {
     let Loaded { hist, .. } = load_histograms();
     for v in hist.iter_quantiles(5 /* ticks per half */) {
-        assert_eq!(v.value(), hist.highest_equivalent(hist.value_at_quantile(v.quantile())));
+        assert_eq!(v.value_iterated_to(), hist.highest_equivalent(hist.value_at_quantile(v.quantile())));
     }
 }
 
 #[test]
-fn linear_iter() {
-    let Loaded { hist, raw, .. } = load_histograms();
+fn linear_iter_raw() {
+    let Loaded { raw, .. } = load_histograms();
 
     // Note that using linear buckets should work "as expected" as long as the number of linear
     // buckets is lower than the resolution level determined by
@@ -318,10 +311,10 @@ fn linear_iter() {
 
     // Iterate raw data using linear buckets of 100 msec each.
     let mut num = 0;
-    for (i, v) in raw.iter_linear(100000).enumerate() {
+    for (i, v) in raw.iter_linear(100_000).enumerate() {
         match i {
             // Raw Linear 100 msec bucket # 0 added a count of 10000
-            0 => assert_eq!(v.count_since_last_iteration(), 10000),
+            0 => assert_eq!(v.count_since_last_iteration(), 10_000),
             // Raw Linear 100 msec bucket # 999 added a count of 1
             999 => assert_eq!(v.count_since_last_iteration(), 1),
             // Remaining raw Linear 100 msec buckets add a count of 0
@@ -329,14 +322,19 @@ fn linear_iter() {
         }
         num += 1;
     }
-    assert_eq!(num, 1000);
+    assert_eq!(num, 1_000);
+}
 
-    num = 0;
+#[test]
+fn linear_iter_corrected() {
+    let Loaded { hist, .. } = load_histograms();
+
+    let mut num = 0;
     let mut total_added_counts = 0;
     // Iterate data using linear buckets of 10 msec each.
-    for (i, v) in hist.iter_linear(10000).enumerate() {
+    for (i, v) in hist.iter_linear(10_000).enumerate() {
         if i == 0 {
-            assert_eq!(v.count_since_last_iteration(), 10000);
+            assert_eq!(v.count_since_last_iteration(), 10_000);
         }
 
         // Because value resolution is low enough (3 digits) that multiple linear buckets will end
@@ -348,15 +346,15 @@ fn linear_iter() {
         num += 1;
     }
     // There should be 10000 linear buckets of size 10000 usec between 0 and 100 sec.
-    assert_eq!(num, 10000);
-    assert_eq!(total_added_counts, 20000);
+    assert_eq!(num, 10_000);
+    assert_eq!(total_added_counts, 20_000);
 
     num = 0;
     total_added_counts = 0;
     // Iterate data using linear buckets of 1 msec each.
-    for (i, v) in hist.iter_linear(1000).enumerate() {
+    for (i, v) in hist.iter_linear(1_000).enumerate() {
         if i == 1 {
-            assert_eq!(v.count_since_last_iteration(), 10000);
+            assert_eq!(v.count_since_last_iteration(), 10_000);
         }
 
         // Because value resolution is low enough (3 digits) that multiple linear buckets will end
@@ -377,8 +375,8 @@ fn linear_iter() {
     // out of the last populated bucket, there is not way to tell if the iteration should stop at
     // 100000 or 100007 steps. The proper thing to do is to run to the end of the sub-bucket
     // quanta...
-    assert_eq!(num, 100007);
-    assert_eq!(total_added_counts, 20000);
+    assert_eq!(num, 100_007);
+    assert_eq!(total_added_counts, 20_000);
 }
 
 #[test]
@@ -439,7 +437,7 @@ fn iter_recorded() {
         }
 
         // The count in a recorded iterator value should never be zero
-        assert!(v.count_at_value() != 0);
+        assert_ne!(v.count_at_value(), 0);
         // The count in a recorded iterator value should exactly match the amount added since the
         // last iteration
         assert_eq!(v.count_at_value(), v.count_since_last_iteration());
@@ -459,7 +457,7 @@ fn iter_all() {
     for (i, v) in raw.iter_all().enumerate() {
         if i == 1000 {
             assert_eq!(v.count_since_last_iteration(), 10000);
-        } else if hist.equivalent(v.value(), 100000000) {
+        } else if hist.equivalent(v.value_iterated_to(), 100000000) {
             assert_eq!(v.count_since_last_iteration(), 1);
         } else {
             assert_eq!(v.count_since_last_iteration(), 0);
@@ -511,7 +509,7 @@ fn value_duplication() {
     let mut counts = Vec::with_capacity(histogram1.len());
     for v in histogram1.iter_all() {
         if v.count_since_last_iteration() > 0 {
-            ranges.push(v.value());
+            ranges.push(v.value_iterated_to());
             counts.push(v.count_since_last_iteration());
         }
         num += 1;
@@ -523,8 +521,7 @@ fn value_duplication() {
         histogram2.record_n(ranges[i], counts[i]).unwrap();
     }
 
-    assert!(histogram1 == histogram2,
-            "histograms should be equal after re-recording");
+    assert_eq!(histogram1, histogram2, "histograms should be equal after re-recording");
 }
 
 #[test]
@@ -541,366 +538,4 @@ fn total_count_exceeds_bucket_type() {
     }
 
     assert_eq!(400, h.count());
-}
-
-#[test]
-fn value_at_quantile_internal_count_exceeds_bucket_type() {
-    let mut h: Histogram<u8> = Histogram::new(3).unwrap();
-
-    for _ in 0..200 {
-        h.record(100).unwrap();
-    }
-
-
-    for _ in 0..200 {
-        h.record(100_000).unwrap();
-    }
-
-    // we won't get back the original input because of bucketing
-    assert_eq!(h.highest_equivalent(100_000), h.value_at_quantile(1.0));
-}
-
-
-#[test]
-fn value_at_quantile_2_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
-
-    h.record(1).unwrap();
-    h.record(2).unwrap();
-
-    assert_eq!(1, h.value_at_quantile(0.25));
-    assert_eq!(1, h.value_at_quantile(0.5));
-
-    let almost_half = 0.5000000000000001;
-    let next = 0.5000000000000002;
-    // one ulp apart
-    assert_eq!(almost_half, 0.5_f64.next());
-    assert_eq!(next, almost_half.next());
-
-    assert_eq!(2, h.value_at_quantile(almost_half));
-    assert_eq!(2, h.value_at_quantile(next));
-}
-
-#[test]
-fn value_at_quantile_5_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
-
-    h.record(1).unwrap();
-    h.record(2).unwrap();
-    h.record(2).unwrap();
-    h.record(2).unwrap();
-    h.record(2).unwrap();
-
-    assert_eq!(2, h.value_at_quantile(0.25));
-    assert_eq!(2, h.value_at_quantile(0.3));
-}
-
-#[test]
-fn value_at_quantile_20k() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
-
-    for i in 1..20_001 {
-        h.record(i).unwrap();
-    }
-
-    assert_eq!(20_000, h.count());
-
-    assert!(h.equivalent(19961, h.value_at_quantile(0.99805)));
-}
-
-#[test]
-fn value_at_quantile_large_numbers() {
-    let mut h = Histogram::<u64>::new_with_bounds(20_000_000, 100_000_000, 5).unwrap();
-    h.record(100_000_000).unwrap();
-    h.record(20_000_000).unwrap();
-    h.record(30_000_000).unwrap();
-
-    assert!(h.equivalent(20_000_000, h.value_at_quantile(0.5)));
-    assert!(h.equivalent(30_000_000, h.value_at_quantile(0.5)));
-    assert!(h.equivalent(100_000_000, h.value_at_quantile(0.8333)));
-    assert!(h.equivalent(100_000_000, h.value_at_quantile(0.8334)));
-    assert!(h.equivalent(100_000_000, h.value_at_quantile(0.99)));
-}
-
-#[test]
-fn value_at_quantile_matches_quantile_iter_sequence_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
-
-    let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000];
-    let mut errors: u64 = 0;
-
-    for length in lengths {
-        h.reset();
-
-        for i in 1..(length + 1) {
-            h.record(i).unwrap();
-        }
-
-        assert_eq!(length, h.count());
-
-        let iter = h.iter_quantiles(100);
-
-        for iter_val in iter {
-            let calculated_value = h.value_at_quantile(iter_val.quantile());
-            let v = iter_val.value();
-
-            // Quantile iteration has problematic floating-point calculations. Calculating the
-            // quantile involves something like `index / total_count`, and that's then multiplied
-            // by `total_count` again to get the value at the quantile. This tends to produce
-            // artifacts, so this test will frequently fail if you expect the actual value to
-            // match the calculated value. Instead, we allow it to be one bucket high or low.
-
-            if calculated_value != v
-                && calculated_value != prev_value_nonzero_count(&h, v)
-                && calculated_value != next_value_nonzero_count(&h, v) {
-                let q_count_rational = calculate_quantile_count(iter_val.quantile(), length);
-
-                println!("len {} iter quantile {} q * count fp {} q count rational {} iter val {} -> {} calc val {} -> {}",
-                         length, iter_val.quantile(), iter_val.quantile() * length as f64,
-                         q_count_rational, v, h.highest_equivalent(v),
-                         calculated_value, h.highest_equivalent(calculated_value));
-                errors += 1;
-            }
-        }
-    }
-
-    assert_eq!(0, errors);
-}
-
-#[test]
-fn value_at_quantile_matches_quantile_iter_random_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
-
-    let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000];
-
-    let mut rng = rand::thread_rng();
-    let mut errors: u64 = 0;
-
-    for length in lengths {
-        h.reset();
-
-        for v in RandomMaxIter::new(&mut rng).take(length) {
-            h.record(v).unwrap();
-        }
-
-        assert_eq!(length as u64, h.count());
-
-        let iter = h.iter_quantiles(100);
-
-        for iter_val in iter {
-            let calculated_value = h.value_at_quantile(iter_val.quantile());
-            let v = iter_val.value();
-
-            // Quantile iteration has problematic floating-point calculations. Calculating the
-            // quantile involves something like `index / total_count`, and that's then multiplied
-            // by `total_count` again to get the value at the quantile. This tends to produce
-            // artifacts, so this test will frequently fail if you expect the actual value to
-            // match the calculated value. Instead, we allow it to be one bucket high or low.
-
-            if calculated_value != v
-                && calculated_value != prev_value_nonzero_count(&h, v)
-                && calculated_value != next_value_nonzero_count(&h, v) {
-                let q_count_rational = calculate_quantile_count(iter_val.quantile(), length as u64);
-
-                println!("len {} iter quantile {} q * count fp {} q count rational {} iter val {} -> {} calc val {} -> {}",
-                         length, iter_val.quantile(), iter_val.quantile() * length as f64,
-                         q_count_rational, v, h.highest_equivalent(v),
-                         calculated_value, h.highest_equivalent(calculated_value));
-                errors += 1;
-            }
-        }
-    }
-
-    assert_eq!(0, errors);
-}
-
-#[test]
-fn value_at_quantile_matches_quantile_at_each_value_sequence_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
-
-    let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000];
-    let mut errors: u64 = 0;
-
-    for length in lengths {
-        h.reset();
-
-        for i in 1..(length + 1) {
-            h.record(i).unwrap();
-        }
-
-        assert_eq!(length, h.count());
-
-        for v in 1..(length + 1) {
-            let quantile = (Rational::from(Integer::from(v as u64))
-                / Rational::from(Integer::from(length as u64))).to_f64();
-            let calculated_value = h.value_at_quantile(quantile);
-            if !h.equivalent(v, calculated_value) {
-                println!("len {} value {} quantile {} q * count fp {} actual {} -> {} calc {} -> {}",
-                         length, v, quantile, quantile * length as f64,
-                         v, h.highest_equivalent(v),
-                         calculated_value, h.highest_equivalent(calculated_value));
-                errors += 1;
-            }
-        }
-    }
-
-    assert_eq!(0, errors);
-}
-
-#[test]
-fn value_at_quantile_matches_quantile_at_each_value_random_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
-    let mut values = Vec::new();
-
-    let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000];
-
-    let mut rng = rand::thread_rng();
-
-    let mut errors: u64 = 0;
-
-    for length in lengths {
-        h.reset();
-        values.clear();
-
-        for v in RandomMaxIter::new(&mut rng).take(length) {
-            h.record(v).unwrap();
-            values.push(v);
-        }
-
-        values.sort();
-
-        assert_eq!(length as u64, h.count());
-
-        for (index, &v) in values.iter().enumerate() {
-            let quantile = (Rational::from(Integer::from(index as u64 + 1))
-                / Rational::from(Integer::from(length as u64))).to_f64();
-            let calculated_value = h.value_at_quantile(quantile);
-            if !h.equivalent(v, calculated_value) {
-                errors += 1;
-                println!("len {} index {} quantile {} q * count fp {} actual {} -> {} calc {} -> {}",
-                         length, index, quantile, quantile * length as f64, v, h.highest_equivalent(v),
-                         calculated_value, h.highest_equivalent(calculated_value));
-            }
-        }
-    }
-
-    assert_eq!(0, errors);
-}
-
-#[test]
-fn value_at_quantile_matches_random_quantile_random_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
-    let mut values = Vec::new();
-
-    let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000];
-
-    let mut rng = rand::thread_rng();
-    let quantile_range = Range::new(0_f64, 1_f64.next());
-
-    let mut errors: u64 = 0;
-
-    for length in lengths {
-        h.reset();
-        values.clear();
-
-        for v in RandomMaxIter::new(&mut rng).take(length) {
-            h.record(v).unwrap();
-            values.push(v);
-        }
-
-        values.sort();
-
-        assert_eq!(length as u64, h.count());
-
-        for _ in 0..1_000 {
-            let quantile = quantile_range.ind_sample(&mut rng);
-            let index_at_quantile = (Rational::from_f64(quantile).unwrap()
-                * Rational::from(Integer::from(length as u64)))
-                .to_integer().to_u64().unwrap() as usize;
-            let calculated_value = h.value_at_quantile(quantile);
-            let v = values[index_at_quantile];
-            if !h.equivalent(v, calculated_value) {
-                errors += 1;
-                println!("len {} index {} quantile {} q * count fp {} actual {} -> {} calc {} -> {}",
-                         length, index_at_quantile, quantile, quantile * length as f64, v, h.highest_equivalent(v),
-                         calculated_value, h.highest_equivalent(calculated_value));
-            }
-        }
-    }
-
-    assert_eq!(0, errors);
-}
-
-/// An iterator of random `u64`s where the maximum value for each random number generation is picked
-/// from a uniform distribution of the 64 possible bit lengths for a `u64`.
-///
-/// This helps create somewhat more realistic distributions of numbers. A simple random u64 is very
-/// likely to be a HUGE number; this helps scatter some numbers down in the smaller end.
-struct RandomMaxIter<'a, R: Rng + 'a> {
-    rng: &'a mut R
-}
-
-impl<'a, R: Rng + 'a> RandomMaxIter<'a, R> {
-    fn new(rng: &'a mut R) -> RandomMaxIter<R> {
-        RandomMaxIter {
-            rng
-        }
-    }
-}
-
-impl<'a, R: Rng + 'a> Iterator for RandomMaxIter<'a, R> {
-    type Item = u64;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let bit_length = self.rng.gen_range(0, 65);
-
-        return Some(match bit_length {
-            0 => 0,
-            64 => u64::max_value(),
-            x => self.rng.gen_range(0, 1 << x)
-        });
-    }
-}
-
-/// Calculate the count at a quantile with arbitrary precision arithmetic
-fn calculate_quantile_count(quantile: f64, count: u64) -> u64 {
-    let product = Rational::from_f64(quantile).unwrap() * Rational::from(Integer::from(count));
-    let prod_as_int = (product).to_integer();
-
-    // emulate ceil()
-    if product == Rational::from(prod_as_int.clone()) {
-        return prod_as_int.to_u64().unwrap();
-    } else {
-        // to_integer()'s rounding down has chopped off a fractional part
-        return prod_as_int.to_u64().unwrap() + 1;
-    }
-}
-
-fn next_value_nonzero_count<C: Counter>(h: &Histogram<C>, start_value: u64) -> u64 {
-    let mut v = h.next_non_equivalent(start_value);
-
-    loop {
-        if h.count_at(v) > C::zero() {
-            return h.highest_equivalent(v);
-        }
-
-        v = h.next_non_equivalent(v);
-    }
-}
-
-
-fn prev_value_nonzero_count<C: Counter>(h: &Histogram<C>, start_value: u64) -> u64 {
-    let mut v = h.lowest_equivalent(start_value).saturating_sub(1);
-
-    loop {
-        if v == 0 {
-            return 0;
-        }
-
-        if h.count_at(v) > C::zero() {
-            return h.highest_equivalent(v);
-        }
-
-        v = h.lowest_equivalent(v).saturating_sub(1);
-    }
 }
