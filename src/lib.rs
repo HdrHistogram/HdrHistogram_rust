@@ -1611,5 +1611,6 @@ mod tests;
 #[cfg(feature = "serialization")]
 pub mod serialization;
 mod core;
-pub use core::errors::*;
+pub mod errors;
+pub use errors::*;
 pub use core::counter::*;
