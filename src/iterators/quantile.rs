@@ -1,4 +1,4 @@
-use Counter;
+use core::counter::Counter;
 use Histogram;
 use iterators::{HistogramIterator, PickyIterator};
 
