@@ -1,4 +1,5 @@
-use super::super::{Counter, Histogram};
+use super::super::Histogram;
+use core::counter::Counter;
 use super::V2_COMPRESSED_COOKIE;
 use super::v2_serializer::{V2Serializer, V2SerializeError};
 use super::byteorder::{BigEndian, WriteBytesExt};

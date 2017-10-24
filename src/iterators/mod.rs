@@ -1,4 +1,4 @@
-use Counter;
+use core::counter::Counter;
 use Histogram;
 
 /// An iterator that iterates over histogram quantiles.
