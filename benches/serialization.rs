@@ -9,8 +9,7 @@ use hdrsample::serialization::*;
 use self::rand::distributions::range::Range;
 use self::rand::distributions::IndependentSample;
 use self::test::Bencher;
-use std::io::{Cursor, Write};
-use std::fmt::Debug;
+use std::io::Cursor;
 
 #[bench]
 fn serialize_tiny_dense_v2(b: &mut Bencher) {
@@ -168,7 +167,7 @@ fn do_serialize_bench<S>(
     digits: u8,
     fraction_of_counts_len: f64,
 ) where
-    S: TestOnlyHypotheticalSerializerInterface,
+    S: Serializer,
 {
     let mut h = Histogram::<u64>::new_with_bounds(low, high, digits).unwrap();
     let random_counts = (fraction_of_counts_len * h.distinct_values() as f64) as usize;
@@ -196,7 +195,7 @@ fn do_deserialize_bench<S>(
     digits: u8,
     fraction_of_counts_len: f64,
 ) where
-    S: TestOnlyHypotheticalSerializerInterface,
+    S: Serializer,
 {
     let mut h = Histogram::<u64>::new_with_bounds(low, high, digits).unwrap();
     let random_counts = (fraction_of_counts_len * h.distinct_values() as f64) as usize;
@@ -217,5 +216,3 @@ fn do_deserialize_bench<S>(
         let _: Histogram<u64> = d.deserialize(&mut cursor).unwrap();
     });
 }
-
-include!("../src/serialization/test_serialize_trait.rs");

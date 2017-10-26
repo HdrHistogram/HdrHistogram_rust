@@ -6,6 +6,7 @@ extern crate rand;
 use self::rand::Rng;
 
 use hdrsample::{Counter, Histogram, SubtractionError};
+use hdrsample::serialization::Serializer;
 use std::borrow::Borrow;
 use std::fmt;
 

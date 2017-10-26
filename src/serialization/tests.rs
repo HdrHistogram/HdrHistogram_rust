@@ -1,7 +1,7 @@
 extern crate rand;
 
-use super::{V2DeflateSerializeError, V2DeflateSerializer, V2SerializeError, V2Serializer,
-            V2_COOKIE, V2_HEADER_SIZE};
+use super::{Serializer, V2DeflateSerializer, V2SerializeError, V2Serializer, V2_COOKIE,
+            V2_HEADER_SIZE};
 use super::v2_serializer::{counts_array_max_encoded_size, encode_counts, varint_write,
                            zig_zag_encode};
 use super::deserializer::{varint_read, varint_read_slice, zig_zag_decode, Deserializer};
@@ -9,7 +9,7 @@ use super::byteorder::{BigEndian, ReadBytesExt};
 use super::super::{Counter, Histogram};
 use num::ToPrimitive;
 use super::super::tests::helpers::histo64;
-use std::io::{Cursor, Write};
+use std::io::Cursor;
 use std::fmt::{Debug, Display};
 use std::iter::once;
 use self::rand::{Rand, Rng};
@@ -553,7 +553,7 @@ fn do_varint_write_read_slice_roundtrip_rand(byte_length: usize) {
 
 fn do_serialize_roundtrip_random<S, T>(mut serializer: S, max_count: T)
 where
-    S: TestOnlyHypotheticalSerializerInterface,
+    S: Serializer,
     T: Counter + Debug + Display + Rand + ToPrimitive + SampleRange,
 {
     let mut d = Deserializer::new();
@@ -764,5 +764,3 @@ impl<R: Rng> Iterator for RandomVarintEncodedLengthIter<R> {
         Some(value_range.ind_sample(&mut self.rng))
     }
 }
-
-include!("test_serialize_trait.rs");

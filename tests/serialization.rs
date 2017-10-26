@@ -3,7 +3,7 @@ mod tests {
     extern crate hdrsample;
 
     use self::hdrsample::Histogram;
-    use self::hdrsample::serialization::{Deserializer, V2Serializer};
+    use self::hdrsample::serialization::{Deserializer, Serializer, V2Serializer};
 
     use std::io::{BufRead, BufReader, Read};
     use std::fs::File;
