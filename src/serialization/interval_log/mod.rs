@@ -9,7 +9,7 @@
 //! An interval log contains some initial metadata, then a sequence of histograms, each with some
 //! additional metadata (timestamps, etc).
 //!
-//! To parse a log, see `IntervalLogIterator`. To write a log, see `LogHeaderWriter`.
+//! To parse a log, see `IntervalLogIterator`. To write a log, see `IntervalLogHeaderWriter`.
 
 extern crate base64;
 
@@ -21,7 +21,7 @@ use nom::{double, line_ending, not_line_ending, IResult};
 use super::super::{Counter, Histogram};
 use super::Serializer;
 
-/// The starting point for writing an interval log.
+/// Start writing an interval log.
 ///
 /// This type only allows writing comments and headers. Once you're done writing those things, use
 /// `into_log_writer()` to convert this into an `IntervalLogWriter`.
@@ -58,7 +58,7 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> IntervalLogHeaderWriter<'a, 
 
 /// Writes interval histograms in an interval log.
 ///
-///
+/// This isn't created directly; start with an `IntervalLogHeaderWriter`.
 pub struct IntervalLogWriter<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> {
     internal_writer: InternalLogWriter<'a, 'b, W, S>,
 }
@@ -211,8 +211,8 @@ impl<'a> IntervalLogHistogram<'a> {
 
     /// Timestamp of the start of the interval in seconds.
     ///
-    /// The timestamp may be absolute vs the epoch, or there may be a StartTime or BaseTime for the
-    /// log.
+    /// The timestamp may be absolute vs the epoch, or there may be a `StartTime` or `BaseTime` for
+    /// the log, in which case you may wish to consider this number as a delta vs those timestamps..
     pub fn start_timestamp(&self) -> f64 {
         self.start_timestamp
     }
@@ -232,7 +232,8 @@ impl<'a> IntervalLogHistogram<'a> {
 
     /// Base64-encoded serialized histogram.
     ///
-    /// If you need the deserialized histogram, use a `Deserializer.
+    /// If you need the deserialized histogram, base64-decode and use a `Deserializer` on the
+    /// resulting bytes.
     ///
     /// Histograms are left in their original encoding to make parsing each log entry very cheap.
     /// One usage pattern is to navigate to a certain point in the log and only deserialize a few

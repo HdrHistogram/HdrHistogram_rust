@@ -273,7 +273,10 @@ mod tests {
 
             assert_eq!(index as f64, ilh.start_timestamp());
             assert_eq!((index as f64) + 10000.0, ilh.duration());
-            assert_eq!(round(original_hist.max() as f64 / max_scaling_factor), ilh.max());
+            assert_eq!(
+                round(original_hist.max() as f64 / max_scaling_factor),
+                ilh.max()
+            );
             let tag_string: Option<String> = tags.get(index).unwrap().as_ref().map(|s| s.clone());
             assert_eq!(tag_string, ilh.tag().map(|t| t.as_str().to_owned()));
         }

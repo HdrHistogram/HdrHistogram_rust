@@ -51,7 +51,7 @@
 //!
 //! # Interval logs
 //!
-//! Parsing interval logs is supported via `IntervalLogIterator`.
+//! See the `interval_log` module.
 //!
 //! ### Integration with general-purpose serialization libraries
 //!
