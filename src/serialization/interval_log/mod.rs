@@ -13,7 +13,7 @@
 
 extern crate base64;
 
-use std::{io, str};
+use std::{io, ops, str};
 use std::fmt::Write;
 
 use nom::{double, line_ending, not_line_ending, IResult};
@@ -75,15 +75,19 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> IntervalLogWriter<'a, 'b, W,
     /// BaseTime offset, you should instead use a delta since that time.
     /// `duration` is the duration of the interval in seconds.
     /// `tag` is an optional tag for this histogram.
+    /// `max_value_divisor` is used to scale down the max value to something that may be more human
+    /// readable. The max value in the log is only for human consumption, so you might prefer to
+    /// divide by 10^9 to turn nanoseconds into fractional seconds, for instance.
     pub fn write_histogram<T: Counter>(
         &mut self,
         h: &Histogram<T>,
         start_timestamp: f64,
         duration: f64,
         tag: Option<Tag>,
+        max_value_divisor: f64,
     ) -> Result<(), IntervalLogWriterError<S::SerializeError>> {
         self.internal_writer
-            .write_histogram(h, start_timestamp, duration, tag)
+            .write_histogram(h, start_timestamp, duration, tag, max_value_divisor)
     }
 }
 
@@ -121,6 +125,7 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> InternalLogWriter<'a, 'b, W,
         start_timestamp: f64,
         duration: f64,
         tag: Option<Tag>,
+        max_value_divisor: f64,
     ) -> Result<(), IntervalLogWriterError<S::SerializeError>> {
         self.serialize_buf.clear();
         self.text_buf.clear();
@@ -131,11 +136,11 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> InternalLogWriter<'a, 'b, W,
 
         write!(
             self.writer,
-            "{}{},{},{},",
+            "{}{:.3},{:.3},{:.3},",
             self.text_buf,
             start_timestamp,
             duration,
-            h.max()
+            h.max() as f64 / max_value_divisor // because the Java impl does it this way
         )?;
 
         self.text_buf.clear();
@@ -153,9 +158,12 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> InternalLogWriter<'a, 'b, W,
 
 /// A tag for an interval histogram.
 ///
-/// Tags are just strings that do not contain a few disallowed characters: ',', '\r', '\n', and ' '.
+/// Tags are just `str`s that do not contain a few disallowed characters: ',', '\r', '\n', and ' '.
+///
+/// To get the wrapped `str` back out, use `as_str()` or the `Deref<str>` implementation
+/// (`&some_tag`).
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub struct Tag<'a>(&'a str);
+pub struct Tag<'a>(pub &'a str);
 
 impl<'a> Tag<'a> {
     /// Create a new Tag.
@@ -170,6 +178,19 @@ impl<'a> Tag<'a> {
             Some(Tag(s))
         }
     }
+
+    /// Returns the tag contents as a str.
+    pub fn as_str(&self) -> &'a str {
+        self.0
+    }
+}
+
+impl<'a> ops::Deref for Tag<'a> {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
 }
 
 /// An individual interval histogram parsed from an interval log.
@@ -178,7 +199,7 @@ pub struct IntervalLogHistogram<'a> {
     tag: Option<Tag<'a>>,
     start_timestamp: f64,
     duration: f64,
-    max_value: f64,
+    max: f64,
     encoded_histogram: &'a str,
 }
 
@@ -205,8 +226,8 @@ impl<'a> IntervalLogHistogram<'a> {
     ///
     /// This max value is the max of the histogram divided by some scaling factor (which may be
     /// 1.0).
-    pub fn max_value(&self) -> f64 {
-        self.max_value
+    pub fn max(&self) -> f64 {
+        self.max
     }
 
     /// Base64-encoded serialized histogram.
@@ -384,7 +405,7 @@ named!(interval_hist<&[u8], LogEntry>,
         char!(',') >>
         duration: double >>
         char!(',') >>
-        max_value: double >>
+        max: double >>
         char!(',') >>
         encoded_histogram: map_res!(not_line_ending, str::from_utf8) >>
         line_ending >>
@@ -392,7 +413,7 @@ named!(interval_hist<&[u8], LogEntry>,
             tag,
             start_timestamp,
             duration,
-            max_value,
+            max,
             encoded_histogram
         }))
     )

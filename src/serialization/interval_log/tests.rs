@@ -43,11 +43,13 @@ fn write_interval_histo_no_tag() {
         let header_writer = IntervalLogHeaderWriter::new(&mut buf, &mut serializer);
         let mut log_writer = header_writer.into_log_writer();
 
-        log_writer.write_histogram(&h, 1.234, 5.678, None).unwrap();
+        log_writer
+            .write_histogram(&h, 1.2345678, 5.67, None, 1.0)
+            .unwrap();
     }
 
     assert_eq!(
-        "1.234,5.678,0,HISTEwAAAAEAAAAAAAAAAwAAAAAAAAAB//////////8/8AAAAAAAAAA=\n",
+        "1.235,5.670,0.000,HISTEwAAAAEAAAAAAAAAAwAAAAAAAAAB//////////8/8AAAAAAAAAA=\n",
         str::from_utf8(&buf[..]).unwrap()
     );
 }
@@ -64,12 +66,12 @@ fn write_interval_histo_with_tag() {
         let mut log_writer = header_writer.into_log_writer();
 
         log_writer
-            .write_histogram(&h, 1.234, 5.678, Tag::new("t"))
+            .write_histogram(&h, 1.234, 5.678, Tag::new("t"), 1.0)
             .unwrap();
     }
 
     assert_eq!(
-        "Tag=t,1.234,5.678,0,HISTEwAAAAEAAAAAAAAAAwAAAAAAAAAB//////////8/8AAAAAAAAAA=\n",
+        "Tag=t,1.234,5.678,0.000,HISTEwAAAAEAAAAAAAAAAwAAAAAAAAAB//////////8/8AAAAAAAAAA=\n",
         str::from_utf8(&buf[..]).unwrap()
     );
 }
@@ -122,7 +124,7 @@ fn parse_interval_hist_no_tag() {
         tag: None,
         start_timestamp: 0.127,
         duration: 1.007,
-        max_value: 2.769,
+        max: 2.769,
         encoded_histogram: "couldBeBase64",
     });
 
@@ -138,7 +140,7 @@ fn parse_interval_hist_with_tag() {
         tag: Some(Tag("t")),
         start_timestamp: 0.127,
         duration: 1.007,
-        max_value: 2.769,
+        max: 2.769,
         encoded_histogram: "couldBeBase64",
     });
 
@@ -162,7 +164,7 @@ fn iter_with_ignored_prefix() {
         tag: Some(Tag("t")),
         start_timestamp: 0.127,
         duration: 1.007,
-        max_value: 2.769,
+        max: 2.769,
         encoded_histogram: "couldBeBase64",
     });
 
@@ -185,7 +187,7 @@ fn iter_without_ignored_prefix() {
         tag: Some(Tag("t")),
         start_timestamp: 0.127,
         duration: 1.007,
-        max_value: 2.769,
+        max: 2.769,
         encoded_histogram: "couldBeBase64",
     });
 
@@ -214,7 +216,7 @@ fn iter_multiple_entrties_with_interleaved_ignored() {
         tag: Some(Tag("t")),
         start_timestamp: 0.127,
         duration: 1.007,
-        max_value: 2.769,
+        max: 2.769,
         encoded_histogram: "couldBeBase64",
     });
 
