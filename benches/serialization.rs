@@ -6,10 +6,13 @@ extern crate test;
 
 use hdrsample::*;
 use hdrsample::serialization::*;
-use self::rand::distributions::range::Range;
-use self::rand::distributions::IndependentSample;
 use self::test::Bencher;
 use std::io::Cursor;
+
+use self::rand_varint::*;
+
+#[path = "../src/serialization/rand_varint.rs"]
+mod rand_varint;
 
 #[bench]
 fn serialize_tiny_dense_v2(b: &mut Bencher) {
@@ -173,11 +176,12 @@ fn do_serialize_bench<S>(
     let random_counts = (fraction_of_counts_len * h.distinct_values() as f64) as usize;
     let mut vec = Vec::with_capacity(random_counts);
 
-    let range = Range::new(low, high);
-
     let mut rng = rand::weak_rng();
-    for _ in 0..random_counts {
-        h.record(range.ind_sample(&mut rng)).unwrap();
+    for v in RandomVarintEncodedLengthIter::new(&mut rng)
+        .filter(|v| v >= &low && v <= &high)
+        .take(random_counts)
+    {
+        h.record(v).unwrap();
     }
 
     b.iter(|| {
@@ -201,11 +205,12 @@ fn do_deserialize_bench<S>(
     let random_counts = (fraction_of_counts_len * h.distinct_values() as f64) as usize;
     let mut vec = Vec::with_capacity(random_counts);
 
-    let range = Range::new(low, high);
-
     let mut rng = rand::weak_rng();
-    for _ in 0..random_counts {
-        h.record(range.ind_sample(&mut rng)).unwrap();
+    for v in RandomVarintEncodedLengthIter::new(&mut rng)
+        .filter(|v| v >= &low && v <= &high)
+        .take(random_counts)
+    {
+        h.record(v).unwrap();
     }
 
     let _ = s.serialize(&h, &mut vec).unwrap();

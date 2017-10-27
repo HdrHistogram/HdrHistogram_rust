@@ -5,22 +5,24 @@ extern crate rand;
 extern crate test;
 
 use hdrsample::*;
-use self::rand::Rng;
 use self::test::Bencher;
+
+use self::rand_varint::*;
+
+#[path = "../src/serialization/rand_varint.rs"]
+mod rand_varint;
 
 #[bench]
 fn record_precalc_random_values_with_1_count_u64(b: &mut Bencher) {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
     let mut indices = Vec::<u64>::new();
-    // TODO improve this and similar benchmarks to use a non-uniform distribution (like that used
-    // in serialization tests) so we're not always recording in the top few buckets
     let mut rng = rand::weak_rng();
 
     // same value approach as record_precalc_random_values_with_max_count_u64 so that they are
     // comparable
 
-    for _ in 0..1000_000 {
-        indices.push(rng.gen());
+    for v in RandomVarintEncodedLengthIter::new(&mut rng).take(1_000_000) {
+        indices.push(v);
     }
 
     b.iter(|| {
@@ -39,10 +41,9 @@ fn record_precalc_random_values_with_max_count_u64(b: &mut Bencher) {
 
     // store values in an array and re-use so we can be sure to hit the overflow case
 
-    for _ in 0..1000_000 {
-        let r = rng.gen();
-        indices.push(r);
-        h.record_n(r, u64::max_value()).unwrap();
+    for v in RandomVarintEncodedLengthIter::new(&mut rng).take(1_000_000) {
+        indices.push(v);
+        h.record_n(v, u64::max_value()).unwrap();
     }
 
     b.iter(|| {
@@ -59,8 +60,8 @@ fn record_correct_precalc_random_values_with_1_count_u64(b: &mut Bencher) {
     let mut indices = Vec::<u64>::new();
     let mut rng = rand::weak_rng();
 
-    for _ in 0..10_000 {
-        indices.push(rng.gen());
+    for v in RandomVarintEncodedLengthIter::new(&mut rng).take(10_000) {
+        indices.push(v);
     }
 
     b.iter(|| {
@@ -79,8 +80,10 @@ fn record_random_values_with_1_count_u64(b: &mut Bencher) {
     // This should be *slower* than the benchmarks above where we pre-calculate the values
     // outside of the hot loop. If it isn't, then those measurements are likely spurious.
 
-    b.iter(|| for _ in 0..1000_000 {
-        h.record(rng.gen()).unwrap()
+    b.iter(|| {
+        for v in RandomVarintEncodedLengthIter::new(&mut rng).take(1_000_000) {
+            h.record(v).unwrap()
+        }
     })
 }
 
@@ -136,11 +139,10 @@ fn do_subtract_benchmark<F: Fn() -> Histogram<u64>>(
     for _ in 0..1000 {
         let mut h = addend_factory();
 
-        for _ in 0..1000 {
-            let r = rng.gen();
-            h.record_n(r, count_at_each_addend_value).unwrap();
+        for v in RandomVarintEncodedLengthIter::new(&mut rng).take(1_000) {
+            h.record_n(v, count_at_each_addend_value).unwrap();
             // ensure there's a count to subtract from
-            accum.record_n(r, count_at_each_addend_value).unwrap();
+            accum.record_n(v, count_at_each_addend_value).unwrap();
         }
 
         subtrahends.push(h);
@@ -166,9 +168,8 @@ fn do_add_benchmark<F: Fn() -> Histogram<u64>>(
     for _ in 0..1000 {
         let mut h = addend_factory();
 
-        for _ in 0..1000 {
-            let r = rng.gen();
-            h.record_n(r, count_at_each_addend_value).unwrap();
+        for v in RandomVarintEncodedLengthIter::new(&mut rng).take(1_000) {
+            h.record_n(v, count_at_each_addend_value).unwrap();
         }
 
         addends.push(h);

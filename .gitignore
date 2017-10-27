@@ -12,3 +12,4 @@ Cargo.lock
 
 .criterion
 perf.data*
+/tmp
