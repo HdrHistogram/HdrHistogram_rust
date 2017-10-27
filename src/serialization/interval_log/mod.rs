@@ -234,10 +234,6 @@ impl<'a> IntervalLogHistogram<'a> {
     ///
     /// If you need the deserialized histogram, base64-decode and use a `Deserializer` on the
     /// resulting bytes.
-    ///
-    /// Histograms are left in their original encoding to make parsing each log entry very cheap.
-    /// One usage pattern is to navigate to a certain point in the log and only deserialize a few
-    /// interesting histograms, so it would be inefficient to deserialize them at log parse time.
     pub fn encoded_histogram(&self) -> &'a str {
         self.encoded_histogram
     }
@@ -274,6 +270,14 @@ pub enum LogIteratorError {
 ///
 /// This iterator exposes each item (excluding comments and other information-free lines). See
 /// `LogEntry`.
+///
+/// Because histogram deserialization is deferred, parsing logs is fast. (See the `interval_log`
+/// benchmark if you wish to see how it does on your hardware. As a baseline, parsing a log of 1000
+/// random histograms of 10,000 values each takes 8ms total on an E5-1650v3.)
+///
+/// Deferring deserialization is handy because it allows you to cheaply navigate the log to find
+/// the records you care about (e.g. ones in a certain time range, or with a certain tag) without
+/// doing all the allocation, etc, of deserialization.
 ///
 /// This parses from a slice representing the complete file because it made implementation easier
 /// (and also supports mmap'd files for maximum parsing speed). If parsing from a `Read` is
