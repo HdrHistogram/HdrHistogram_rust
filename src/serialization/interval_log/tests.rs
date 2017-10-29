@@ -77,7 +77,39 @@ fn write_interval_histo_with_tag() {
 }
 
 #[test]
-fn parse_start_time() {
+fn write_start_time() {
+    let mut buf = Vec::new();
+    let mut serializer = V2Serializer::new();
+
+    {
+        let mut header_writer = IntervalLogHeaderWriter::new(&mut buf, &mut serializer);
+        header_writer.write_start_time(123.456789).unwrap();
+    }
+
+    assert_eq!(
+        "#[StartTime: 123.457 (seconds since epoch)]\n",
+        str::from_utf8(&buf[..]).unwrap()
+    );
+}
+
+#[test]
+fn write_base_time() {
+    let mut buf = Vec::new();
+    let mut serializer = V2Serializer::new();
+
+    {
+        let mut header_writer = IntervalLogHeaderWriter::new(&mut buf, &mut serializer);
+        header_writer.write_base_time(123.456789).unwrap();
+    }
+
+    assert_eq!(
+        "#[BaseTime: 123.457 (seconds since epoch)]\n",
+        str::from_utf8(&buf[..]).unwrap()
+    );
+}
+
+#[test]
+fn parse_start_time_with_human_date() {
     let (rest, e) = start_time(
         b"#[StartTime: 1441812279.474 (seconds since epoch), Wed Sep 09 08:24:39 PDT 2015]\nfoo",
     ).unwrap();
@@ -89,10 +121,21 @@ fn parse_start_time() {
 }
 
 #[test]
+fn parse_start_time_without_human_date() {
+    // Can't be bothered to format a timestamp for humans, so we don't write that data. It's just
+    // another part that could be wrong -- what if it disagrees with the seconds since epoch?
+    // Also, BaseTime doesn't have a human-formatted time.
+    let (rest, e) = start_time(b"#[StartTime: 1441812279.474 (seconds since epoch)]\nfoo").unwrap();
+
+    let expected = LogEntry::StartTime(1441812279.474);
+
+    assert_eq!(expected, e);
+    assert_eq!(b"foo", rest);
+}
+
+#[test]
 fn parse_base_time() {
-    let (rest, e) = base_time(
-        b"#[BaseTime: 1441812279.474 (seconds since epoch), Wed Sep 09 08:24:39 PDT 2015]\nfoo",
-    ).unwrap();
+    let (rest, e) = base_time(b"#[BaseTime: 1441812279.474 (seconds since epoch)]\nfoo").unwrap();
 
     let expected = LogEntry::BaseTime(1441812279.474);
 
