@@ -182,7 +182,7 @@
 //! ergonomic as possible.
 
 #![deny(missing_docs, trivial_casts, trivial_numeric_casts, unused_extern_crates,
-        unused_import_braces, unused_results)]
+        unused_import_braces, unused_results, variant_size_differences, warnings)]
 // Enable feature(test) is enabled so that we can have benchmarks of private code
 #![cfg_attr(all(test, feature = "bench_private"), feature(test))]
 

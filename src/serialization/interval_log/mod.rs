@@ -429,6 +429,7 @@ impl<'a> IntervalLogHistogram<'a> {
 /// will be represented by the iterator providing the corresponding variants here. The presence
 /// of those timestamps will affect how you should interpret the timestamps for individual
 /// intervals.
+#[allow(variant_size_differences)]
 pub enum LogEntry<'a> {
     /// Logs may include a StartTime. If present, it represents seconds since the epoch.
     StartTime(f64),
