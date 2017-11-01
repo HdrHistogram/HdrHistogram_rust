@@ -1751,9 +1751,6 @@ where
 
 // TODO: shift
 // TODO: hash
-// TODO: encoding/decoding
-// TODO: timestamps and tags
-// TODO: textual output
 
 #[path = "tests/tests.rs"]
 #[cfg(test)]

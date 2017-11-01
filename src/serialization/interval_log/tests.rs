@@ -37,19 +37,20 @@ fn write_interval_histo_no_tag() {
     let mut buf = Vec::new();
     let mut serializer = V2Serializer::new();
 
-    let h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    h.record(1000).unwrap();
 
     {
         let header_writer = IntervalLogHeaderWriter::new(&mut buf, &mut serializer);
         let mut log_writer = header_writer.into_log_writer();
 
         log_writer
-            .write_histogram(&h, 1.2345678, 5.67, None, 1.0)
+            .write_histogram(&h, 1.2345678, 5.67, None, 10.0)
             .unwrap();
     }
 
     assert_eq!(
-        "1.235,5.670,0.000,HISTEwAAAAEAAAAAAAAAAwAAAAAAAAAB//////////8/8AAAAAAAAAA=\n",
+        "1.235,5.670,100.000,HISTEwAAAAMAAAAAAAAAAwAAAAAAAAAB//////////8/8AAAAAAAAM8PAg==\n",
         str::from_utf8(&buf[..]).unwrap()
     );
 }

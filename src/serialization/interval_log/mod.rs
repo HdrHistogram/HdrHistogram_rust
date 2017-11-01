@@ -244,9 +244,10 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> IntervalLogWriter<'a, 'b, W,
 
     /// Write an interval histogram.
     ///
-    /// `start_timestamp` is the time since the epoch in seconds. If you're using a StartTime or
-    /// BaseTime offset, you should instead use a delta since that time. See the discussion about
-    /// timestamps in the module-level documentation.
+    /// `start_timestamp` is the time since the epoch in seconds that measurements started being
+    /// recorded in this interval. If you're using a StartTime or BaseTime offset, you should
+    /// instead use a delta since that time. See the discussion about timestamps in the module-level
+    /// documentation.
     ///
     /// `duration` is the duration of the interval in seconds.
     ///
@@ -428,7 +429,7 @@ impl<'a> IntervalLogHistogram<'a> {
 /// written with a StartTime or BaseTime, that metadata will appear in header comments, and that
 /// will be represented by the iterator providing the corresponding variants here. The presence
 /// of those timestamps will affect how you should interpret the timestamps for individual
-/// intervals.
+/// intervals. See the module-level documentation.
 #[allow(variant_size_differences)]
 pub enum LogEntry<'a> {
     /// Logs may include a StartTime. If present, it represents seconds since the epoch.
@@ -454,9 +455,9 @@ pub enum LogIteratorError {
 /// This iterator exposes each item (excluding comments and other information-free lines). See
 /// `LogEntry`.
 ///
-/// Because histogram deserialization is deferred, parsing logs is fast. (See the `interval_log`
+/// Because histogram deserialization is deferred, parsing logs is fast. See the `interval_log`
 /// benchmark if you wish to see how it does on your hardware. As a baseline, parsing a log of 1000
-/// random histograms of 10,000 values each takes 8ms total on an E5-1650v3.)
+/// random histograms of 10,000 values each takes 8ms total on an E5-1650v3.
 ///
 /// Deferring deserialization is handy because it allows you to cheaply navigate the log to find
 /// the records you care about (e.g. ones in a certain time range, or with a certain tag) without
@@ -496,22 +497,20 @@ impl<'a> Iterator for IntervalLogIterator<'a> {
     type Item = Result<LogEntry<'a>, LogIteratorError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // Look for magic comments first otherwise they will get matched by the simple comment
-        // parser
         loop {
             if self.input.is_empty() {
                 return None;
             }
 
+            // Look for magic comments first otherwise they will get matched by the simple comment
+            // parser
             if let IResult::Done(rest, e) = log_entry(self.input) {
                 self.input = rest;
                 return Some(Ok(e));
             }
 
             // it wasn't a log entry; try parsing a comment
-
-            let ignored_line_result = ignored_line(self.input);
-            match ignored_line_result {
+            match ignored_line(self.input) {
                 IResult::Done(rest, _) => {
                     self.input = rest;
                     continue;
