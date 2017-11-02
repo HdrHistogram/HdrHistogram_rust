@@ -1,3 +1,5 @@
+use std::time;
+
 use super::super::super::*;
 use super::super::*;
 use super::*;
@@ -45,7 +47,13 @@ fn write_interval_histo_no_tag() {
         let mut log_writer = header_writer.into_log_writer();
 
         log_writer
-            .write_histogram(&h, 1.2345678, 5.67, None, 10.0)
+            .write_histogram(
+                &h,
+                1.2345678,
+                time::Duration::new(5, 670_000_000),
+                None,
+                10.0,
+            )
             .unwrap();
     }
 
@@ -67,7 +75,13 @@ fn write_interval_histo_with_tag() {
         let mut log_writer = header_writer.into_log_writer();
 
         log_writer
-            .write_histogram(&h, 1.234, 5.678, Tag::new("t"), 1.0)
+            .write_histogram(
+                &h,
+                1.234,
+                time::Duration::new(5, 678_000_000),
+                Tag::new("t"),
+                1.0,
+            )
             .unwrap();
     }
 

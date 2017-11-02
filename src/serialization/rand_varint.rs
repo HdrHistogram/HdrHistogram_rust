@@ -1,3 +1,6 @@
+//! This is used in tests (both unit tests and integration tests) to provide useful distributions
+//! of random numbers.
+
 extern crate rand;
 
 use self::rand::Rng;

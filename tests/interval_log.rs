@@ -12,7 +12,7 @@ mod tests {
                                                        IntervalLogHistogram, IntervalLogIterator,
                                                        LogEntry, LogIteratorError, Tag};
 
-    use std::{io, str};
+    use std::{io, str, time};
     use std::io::{BufRead, Read};
     use std::fs::File;
     use std::path::Path;
@@ -97,7 +97,13 @@ mod tests {
             intervals
                 .iter()
                 .filter(|ilh| ilh.tag().is_none())
-                .map(|ilh| { (ilh.start_timestamp(), ilh.duration(), ilh.max()) })
+                .map(|ilh| {
+                    (
+                        ilh.start_timestamp(),
+                        round(duration_as_fp_seconds(ilh.duration())),
+                        ilh.max(),
+                    )
+                })
                 .collect::<Vec<(f64, f64, f64)>>()
         );
 
@@ -106,7 +112,13 @@ mod tests {
             intervals
                 .iter()
                 .filter(|ilh| !ilh.tag().is_none())
-                .map(|ilh| { (ilh.start_timestamp(), ilh.duration(), ilh.max()) })
+                .map(|ilh| {
+                    (
+                        ilh.start_timestamp(),
+                        round(duration_as_fp_seconds(ilh.duration())),
+                        ilh.max(),
+                    )
+                })
                 .collect::<Vec<(f64, f64, f64)>>()
         );
 
@@ -241,7 +253,13 @@ mod tests {
                     .map(|s| Tag::new(s.as_str()).unwrap());
 
                 writer
-                    .write_histogram(&h, i as f64, (i as f64) + 10000.0, tag, max_scaling_factor)
+                    .write_histogram(
+                        &h,
+                        i as f64,
+                        time::Duration::new(10_000 + i as u64, 0),
+                        tag,
+                        max_scaling_factor,
+                    )
                     .unwrap();
 
                 writer.write_comment(&format!("line {}", i)).unwrap();
@@ -250,10 +268,11 @@ mod tests {
             }
         }
 
+        println!("{}", ::std::str::from_utf8(&log_buf).unwrap());
+
         let parsed = IntervalLogIterator::new(&log_buf)
-            .map(|r| r.unwrap())
             .filter_map(|e| match e {
-                LogEntry::Interval(ilh) => Some(ilh),
+                Ok(LogEntry::Interval(ilh)) => Some(ilh),
                 _ => None,
             })
             .collect::<Vec<IntervalLogHistogram>>();
@@ -272,7 +291,10 @@ mod tests {
             assert_eq!(original_hist, &decoded_hist);
 
             assert_eq!(index as f64, ilh.start_timestamp());
-            assert_eq!((index as f64) + 10000.0, ilh.duration());
+            assert_eq!(
+                time::Duration::new(10_000 + index as u64, 0),
+                ilh.duration()
+            );
             assert_eq!(
                 round(original_hist.max() as f64 / max_scaling_factor),
                 ilh.max()
@@ -285,6 +307,10 @@ mod tests {
     /// Round to 3 digits the way floats are in the log
     fn round(f: f64) -> f64 {
         format!("{:.3}", f).parse::<f64>().unwrap()
+    }
+
+    fn duration_as_fp_seconds(d: time::Duration) -> f64 {
+        d.as_secs() as f64 + d.subsec_nanos() as f64 / 1_000_000_000_f64
     }
 
     fn load_iterator_from_file<'a>(path: &Path) -> IntervalLogBufHolder {

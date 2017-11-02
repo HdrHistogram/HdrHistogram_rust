@@ -94,21 +94,22 @@
 //! ```
 //! use hdrsample::serialization::interval_log;
 //!
-//! let mut log = Vec::new();
-//! log.extend_from_slice(b"#I'm a comment\n");
-//! log.extend_from_slice(b"Tag=a,0.123,1.007,2.769,base64EncodedHisto\n");
-//! log.extend_from_slice(b"1.456,1.007,2.769,base64EncodedHisto\n");
-//! log.extend_from_slice(b"3.789,1.007,2.769,base64EncodedHisto\n");
-//! log.extend_from_slice(b"Tag=b,4.123,1.007,2.769,base64EncodedHisto\n");
-//! log.extend_from_slice(b"5.456,1.007,2.769,base64EncodedHisto\n");
-//! log.extend_from_slice(b"#Another comment\n");
+//! let mut log = "\
+//!     #I'm a comment\n\
+//!     Tag=a,0.123,1.007,2.769,base64EncodedHisto\n\
+//!     1.456,1.007,2.769,base64EncodedHisto\n\
+//!     3.789,1.007,2.769,base64EncodedHisto\n\
+//!     Tag=b,4.123,1.007,2.769,base64EncodedHisto\n\
+//!     5.456,1.007,2.769,base64EncodedHisto\n\
+//!     #Another comment\n"
+//! .as_bytes();
 //!
 //! let iter = interval_log::IntervalLogIterator::new(&log);
 //!
-//! let count = iter.map(|r| r.unwrap())
+//! let count = iter
 //!     // only look at intervals (which are the only non-comment lines in this log)
 //!     .filter_map(|e| match e {
-//!         interval_log::LogEntry::Interval(ilh) => Some(ilh),
+//!         Ok(interval_log::LogEntry::Interval(ilh)) => Some(ilh),
 //!          _ => None
 //!     })
 //!     // do any filtering you want
@@ -121,7 +122,7 @@
 //! Write a log.
 //!
 //! ```
-//! use std::str;
+//! use std::{str, time};
 //! use hdrsample;
 //! use hdrsample::serialization;
 //! use hdrsample::serialization::interval_log;
@@ -149,7 +150,7 @@
 //!         .write_histogram(
 //!             &h,
 //!             1.234,
-//!             5.678,
+//!             time::Duration::new(12, 345_678_901),
 //!             interval_log::Tag::new("im-a-tag"),
 //!             1.0)
 //!         .unwrap();
@@ -161,7 +162,7 @@
 
 extern crate base64;
 
-use std::{fmt, io, ops, str};
+use std::{fmt, io, ops, str, time};
 use std::fmt::Write;
 
 use nom::{double, line_ending, not_line_ending, IResult};
@@ -260,7 +261,7 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> IntervalLogWriter<'a, 'b, W,
         &mut self,
         h: &Histogram<T>,
         start_timestamp: f64,
-        duration: f64,
+        duration: time::Duration,
         tag: Option<Tag>,
         max_value_divisor: f64,
     ) -> Result<(), IntervalLogWriterError<S::SerializeError>> {
@@ -305,7 +306,7 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> InternalLogWriter<'a, 'b, W,
         &mut self,
         h: &Histogram<T>,
         start_timestamp: f64,
-        duration: f64,
+        duration: time::Duration,
         tag: Option<Tag>,
         max_value_divisor: f64,
     ) -> Result<(), IntervalLogWriterError<S::SerializeError>> {
@@ -321,7 +322,7 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> InternalLogWriter<'a, 'b, W,
             "{}{:.3},{:.3},{:.3},",
             self.text_buf,
             start_timestamp,
-            duration,
+            duration_as_fp_seconds(duration),
             h.max() as f64 / max_value_divisor // because the Java impl does it this way
         )?;
 
@@ -345,7 +346,7 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> InternalLogWriter<'a, 'b, W,
 /// To get the wrapped `str` back out, use `as_str()` or the `Deref<str>` implementation
 /// (`&some_tag`).
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub struct Tag<'a>(pub &'a str);
+pub struct Tag<'a>(&'a str);
 
 impl<'a> Tag<'a> {
     /// Create a new Tag.
@@ -380,6 +381,7 @@ impl<'a> ops::Deref for Tag<'a> {
 pub struct IntervalLogHistogram<'a> {
     tag: Option<Tag<'a>>,
     start_timestamp: f64,
+    // lazily map to Duration to save parsing time and a few bytes of space on ILH
     duration: f64,
     max: f64,
     encoded_histogram: &'a str,
@@ -401,8 +403,11 @@ impl<'a> IntervalLogHistogram<'a> {
     }
 
     /// Duration of the interval in seconds.
-    pub fn duration(&self) -> f64 {
-        self.duration
+    pub fn duration(&self) -> time::Duration {
+        let secs = self.duration as u64;
+        // can't overflow because this can be at most 1 billion which is approx 2^30
+        let nsecs = (self.duration.fract() * 1_000_000_000_f64) as u32;
+        time::Duration::new(secs, nsecs)
     }
 
     /// Max value in the encoded histogram
@@ -523,6 +528,10 @@ impl<'a> Iterator for IntervalLogIterator<'a> {
             }
         }
     }
+}
+
+fn duration_as_fp_seconds(d: time::Duration) -> f64 {
+    d.as_secs() as f64 + d.subsec_nanos() as f64 / 1_000_000_000_f64
 }
 
 named!(start_time<&[u8], LogEntry>,
