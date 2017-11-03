@@ -30,7 +30,6 @@ mod tests {
         assert_eq!(1, start_count);
     }
 
-
     #[test]
     fn parse_sample_tagged_interval_log_interval_count() {
         let data = load_iterator_from_file(Path::new("tests/data/tagged-Log.logV2.hlog"));
@@ -268,8 +267,6 @@ mod tests {
             }
         }
 
-        println!("{}", ::std::str::from_utf8(&log_buf).unwrap());
-
         let parsed = IntervalLogIterator::new(&log_buf)
             .filter_map(|e| match e {
                 Ok(LogEntry::Interval(ilh)) => Some(ilh),
@@ -302,6 +299,20 @@ mod tests {
             let tag_string: Option<String> = tags.get(index).unwrap().as_ref().map(|s| s.clone());
             assert_eq!(tag_string, ilh.tag().map(|t| t.as_str().to_owned()));
         }
+    }
+
+    #[test]
+    fn parse_interval_log_syntax_error_then_returns_none() {
+        let log = "#Foo\nBar\n"
+            .as_bytes();
+
+        let mut iter = IntervalLogIterator::new(&log);
+
+        assert_eq!(
+            Some(Err(LogIteratorError::ParseError { offset: 5 })),
+            iter.next()
+        );
+        assert_eq!(None, iter.next());
     }
 
     /// Round to 3 digits the way floats are in the log

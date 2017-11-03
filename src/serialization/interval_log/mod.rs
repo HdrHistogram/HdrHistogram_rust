@@ -94,7 +94,7 @@
 //! ```
 //! use hdrsample::serialization::interval_log;
 //!
-//! let mut log = "\
+//! let log = "\
 //!     #I'm a comment\n\
 //!     Tag=a,0.123,1.007,2.769,base64EncodedHisto\n\
 //!     1.456,1.007,2.769,base64EncodedHisto\n\
@@ -486,6 +486,7 @@ pub enum LogIteratorError {
 pub struct IntervalLogIterator<'a> {
     orig_len: usize,
     input: &'a [u8],
+    ended: bool,
 }
 
 impl<'a> IntervalLogIterator<'a> {
@@ -494,6 +495,7 @@ impl<'a> IntervalLogIterator<'a> {
         IntervalLogIterator {
             orig_len: input.len(),
             input,
+            ended: false,
         }
     }
 }
@@ -503,7 +505,12 @@ impl<'a> Iterator for IntervalLogIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
+            if self.ended {
+                return None;
+            }
+
             if self.input.is_empty() {
+                self.ended = true;
                 return None;
             }
 
@@ -521,6 +528,7 @@ impl<'a> Iterator for IntervalLogIterator<'a> {
                     continue;
                 }
                 _ => {
+                    self.ended = true;
                     return Some(Err(LogIteratorError::ParseError {
                         offset: self.orig_len - self.input.len(),
                     }));
