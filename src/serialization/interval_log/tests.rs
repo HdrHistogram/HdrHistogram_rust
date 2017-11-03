@@ -1,4 +1,5 @@
 use std::time;
+use std::ops::Add;
 
 use super::super::super::*;
 use super::super::*;
@@ -11,7 +12,7 @@ fn write_header_comment() {
 
     let _ = IntervalLogWriterBuilder::new()
         .add_comment("foo")
-        .build_with(&mut buf, &mut serializer)
+        .begin_log_with(&mut buf, &mut serializer)
         .unwrap();
 
     assert_eq!(&b"#foo\n"[..], &buf[..]);
@@ -26,7 +27,7 @@ fn write_header_then_interval_comment() {
         let mut log_writer = IntervalLogWriterBuilder::new()
             .add_comment("foo")
             .add_comment("bar")
-            .build_with(&mut buf, &mut serializer)
+            .begin_log_with(&mut buf, &mut serializer)
             .unwrap();
         log_writer.write_comment("baz").unwrap();
     }
@@ -41,13 +42,13 @@ fn write_headers_multiple_times_only_last_is_used() {
 
     {
         let _ = IntervalLogWriterBuilder::new()
-            .with_start_time(10.0)
-            .with_base_time(20.0)
-            .with_start_time(100.0)
-            .with_base_time(200.0)
+            .with_start_time(system_time_after_epoch(10, 0))
+            .with_base_time(system_time_after_epoch(20, 0))
+            .with_start_time(system_time_after_epoch(100, 0))
+            .with_base_time(system_time_after_epoch(200, 0))
             .with_max_value_divisor(1_000.0)
             .with_max_value_divisor(1_000_000.0)
-            .build_with(&mut buf, &mut serializer)
+            .begin_log_with(&mut buf, &mut serializer)
             .unwrap();
     }
 
@@ -70,7 +71,7 @@ fn write_interval_histo_no_tag() {
     {
         let mut log_writer = IntervalLogWriterBuilder::new()
             .with_max_value_divisor(10.0)
-            .build_with(&mut buf, &mut serializer)
+            .begin_log_with(&mut buf, &mut serializer)
             .unwrap();
 
         log_writer
@@ -94,7 +95,7 @@ fn write_interval_histo_with_tag() {
 
     {
         let mut log_writer = IntervalLogWriterBuilder::new()
-            .build_with(&mut buf, &mut serializer)
+            .begin_log_with(&mut buf, &mut serializer)
             .unwrap();
 
         log_writer
@@ -119,8 +120,8 @@ fn write_start_time() {
     let mut serializer = V2Serializer::new();
 
     let _ = IntervalLogWriterBuilder::new()
-        .with_start_time(123.456789)
-        .build_with(&mut buf, &mut serializer)
+        .with_start_time(system_time_after_epoch(123, 456_789_012))
+        .begin_log_with(&mut buf, &mut serializer)
         .unwrap();
 
     assert_eq!(
@@ -136,8 +137,8 @@ fn write_base_time() {
 
     {
         let _ = IntervalLogWriterBuilder::new()
-            .with_base_time(123.456789)
-            .build_with(&mut buf, &mut serializer)
+            .with_base_time(system_time_after_epoch(123, 456_789_012))
+            .begin_log_with(&mut buf, &mut serializer)
             .unwrap();
     }
 
@@ -316,4 +317,8 @@ fn iter_all_ignored_empty_iter() {
     data.extend_from_slice(b"#Another comment\n");
 
     assert_eq!(0, IntervalLogIterator::new(&data).count());
+}
+
+fn system_time_after_epoch(secs: u64, nanos: u32) -> time::SystemTime {
+    time::UNIX_EPOCH.add(time::Duration::new(secs, nanos))
 }

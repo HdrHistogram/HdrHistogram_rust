@@ -180,7 +180,7 @@ mod tests {
         {
             let mut writer = IntervalLogWriterBuilder::new()
                 .with_max_value_divisor(1_000_000.0)
-                .build_with(&mut duplicate_log, &mut serializer)
+                .begin_log_with(&mut duplicate_log, &mut serializer)
                 .unwrap();
 
             IntervalLogIterator::new(&log_without_headers)
@@ -237,7 +237,7 @@ mod tests {
         {
             let mut writer = IntervalLogWriterBuilder::new()
                 .with_max_value_divisor(max_scaling_factor)
-                .build_with(&mut log_buf, &mut serializer)
+                .begin_log_with(&mut log_buf, &mut serializer)
                 .unwrap();
 
             writer.write_comment("start").unwrap();

@@ -38,7 +38,7 @@ fn write_interval_log_1k_hist_10k_value(b: &mut Bencher) {
         log.clear();
 
         let mut writer = interval_log::IntervalLogWriterBuilder::new()
-            .build_with(&mut log, &mut serializer)
+            .begin_log_with(&mut log, &mut serializer)
             .unwrap();
 
         let dur = time::Duration::new(5, 678_000_000);
@@ -67,7 +67,7 @@ fn parse_interval_log_1k_hist_10k_value(b: &mut Bencher) {
     {
         let mut serializer = serialization::V2Serializer::new();
         let mut writer = interval_log::IntervalLogWriterBuilder::new()
-            .build_with(&mut log, &mut serializer)
+            .begin_log_with(&mut log, &mut serializer)
             .unwrap();
 
         let dur = time::Duration::new(5, 678_000_000);

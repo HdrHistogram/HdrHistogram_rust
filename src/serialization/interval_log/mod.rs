@@ -138,8 +138,8 @@
 //! {
 //!     let mut log_writer = interval_log::IntervalLogWriterBuilder::new()
 //!         .add_comment("Comments are great")
-//!         .with_start_time(123.456789)
-//!         .build_with(&mut buf, &mut serializer)
+//!         .with_start_time(time::SystemTime::now())
+//!         .begin_log_with(&mut buf, &mut serializer)
 //!         .unwrap();
 //!
 //!     log_writer.write_comment(
@@ -204,8 +204,8 @@ impl IntervalLogWriterBuilder {
     ///
     /// This can be called multiple times, but only the value for the most recent invocation will
     /// be written.
-    pub fn with_start_time(&mut self, seconds_since_epoch: f64) -> &mut Self {
-        self.start_time = Some(seconds_since_epoch);
+    pub fn with_start_time(&mut self, time: time::SystemTime) -> &mut Self {
+        self.start_time = Some(system_time_as_fp_seconds(time));
         self
     }
 
@@ -213,8 +213,8 @@ impl IntervalLogWriterBuilder {
     ///
     /// This can be called multiple times, but only the value for the most recent invocation will
     /// be written.
-    pub fn with_base_time(&mut self, seconds_since_epoch: f64) -> &mut Self {
-        self.base_time = Some(seconds_since_epoch);
+    pub fn with_base_time(&mut self, time: time::SystemTime) -> &mut Self {
+        self.base_time = Some(system_time_as_fp_seconds(time));
         self
     }
 
@@ -235,7 +235,7 @@ impl IntervalLogWriterBuilder {
     }
 
     /// Build a LogWriter and apply any configured headers.
-    pub fn build_with<'a, 'b, W: 'a + io::Write, S: 'b + Serializer>(
+    pub fn begin_log_with<'a, 'b, W: 'a + io::Write, S: 'b + Serializer>(
         &self,
         writer: &'a mut W,
         serializer: &'b mut S,
@@ -294,7 +294,7 @@ impl IntervalLogWriterBuilder {
 ///
 /// // create a writer via a builder
 /// let mut writer = interval_log::IntervalLogWriterBuilder::new()
-///     .build_with(&mut buf, &mut serializer)
+///     .begin_log_with(&mut buf, &mut serializer)
 ///     .unwrap();
 ///
 /// writer.write_comment("Comment 2").unwrap();
@@ -603,6 +603,15 @@ impl<'a> Iterator for IntervalLogIterator<'a> {
 
 fn duration_as_fp_seconds(d: time::Duration) -> f64 {
     d.as_secs() as f64 + d.subsec_nanos() as f64 / 1_000_000_000_f64
+}
+
+fn system_time_as_fp_seconds(time: time::SystemTime) -> f64 {
+    match time.duration_since(time::UNIX_EPOCH) {
+        Ok(dur_after_epoch) => duration_as_fp_seconds(dur_after_epoch),
+        // Doesn't seem possible to be before the epoch, but using a negative number seems like
+        // a reasonable representation if it does occur
+        Err(t) => duration_as_fp_seconds(t.duration()) * -1_f64,
+    }
 }
 
 named!(start_time<&[u8], LogEntry>,
