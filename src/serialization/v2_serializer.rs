@@ -149,7 +149,9 @@ pub fn encode_counts<T: Counter>(
             // serializing. Don't want to silently eat counts beyond i63 max when serializing.
             // Perhaps we should provide some sort of pluggability here -- choose whether you want
             // to truncate counts to i63 max, or report errors if you need maximum fidelity?
-            count.to_i64().ok_or(V2SerializeError::CountNotSerializable)?
+            count
+                .to_i64()
+                .ok_or(V2SerializeError::CountNotSerializable)?
         };
 
         let zz = zig_zag_encode(count_or_zeros);

@@ -780,7 +780,8 @@ impl<T: Counter> Histogram<T> {
         };
 
         // Already checked that high >= 2*low
-        h.resize(high).map_err(|_| CreationError::UsizeTypeTooSmall)?;
+        h.resize(high)
+            .map_err(|_| CreationError::UsizeTypeTooSmall)?;
         Ok(h)
     }
 

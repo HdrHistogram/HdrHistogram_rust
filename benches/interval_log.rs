@@ -43,7 +43,9 @@ fn write_interval_log_1k_hist_10k_value(b: &mut Bencher) {
 
         let dur = time::Duration::new(5, 678_000_000);
         for h in histograms.iter() {
-            writer.write_histogram(h, time::Duration::new(1, 234_000_000), dur, None).unwrap();
+            writer
+                .write_histogram(h, time::Duration::new(1, 234_000_000), dur, None)
+                .unwrap();
         }
     })
 }
@@ -72,7 +74,9 @@ fn parse_interval_log_1k_hist_10k_value(b: &mut Bencher) {
 
         let dur = time::Duration::new(5, 678_000_000);
         for h in histograms.iter() {
-            writer.write_histogram(h, time::Duration::new(1, 234_000_000), dur, None).unwrap();
+            writer
+                .write_histogram(h, time::Duration::new(1, 234_000_000), dur, None)
+                .unwrap();
         }
     }
 
