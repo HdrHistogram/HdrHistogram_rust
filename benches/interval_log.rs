@@ -4,6 +4,8 @@ extern crate hdrsample;
 extern crate rand;
 extern crate test;
 
+use std::time;
+
 use hdrsample::*;
 use hdrsample::serialization;
 use hdrsample::serialization::interval_log;
@@ -35,11 +37,13 @@ fn write_interval_log_1k_hist_10k_value(b: &mut Bencher) {
     b.iter(|| {
         log.clear();
 
-        let mut writer =
-            interval_log::IntervalLogHeaderWriter::new(&mut log, &mut serializer).into_log_writer();
+        let mut writer = interval_log::IntervalLogWriterBuilder::new()
+            .build_with(&mut log, &mut serializer)
+            .unwrap();
 
+        let dur = time::Duration::new(5, 678_000_000);
         for h in histograms.iter() {
-            writer.write_histogram(h, 1.234, 5.678, None, 1.0).unwrap();
+            writer.write_histogram(h, 1.234, dur, None).unwrap();
         }
     })
 }
@@ -62,11 +66,13 @@ fn parse_interval_log_1k_hist_10k_value(b: &mut Bencher) {
 
     {
         let mut serializer = serialization::V2Serializer::new();
-        let mut writer =
-            interval_log::IntervalLogHeaderWriter::new(&mut log, &mut serializer).into_log_writer();
+        let mut writer = interval_log::IntervalLogWriterBuilder::new()
+            .build_with(&mut log, &mut serializer)
+            .unwrap();
 
+        let dur = time::Duration::new(5, 678_000_000);
         for h in histograms.iter() {
-            writer.write_histogram(h, 1.234, 5.678, None, 1.0).unwrap();
+            writer.write_histogram(h, 1.234, dur, None).unwrap();
         }
     }
 

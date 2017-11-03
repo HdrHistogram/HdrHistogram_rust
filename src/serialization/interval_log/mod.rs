@@ -136,12 +136,11 @@
 //!
 //! // limit scope of mutable borrow of `buf`
 //! {
-//!     let mut header_writer = interval_log::IntervalLogHeaderWriter::new(
-//!         &mut buf, &mut serializer);
-//!     header_writer.write_comment("Comments are great").unwrap();
-//!     header_writer.write_start_time(123.456789).unwrap();
-//!
-//!     let mut log_writer = header_writer.into_log_writer();
+//!     let mut log_writer = interval_log::IntervalLogWriterBuilder::new()
+//!         .add_comment("Comments are great")
+//!         .with_start_time(123.456789)
+//!         .build_with(&mut buf, &mut serializer)
+//!         .unwrap();
 //!
 //!     log_writer.write_comment(
 //!         "You can have comments anywhere in the log").unwrap();
@@ -151,8 +150,8 @@
 //!             &h,
 //!             1.234,
 //!             time::Duration::new(12, 345_678_901),
-//!             interval_log::Tag::new("im-a-tag"),
-//!             1.0)
+//!             interval_log::Tag::new("im-a-tag")
+//!         )
 //!         .unwrap();
 //! }
 //!
@@ -170,69 +169,138 @@ use nom::{double, line_ending, not_line_ending, IResult};
 use super::super::{Counter, Histogram};
 use super::Serializer;
 
-/// Write headers for an interval log.
+/// Prepare an `IntervalLogWriter`.
 ///
 /// This type only allows writing comments and headers. Once you're done writing those things, use
 /// `into_log_writer()` to convert this into an `IntervalLogWriter`.
-pub struct IntervalLogHeaderWriter<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> {
-    internal_writer: InternalLogWriter<'a, 'b, W, S>,
+pub struct IntervalLogWriterBuilder {
+    comments: Vec<String>,
+    start_time: Option<f64>,
+    base_time: Option<f64>,
+    max_value_divisor: f64,
 }
 
-impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> IntervalLogHeaderWriter<'a, 'b, W, S> {
+impl IntervalLogWriterBuilder {
     /// Create a new log writer that writes to `writer` and serializes histograms with `serializer`.
-    pub fn new(writer: &'a mut W, serializer: &'b mut S) -> IntervalLogHeaderWriter<'a, 'b, W, S> {
-        IntervalLogHeaderWriter {
-            internal_writer: InternalLogWriter {
-                writer,
-                serializer,
-                text_buf: String::new(),
-                serialize_buf: Vec::new(),
-            },
+    pub fn new() -> IntervalLogWriterBuilder {
+        IntervalLogWriterBuilder {
+            comments: Vec::new(),
+            start_time: None,
+            base_time: None,
+            max_value_divisor: 1.0,
         }
     }
 
-    /// Add a comment line.
+    /// Add a comment line to be written when the writer is built.
     ///
     /// If you do silly things like write a comment with a newline character, you'll end up with
     /// an un-parseable log file. Don't do that.
-    pub fn write_comment(&mut self, s: &str) -> io::Result<()> {
-        self.internal_writer.write_comment(s)
+    pub fn add_comment(&mut self, s: &str) -> &mut Self {
+        self.comments.push(s.to_owned());
+        self
     }
 
-    /// Write a StartTime log line. See the module-level documentation for more info.
+    /// Set a StartTime. See the module-level documentation for more info.
     ///
-    /// This should only be called once to avoid creating a confusing interval log.
-    pub fn write_start_time(&mut self, seconds_since_epoch: f64) -> io::Result<()> {
-        self.internal_writer.write_fmt(format_args!(
-            "#[StartTime: {:.3} (seconds since epoch)]\n",
-            seconds_since_epoch
-        ))
+    /// This can be called multiple times, but only the value for the most recent invocation will
+    /// be written.
+    pub fn with_start_time(&mut self, seconds_since_epoch: f64) -> &mut Self {
+        self.start_time = Some(seconds_since_epoch);
+        self
     }
 
-    /// Write a BaseTime log line. See the module-level documentation for more info.
+    /// Set a BaseTime. See the module-level documentation for more info.
     ///
-    /// This should only be called once to avoid creating a confusing interval log.
-    pub fn write_base_time(&mut self, seconds_since_epoch: f64) -> io::Result<()> {
-        self.internal_writer.write_fmt(format_args!(
-            "#[BaseTime: {:.3} (seconds since epoch)]\n",
-            seconds_since_epoch
-        ))
+    /// This can be called multiple times, but only the value for the most recent invocation will
+    /// be written.
+    pub fn with_base_time(&mut self, seconds_since_epoch: f64) -> &mut Self {
+        self.base_time = Some(seconds_since_epoch);
+        self
     }
 
-    /// Once you're finished with headers, convert this into a log writer so you can write interval
-    /// histograms.
-    pub fn into_log_writer(self) -> IntervalLogWriter<'a, 'b, W, S> {
-        IntervalLogWriter {
-            internal_writer: self.internal_writer,
+    /// Set a max value divisor.
+    ///
+    /// This is used to scale down the max value part of an interval log to something that may be
+    /// more human readable. The max value in the log is only for human consumption, so you might
+    /// prefer to divide by 10<sup>9</sup> to turn nanoseconds into fractional seconds, for
+    /// instance.
+    ///
+    /// If this is not set, 1.0 will be used.
+    ///
+    /// This can be called multiple times, but only the value for the most recent invocation will
+    /// be written.
+    pub fn with_max_value_divisor(&mut self, max_value_divisor: f64) -> &mut Self {
+        self.max_value_divisor = max_value_divisor;
+        self
+    }
+
+    /// Build a LogWriter and apply any configured headers.
+    pub fn build_with<'a, 'b, W: 'a + io::Write, S: 'b + Serializer>(
+        &self,
+        writer: &'a mut W,
+        serializer: &'b mut S,
+    ) -> Result<IntervalLogWriter<'a, 'b, W, S>, io::Error> {
+        let mut internal_writer = InternalLogWriter {
+            writer,
+            serializer,
+            text_buf: String::new(),
+            serialize_buf: Vec::new(),
+            max_value_divisor: self.max_value_divisor,
+        };
+
+        for c in self.comments.iter() {
+            internal_writer.write_comment(&c)?;
         }
+
+        if let Some(st) = self.start_time {
+            internal_writer.write_fmt(format_args!(
+                "#[StartTime: {:.3} (seconds since epoch)]\n",
+                st
+            ))?;
+        }
+
+        if let Some(bt) = self.base_time {
+            internal_writer.write_fmt(format_args!(
+                "#[BaseTime: {:.3} (seconds since epoch)]\n",
+                bt
+            ))?;
+        }
+
+        // The Java impl doesn't write a comment for this but it's confusing to silently modify the
+        // max value without leaving a trace
+        if self.max_value_divisor != 1.0_f64 {
+            internal_writer.write_fmt(format_args!(
+                "#[MaxValueDivisor: {:.3}]\n",
+                self.max_value_divisor
+            ))?;
+        }
+
+        Ok(IntervalLogWriter { internal_writer })
     }
 }
 
 /// Writes interval histograms in an interval log.
 ///
-/// This isn't created directly; start with an `IntervalLogHeaderWriter`. Once you've written the
+/// This isn't created directly; start with an `IntervalLogWriterBuilder`. Once you've written the
 /// headers and ended up with an `IntervalLogWriter`, typical usage would be to write a histogram
 /// at regular intervals (e.g. once a second).
+///
+/// ```
+/// use hdrsample::serialization;
+/// use hdrsample::serialization::interval_log;
+///
+/// let mut buf = Vec::new();
+/// let mut serializer = serialization::V2Serializer::new();
+///
+/// // create a writer via a builder
+/// let mut writer = interval_log::IntervalLogWriterBuilder::new()
+///     .build_with(&mut buf, &mut serializer)
+///     .unwrap();
+///
+/// writer.write_comment("Comment 2").unwrap();
+///
+/// // .. write some intervals
+/// ```
 pub struct IntervalLogWriter<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> {
     internal_writer: InternalLogWriter<'a, 'b, W, S>,
 }
@@ -253,20 +321,15 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> IntervalLogWriter<'a, 'b, W,
     /// `duration` is the duration of the interval in seconds.
     ///
     /// `tag` is an optional tag for this histogram.
-    ///
-    /// `max_value_divisor` is used to scale down the max value to something that may be more human
-    /// readable. The max value in the log is only for human consumption, so you might prefer to
-    /// divide by 10<sup>9</sup> to turn nanoseconds into fractional seconds, for instance.
     pub fn write_histogram<T: Counter>(
         &mut self,
         h: &Histogram<T>,
         start_timestamp: f64,
         duration: time::Duration,
         tag: Option<Tag>,
-        max_value_divisor: f64,
     ) -> Result<(), IntervalLogWriterError<S::SerializeError>> {
         self.internal_writer
-            .write_histogram(h, start_timestamp, duration, tag, max_value_divisor)
+            .write_histogram(h, start_timestamp, duration, tag)
     }
 }
 
@@ -291,6 +354,7 @@ struct InternalLogWriter<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> {
     serializer: &'b mut S,
     text_buf: String,
     serialize_buf: Vec<u8>,
+    max_value_divisor: f64,
 }
 
 impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> InternalLogWriter<'a, 'b, W, S> {
@@ -308,7 +372,6 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> InternalLogWriter<'a, 'b, W,
         start_timestamp: f64,
         duration: time::Duration,
         tag: Option<Tag>,
-        max_value_divisor: f64,
     ) -> Result<(), IntervalLogWriterError<S::SerializeError>> {
         self.serialize_buf.clear();
         self.text_buf.clear();
@@ -323,7 +386,7 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> InternalLogWriter<'a, 'b, W,
             self.text_buf,
             start_timestamp,
             duration_as_fp_seconds(duration),
-            h.max() as f64 / max_value_divisor // because the Java impl does it this way
+            h.max() as f64 / self.max_value_divisor // because the Java impl does it this way
         )?;
 
         self.text_buf.clear();

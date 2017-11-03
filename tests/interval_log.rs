@@ -8,11 +8,11 @@ mod tests {
 
     use self::hdrsample::Histogram;
     use self::hdrsample::serialization::{Deserializer, Serializer, V2Serializer};
-    use self::hdrsample::serialization::interval_log::{IntervalLogHeaderWriter,
-                                                       IntervalLogHistogram, IntervalLogIterator,
-                                                       LogEntry, LogIteratorError, Tag};
+    use self::hdrsample::serialization::interval_log::{IntervalLogHistogram, IntervalLogIterator,
+                                                       IntervalLogWriterBuilder, LogEntry,
+                                                       LogIteratorError, Tag};
 
-    use std::{io, str, time};
+    use std::{io, iter, str, time};
     use std::io::{BufRead, Read};
     use std::fs::File;
     use std::path::Path;
@@ -178,8 +178,10 @@ mod tests {
         let mut duplicate_log = Vec::new();
 
         {
-            let mut writer =
-                IntervalLogHeaderWriter::new(&mut duplicate_log, &mut serializer).into_log_writer();
+            let mut writer = IntervalLogWriterBuilder::new()
+                .with_max_value_divisor(1_000_000.0)
+                .build_with(&mut duplicate_log, &mut serializer)
+                .unwrap();
 
             IntervalLogIterator::new(&log_without_headers)
                 .map(|r| r.unwrap())
@@ -200,7 +202,6 @@ mod tests {
                             ilh.start_timestamp(),
                             ilh.duration(),
                             ilh.tag(),
-                            1_000_000.0,
                         )
                         .unwrap();
                 });
@@ -208,7 +209,15 @@ mod tests {
 
 
         let orig_str = str::from_utf8(&log_without_headers).unwrap();
-        let rewritten_str = str::from_utf8(&duplicate_log).unwrap();
+        let rewritten_str = str::from_utf8(&duplicate_log)
+            .unwrap()
+            .lines()
+            // remove our #[MaxValueDivisor] comment
+            .filter(|l| !l.starts_with("#[MaxValueDivisor: "))
+            // put newlines back in
+            .flat_map(|l| iter::once(l).chain(iter::once("\n")))
+            .collect::<String>();
+
 
         assert_eq!(orig_str, rewritten_str);
     }
@@ -226,8 +235,10 @@ mod tests {
         let max_scaling_factor = 1_000_000.0;
 
         {
-            let mut writer =
-                IntervalLogHeaderWriter::new(&mut log_buf, &mut serializer).into_log_writer();
+            let mut writer = IntervalLogWriterBuilder::new()
+                .with_max_value_divisor(max_scaling_factor)
+                .build_with(&mut log_buf, &mut serializer)
+                .unwrap();
 
             writer.write_comment("start").unwrap();
 
@@ -252,13 +263,7 @@ mod tests {
                     .map(|s| Tag::new(s.as_str()).unwrap());
 
                 writer
-                    .write_histogram(
-                        &h,
-                        i as f64,
-                        time::Duration::new(10_000 + i as u64, 0),
-                        tag,
-                        max_scaling_factor,
-                    )
+                    .write_histogram(&h, i as f64, time::Duration::new(10_000 + i as u64, 0), tag)
                     .unwrap();
 
                 writer.write_comment(&format!("line {}", i)).unwrap();
@@ -303,8 +308,7 @@ mod tests {
 
     #[test]
     fn parse_interval_log_syntax_error_then_returns_none() {
-        let log = "#Foo\nBar\n"
-            .as_bytes();
+        let log = "#Foo\nBar\n".as_bytes();
 
         let mut iter = IntervalLogIterator::new(&log);
 

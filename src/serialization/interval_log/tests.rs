@@ -9,11 +9,10 @@ fn write_header_comment() {
     let mut buf = Vec::new();
     let mut serializer = V2Serializer::new();
 
-    {
-        let mut header_writer = IntervalLogHeaderWriter::new(&mut buf, &mut serializer);
-
-        header_writer.write_comment("foo").unwrap();
-    }
+    let _ = IntervalLogWriterBuilder::new()
+        .add_comment("foo")
+        .build_with(&mut buf, &mut serializer)
+        .unwrap();
 
     assert_eq!(&b"#foo\n"[..], &buf[..]);
 }
@@ -24,14 +23,40 @@ fn write_header_then_interval_comment() {
     let mut serializer = V2Serializer::new();
 
     {
-        let mut header_writer = IntervalLogHeaderWriter::new(&mut buf, &mut serializer);
-        header_writer.write_comment("foo").unwrap();
-        let mut log_writer = header_writer.into_log_writer();
-
-        log_writer.write_comment("bar").unwrap();
+        let mut log_writer = IntervalLogWriterBuilder::new()
+            .add_comment("foo")
+            .add_comment("bar")
+            .build_with(&mut buf, &mut serializer)
+            .unwrap();
+        log_writer.write_comment("baz").unwrap();
     }
 
-    assert_eq!("#foo\n#bar\n", str::from_utf8(&buf[..]).unwrap());
+    assert_eq!("#foo\n#bar\n#baz\n", str::from_utf8(&buf[..]).unwrap());
+}
+
+#[test]
+fn write_headers_multiple_times_only_last_is_used() {
+    let mut buf = Vec::new();
+    let mut serializer = V2Serializer::new();
+
+    {
+        let _ = IntervalLogWriterBuilder::new()
+            .with_start_time(10.0)
+            .with_base_time(20.0)
+            .with_start_time(100.0)
+            .with_base_time(200.0)
+            .with_max_value_divisor(1_000.0)
+            .with_max_value_divisor(1_000_000.0)
+            .build_with(&mut buf, &mut serializer)
+            .unwrap();
+    }
+
+    let expected = "\
+                    #[StartTime: 100.000 (seconds since epoch)]\n\
+                    #[BaseTime: 200.000 (seconds since epoch)]\n\
+                    #[MaxValueDivisor: 1000000.000]\n";
+
+    assert_eq!(expected, str::from_utf8(&buf[..]).unwrap());
 }
 
 #[test]
@@ -43,24 +68,21 @@ fn write_interval_histo_no_tag() {
     h.record(1000).unwrap();
 
     {
-        let header_writer = IntervalLogHeaderWriter::new(&mut buf, &mut serializer);
-        let mut log_writer = header_writer.into_log_writer();
+        let mut log_writer = IntervalLogWriterBuilder::new()
+            .with_max_value_divisor(10.0)
+            .build_with(&mut buf, &mut serializer)
+            .unwrap();
 
         log_writer
-            .write_histogram(
-                &h,
-                1.2345678,
-                time::Duration::new(5, 670_000_000),
-                None,
-                10.0,
-            )
+            .write_histogram(&h, 1.2345678, time::Duration::new(5, 670_000_000), None)
             .unwrap();
     }
 
-    assert_eq!(
-        "1.235,5.670,100.000,HISTEwAAAAMAAAAAAAAAAwAAAAAAAAAB//////////8/8AAAAAAAAM8PAg==\n",
-        str::from_utf8(&buf[..]).unwrap()
-    );
+    let expected = "\
+                    #[MaxValueDivisor: 10.000]\n\
+                    1.235,5.670,100.000,HISTEwAAAAMAAAAAAAAAAwAAAAAAAAAB//////////8/8AAAAAAAAM8PAg==\n";
+
+    assert_eq!(expected, str::from_utf8(&buf[..]).unwrap());
 }
 
 #[test]
@@ -71,8 +93,9 @@ fn write_interval_histo_with_tag() {
     let h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
 
     {
-        let header_writer = IntervalLogHeaderWriter::new(&mut buf, &mut serializer);
-        let mut log_writer = header_writer.into_log_writer();
+        let mut log_writer = IntervalLogWriterBuilder::new()
+            .build_with(&mut buf, &mut serializer)
+            .unwrap();
 
         log_writer
             .write_histogram(
@@ -80,7 +103,6 @@ fn write_interval_histo_with_tag() {
                 1.234,
                 time::Duration::new(5, 678_000_000),
                 Tag::new("t"),
-                1.0,
             )
             .unwrap();
     }
@@ -96,10 +118,10 @@ fn write_start_time() {
     let mut buf = Vec::new();
     let mut serializer = V2Serializer::new();
 
-    {
-        let mut header_writer = IntervalLogHeaderWriter::new(&mut buf, &mut serializer);
-        header_writer.write_start_time(123.456789).unwrap();
-    }
+    let _ = IntervalLogWriterBuilder::new()
+        .with_start_time(123.456789)
+        .build_with(&mut buf, &mut serializer)
+        .unwrap();
 
     assert_eq!(
         "#[StartTime: 123.457 (seconds since epoch)]\n",
@@ -113,8 +135,10 @@ fn write_base_time() {
     let mut serializer = V2Serializer::new();
 
     {
-        let mut header_writer = IntervalLogHeaderWriter::new(&mut buf, &mut serializer);
-        header_writer.write_base_time(123.456789).unwrap();
+        let _ = IntervalLogWriterBuilder::new()
+            .with_base_time(123.456789)
+            .build_with(&mut buf, &mut serializer)
+            .unwrap();
     }
 
     assert_eq!(
