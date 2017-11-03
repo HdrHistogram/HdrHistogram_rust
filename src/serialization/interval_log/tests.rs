@@ -75,7 +75,12 @@ fn write_interval_histo_no_tag() {
             .unwrap();
 
         log_writer
-            .write_histogram(&h, 1.2345678, time::Duration::new(5, 670_000_000), None)
+            .write_histogram(
+                &h,
+                time::Duration::new(1, 234_567_890),
+                time::Duration::new(5, 670_000_000),
+                None,
+            )
             .unwrap();
     }
 
@@ -101,7 +106,7 @@ fn write_interval_histo_with_tag() {
         log_writer
             .write_histogram(
                 &h,
-                1.234,
+                time::Duration::new(1, 234_000_000),
                 time::Duration::new(5, 678_000_000),
                 Tag::new("t"),
             )

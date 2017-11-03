@@ -98,7 +98,7 @@ mod tests {
                 .filter(|ilh| ilh.tag().is_none())
                 .map(|ilh| {
                     (
-                        ilh.start_timestamp(),
+                        round(duration_as_fp_seconds(ilh.start_timestamp())),
                         round(duration_as_fp_seconds(ilh.duration())),
                         ilh.max(),
                     )
@@ -113,7 +113,7 @@ mod tests {
                 .filter(|ilh| !ilh.tag().is_none())
                 .map(|ilh| {
                     (
-                        ilh.start_timestamp(),
+                        round(duration_as_fp_seconds(ilh.start_timestamp())),
                         round(duration_as_fp_seconds(ilh.duration())),
                         ilh.max(),
                     )
@@ -263,7 +263,12 @@ mod tests {
                     .map(|s| Tag::new(s.as_str()).unwrap());
 
                 writer
-                    .write_histogram(&h, i as f64, time::Duration::new(10_000 + i as u64, 0), tag)
+                    .write_histogram(
+                        &h,
+                        time::Duration::from_secs(i as u64),
+                        time::Duration::new(10_000 + i as u64, 0),
+                        tag,
+                    )
                     .unwrap();
 
                 writer.write_comment(&format!("line {}", i)).unwrap();
@@ -292,7 +297,7 @@ mod tests {
 
             assert_eq!(original_hist, &decoded_hist);
 
-            assert_eq!(index as f64, ilh.start_timestamp());
+            assert_eq!(index as u64, ilh.start_timestamp().as_secs());
             assert_eq!(
                 time::Duration::new(10_000 + index as u64, 0),
                 ilh.duration()

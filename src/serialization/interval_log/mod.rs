@@ -70,6 +70,7 @@
 //! Parse a single interval from a log.
 //!
 //! ```
+//! use std::time;
 //! use hdrsample::serialization::interval_log;
 //!
 //! // two newline-separated log lines: a comment, then an interval
@@ -78,9 +79,9 @@
 //! let mut iter = interval_log::IntervalLogIterator::new(&log[..]);
 //!
 //! // the comment is consumed and ignored by the parser, so the first event is an Interval
-//! match iter.next().unwrap().unwrap() {
-//!     interval_log::LogEntry::Interval(h) => {
-//!         assert_eq!(0.127, h.start_timestamp());
+//! match iter.next().unwrap() {
+//!     Ok(interval_log::LogEntry::Interval(h)) => {
+//!         assert_eq!(time::Duration::new(0, 127_000_000), h.start_timestamp());
 //!     }
 //!     _ => panic!()
 //! }
@@ -113,7 +114,7 @@
 //!          _ => None
 //!     })
 //!     // do any filtering you want
-//!     .filter(|ilh| ilh.start_timestamp() >= 3.0)
+//!     .filter(|ilh| ilh.start_timestamp().as_secs() >= 3)
 //!     .count();
 //!
 //! assert_eq!(3, count);
@@ -136,9 +137,10 @@
 //!
 //! // limit scope of mutable borrow of `buf`
 //! {
+//!     let now = time::SystemTime::now();
 //!     let mut log_writer = interval_log::IntervalLogWriterBuilder::new()
 //!         .add_comment("Comments are great")
-//!         .with_start_time(time::SystemTime::now())
+//!         .with_start_time(now)
 //!         .begin_log_with(&mut buf, &mut serializer)
 //!         .unwrap();
 //!
@@ -148,7 +150,7 @@
 //!     log_writer
 //!         .write_histogram(
 //!             &h,
-//!             1.234,
+//!             now.elapsed().unwrap(),
 //!             time::Duration::new(12, 345_678_901),
 //!             interval_log::Tag::new("im-a-tag")
 //!         )
@@ -324,7 +326,7 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> IntervalLogWriter<'a, 'b, W,
     pub fn write_histogram<T: Counter>(
         &mut self,
         h: &Histogram<T>,
-        start_timestamp: f64,
+        start_timestamp: time::Duration,
         duration: time::Duration,
         tag: Option<Tag>,
     ) -> Result<(), IntervalLogWriterError<S::SerializeError>> {
@@ -369,7 +371,7 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> InternalLogWriter<'a, 'b, W,
     fn write_histogram<T: Counter>(
         &mut self,
         h: &Histogram<T>,
-        start_timestamp: f64,
+        start_timestamp: time::Duration,
         duration: time::Duration,
         tag: Option<Tag>,
     ) -> Result<(), IntervalLogWriterError<S::SerializeError>> {
@@ -384,7 +386,7 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> InternalLogWriter<'a, 'b, W,
             self.writer,
             "{}{:.3},{:.3},{:.3},",
             self.text_buf,
-            start_timestamp,
+            duration_as_fp_seconds(start_timestamp),
             duration_as_fp_seconds(duration),
             h.max() as f64 / self.max_value_divisor // because the Java impl does it this way
         )?;
@@ -456,21 +458,19 @@ impl<'a> IntervalLogHistogram<'a> {
         self.tag
     }
 
-    /// Timestamp of the start of the interval in seconds.
+    /// Timestamp of the start of the interval in seconds, expressed as a `Duration` relative to
+    /// some start point.
     ///
     /// The timestamp may be absolute vs the epoch, or there may be a `StartTime` or `BaseTime` for
     /// the log, in which case you may wish to consider this number as a delta vs those timestamps.
     /// See the module-level documentation about timestamps.
-    pub fn start_timestamp(&self) -> f64 {
-        self.start_timestamp
+    pub fn start_timestamp(&self) -> time::Duration {
+        fp_seconds_as_duration(self.start_timestamp)
     }
 
     /// Duration of the interval in seconds.
     pub fn duration(&self) -> time::Duration {
-        let secs = self.duration as u64;
-        // can't overflow because this can be at most 1 billion which is approx 2^30
-        let nsecs = (self.duration.fract() * 1_000_000_000_f64) as u32;
-        time::Duration::new(secs, nsecs)
+        fp_seconds_as_duration(self.duration)
     }
 
     /// Max value in the encoded histogram
@@ -599,6 +599,13 @@ impl<'a> Iterator for IntervalLogIterator<'a> {
             }
         }
     }
+}
+
+fn fp_seconds_as_duration(fp_secs: f64) -> time::Duration {
+    let secs = fp_secs as u64;
+    // can't overflow because this can be at most 1 billion which is approx 2^30
+    let nsecs = (fp_secs.fract() * 1_000_000_000_f64) as u32;
+    time::Duration::new(secs, nsecs)
 }
 
 fn duration_as_fp_seconds(d: time::Duration) -> f64 {
