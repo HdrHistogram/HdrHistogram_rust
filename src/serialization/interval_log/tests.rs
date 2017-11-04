@@ -1,4 +1,4 @@
-use std::time;
+use std::{iter, time};
 use std::ops::Add;
 
 use super::super::super::*;
@@ -33,6 +33,67 @@ fn write_header_then_interval_comment() {
     }
 
     assert_eq!("#foo\n#bar\n#baz\n", str::from_utf8(&buf[..]).unwrap());
+}
+
+#[test]
+fn write_comment_control_characters_still_parseable() {
+    let mut buf = Vec::new();
+    let mut serializer = V2Serializer::new();
+
+    let mut control_chars = String::new();
+
+    // control chars are U+0000-001F, 7F, 80-9F
+    for c_byte in (0..0x20_u8).chain(iter::once(0x7F)).chain(0x80..0xA0) {
+        let c = c_byte as char;
+        assert!(c.is_control());
+        control_chars.push(c);
+    }
+
+    assert_eq!(2 * 16 + 1 + 2 * 16, control_chars.chars().count());
+
+    {
+        let mut log_writer = IntervalLogWriterBuilder::new()
+            .add_comment("unicode")
+            .add_comment(&control_chars)
+            .add_comment("whew")
+            .with_start_time(system_time_after_epoch(123, 456_000_000))
+            .begin_log_with(&mut buf, &mut serializer)
+            .unwrap();
+        log_writer.write_comment("baz").unwrap();
+    }
+
+    let before_newline = &control_chars[0..10];
+    let after_newline = &control_chars[11..];
+    let expected = format!(
+        "#unicode\n#{}\n#{}\n#whew\n#[StartTime: 123.456 (seconds since epoch)]\n#baz\n",
+        before_newline,
+        after_newline
+    );
+    assert_eq!(&expected, str::from_utf8(&buf[..]).unwrap());
+
+    let mut i = IntervalLogIterator::new(&buf);
+    assert_eq!(Some(Ok(LogEntry::StartTime(123.456))), i.next());
+    assert_eq!(None, i.next());
+}
+
+#[test]
+fn write_comment_newline_wraps() {
+    let mut buf = Vec::new();
+    let mut serializer = V2Serializer::new();
+
+    {
+        let _ = IntervalLogWriterBuilder::new()
+            .add_comment("before")
+            .add_comment("new\nline")
+            .add_comment("after")
+            .begin_log_with(&mut buf, &mut serializer)
+            .unwrap();
+    }
+
+    assert_eq!(
+        "#before\n#new\n#line\n#after\n",
+        str::from_utf8(&buf[..]).unwrap()
+    );
 }
 
 #[test]

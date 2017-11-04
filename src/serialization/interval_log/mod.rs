@@ -166,7 +166,7 @@ extern crate base64;
 use std::{fmt, io, ops, str, time};
 use std::fmt::Write;
 
-use nom::{double, line_ending, not_line_ending, IResult};
+use nom::{double, IResult};
 
 use super::super::{Counter, Histogram};
 use super::Serializer;
@@ -195,8 +195,7 @@ impl IntervalLogWriterBuilder {
 
     /// Add a comment line to be written when the writer is built.
     ///
-    /// If you do silly things like write a comment with a newline character, you'll end up with
-    /// an un-parseable log file. Don't do that.
+    /// Comments containing '\n' will be transformed into multiple lines of comments.
     pub fn add_comment(&mut self, s: &str) -> &mut Self {
         self.comments.push(s.to_owned());
         self
@@ -250,7 +249,7 @@ impl IntervalLogWriterBuilder {
             max_value_divisor: self.max_value_divisor,
         };
 
-        for c in self.comments.iter() {
+        for c in &self.comments {
             internal_writer.write_comment(&c)?;
         }
 
@@ -308,7 +307,9 @@ pub struct IntervalLogWriter<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> {
 }
 
 impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> IntervalLogWriter<'a, 'b, W, S> {
-    /// Add a comment line.
+    /// Write a comment line.
+    ///
+    /// Comments containing '\n' will be transformed into multiple lines of comments.
     pub fn write_comment(&mut self, s: &str) -> io::Result<()> {
         self.internal_writer.write_comment(s)
     }
@@ -365,7 +366,11 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> InternalLogWriter<'a, 'b, W,
     }
 
     fn write_comment(&mut self, s: &str) -> io::Result<()> {
-        write!(self.writer, "#{}\n", s)
+        for l in s.split('\n') {
+            write!(self.writer, "#{}\n", l)?;
+        }
+
+        Ok(())
     }
 
     fn write_histogram<T: Counter>(
@@ -525,7 +530,7 @@ pub enum LogIteratorError {
 ///
 /// Because histogram deserialization is deferred, parsing logs is fast. See the `interval_log`
 /// benchmark if you wish to see how it does on your hardware. As a baseline, parsing a log of 1000
-/// random histograms of 10,000 values each takes 8ms total on an E5-1650v3.
+/// random histograms of 10,000 values each takes 2ms total on an E5-1650v3.
 ///
 /// Deferring deserialization is handy because it allows you to cheaply navigate the log to find
 /// the records you care about (e.g. ones in a certain time range, or with a certain tag) without
@@ -626,8 +631,7 @@ named!(start_time<&[u8], LogEntry>,
         tag!("#[StartTime: ") >>
         n: double >>
         char!(' ') >>
-        not_line_ending >>
-        line_ending >>
+        take_until_and_consume!("\n") >>
         (LogEntry::StartTime(n))
 ));
 
@@ -636,8 +640,7 @@ named!(base_time<&[u8], LogEntry>,
         tag!("#[BaseTime: ") >>
         n: double >>
         char!(' ') >>
-        not_line_ending >>
-        line_ending >>
+        take_until_and_consume!("\n") >>
         (LogEntry::BaseTime(n))
 ));
 
@@ -655,8 +658,7 @@ named!(interval_hist<&[u8], LogEntry>,
         char!(',') >>
         max: double >>
         char!(',') >>
-        encoded_histogram: map_res!(not_line_ending, str::from_utf8) >>
-        line_ending >>
+        encoded_histogram: map_res!(take_until_and_consume!("\n"), str::from_utf8) >>
         (LogEntry::Interval(IntervalLogHistogram {
             tag,
             start_timestamp,
@@ -670,11 +672,11 @@ named!(interval_hist<&[u8], LogEntry>,
 named!(log_entry<&[u8], LogEntry>, alt_complete!(start_time | base_time | interval_hist));
 
 named!(comment_line<&[u8], ()>,
-    do_parse!(tag!("#") >> not_line_ending >> line_ending >> (()))
+    do_parse!(tag!("#") >> take_until_and_consume!("\n") >> (()))
 );
 
 named!(legend<&[u8], ()>,
-    do_parse!(tag!("\"StartTimestamp\"") >> not_line_ending >> line_ending >> (()))
+    do_parse!(tag!("\"StartTimestamp\"") >> take_until_and_consume!("\n") >> (()))
 );
 
 named!(ignored_line<&[u8], ()>, alt!(comment_line | legend));
