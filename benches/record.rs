@@ -175,7 +175,9 @@ fn do_add_benchmark<F: Fn() -> Histogram<u64>>(
         addends.push(h);
     }
 
-    b.iter(|| for h in addends.iter() {
-        accum.add(h).unwrap();
+    b.iter(|| {
+        for h in addends.iter() {
+            accum.add(h).unwrap();
+        }
     })
 }

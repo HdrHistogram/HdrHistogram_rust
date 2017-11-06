@@ -166,7 +166,7 @@ extern crate base64;
 use std::{fmt, io, ops, str, time};
 use std::fmt::Write;
 
-use nom::{double, IResult};
+use nom::{double, is_digit, ErrorKind, IResult};
 
 use super::super::{Counter, Histogram};
 use super::Serializer;
@@ -450,9 +450,8 @@ impl<'a> ops::Deref for Tag<'a> {
 #[derive(PartialEq, Debug)]
 pub struct IntervalLogHistogram<'a> {
     tag: Option<Tag<'a>>,
-    start_timestamp: f64,
-    // lazily map to Duration to save parsing time and a few bytes of space on ILH
-    duration: f64,
+    start_timestamp: time::Duration,
+    duration: time::Duration,
     max: f64,
     encoded_histogram: &'a str,
 }
@@ -470,12 +469,12 @@ impl<'a> IntervalLogHistogram<'a> {
     /// the log, in which case you may wish to consider this number as a delta vs those timestamps.
     /// See the module-level documentation about timestamps.
     pub fn start_timestamp(&self) -> time::Duration {
-        fp_seconds_as_duration(self.start_timestamp)
+        self.start_timestamp
     }
 
     /// Duration of the interval in seconds.
     pub fn duration(&self) -> time::Duration {
-        fp_seconds_as_duration(self.duration)
+        self.duration
     }
 
     /// Max value in the encoded histogram
@@ -506,9 +505,9 @@ impl<'a> IntervalLogHistogram<'a> {
 #[allow(variant_size_differences)]
 pub enum LogEntry<'a> {
     /// Logs may include a StartTime. If present, it represents seconds since the epoch.
-    StartTime(f64),
+    StartTime(time::Duration),
     /// Logs may include a BaseTime. If present, it represents seconds since the epoch.
-    BaseTime(f64),
+    BaseTime(time::Duration),
     /// An individual interval histogram.
     Interval(IntervalLogHistogram<'a>),
 }
@@ -606,13 +605,6 @@ impl<'a> Iterator for IntervalLogIterator<'a> {
     }
 }
 
-fn fp_seconds_as_duration(fp_secs: f64) -> time::Duration {
-    let secs = fp_secs as u64;
-    // can't overflow because this can be at most 1 billion which is approx 2^30
-    let nsecs = (fp_secs.fract() * 1_000_000_000_f64) as u32;
-    time::Duration::new(secs, nsecs)
-}
-
 fn duration_as_fp_seconds(d: time::Duration) -> f64 {
     d.as_secs() as f64 + d.subsec_nanos() as f64 / 1_000_000_000_f64
 }
@@ -629,19 +621,19 @@ fn system_time_as_fp_seconds(time: time::SystemTime) -> f64 {
 named!(start_time<&[u8], LogEntry>,
     do_parse!(
         tag!("#[StartTime: ") >>
-        n: double >>
+        dur: fract_sec_duration >>
         char!(' ') >>
         take_until_and_consume!("\n") >>
-        (LogEntry::StartTime(n))
+        (LogEntry::StartTime(dur))
 ));
 
 named!(base_time<&[u8], LogEntry>,
     do_parse!(
         tag!("#[BaseTime: ") >>
-        n: double >>
+        dur: fract_sec_duration >>
         char!(' ') >>
         take_until_and_consume!("\n") >>
-        (LogEntry::BaseTime(n))
+        (LogEntry::BaseTime(dur))
 ));
 
 named!(interval_hist<&[u8], LogEntry>,
@@ -652,9 +644,9 @@ named!(interval_hist<&[u8], LogEntry>,
                     map!(pair!(tag!("Tag="), take_until_and_consume!(",")), |p| p.1),
                     str::from_utf8),
                 |s| Tag(s))) >>
-        start_timestamp: double >>
+        start_timestamp: fract_sec_duration >>
         char!(',') >>
-        duration: double >>
+        duration: fract_sec_duration >>
         char!(',') >>
         max: double >>
         char!(',') >>
@@ -669,7 +661,8 @@ named!(interval_hist<&[u8], LogEntry>,
     )
 );
 
-named!(log_entry<&[u8], LogEntry>, alt_complete!(start_time | base_time | interval_hist));
+named!(log_entry<&[u8], LogEntry>,
+    alt_complete!(start_time | base_time | interval_hist));
 
 named!(comment_line<&[u8], ()>,
     do_parse!(tag!("#") >> take_until_and_consume!("\n") >> (()))
@@ -680,6 +673,45 @@ named!(legend<&[u8], ()>,
 );
 
 named!(ignored_line<&[u8], ()>, alt!(comment_line | legend));
+
+fn fract_sec_duration(input: &[u8]) -> IResult<&[u8], time::Duration> {
+    match fract_sec_tuple(input) {
+        IResult::Done(rest, data) => {
+            let (secs, nanos_str) = data;
+
+            // only read up to 9 digits since we can only support nanos, not smaller precision
+            let nanos_parse_res = if nanos_str.len() > 9 {
+                nanos_str[0..9].parse::<u32>()
+            } else if nanos_str.len() == 9 {
+                nanos_str.parse::<u32>()
+            } else {
+                nanos_str
+                    .parse::<u32>()
+                    // subtraction will not overflow because len is < 9
+                    .map(|n| n * 10_u32.pow(9 - nanos_str.len() as u32))
+            };
+
+            if let Ok(nanos) = nanos_parse_res {
+                return IResult::Done(rest, time::Duration::new(secs, nanos));
+            }
+
+            // nanos were invalid utf8. We don't expose these errors, so don't bother defining a
+            // custom error type.
+            return IResult::Error(ErrorKind::Custom(0));
+        }
+        IResult::Error(e) => return IResult::Error(e),
+        IResult::Incomplete(n) => return IResult::Incomplete(n),
+    }
+}
+
+named!(fract_sec_tuple<&[u8], (u64, &str)>,
+    do_parse!(
+        secs: flat_map!(recognize!(take_until!(".")), parse_to!(u64)) >>
+        tag!(".") >>
+        nanos_str: map_res!(take_while1!(is_digit), str::from_utf8) >>
+        (secs, nanos_str)
+    )
+);
 
 #[cfg(test)]
 mod tests;

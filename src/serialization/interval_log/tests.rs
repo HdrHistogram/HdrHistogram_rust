@@ -1,3 +1,7 @@
+extern crate rand;
+
+use self::rand::Rng;
+
 use std::{iter, time};
 use std::ops::Add;
 
@@ -72,7 +76,12 @@ fn write_comment_control_characters_still_parseable() {
     assert_eq!(&expected, str::from_utf8(&buf[..]).unwrap());
 
     let mut i = IntervalLogIterator::new(&buf);
-    assert_eq!(Some(Ok(LogEntry::StartTime(123.456))), i.next());
+    assert_eq!(
+        Some(Ok(
+            LogEntry::StartTime(time::Duration::new(123, 456_000_000))
+        )),
+        i.next()
+    );
     assert_eq!(None, i.next());
 }
 
@@ -215,12 +224,72 @@ fn write_base_time() {
 }
 
 #[test]
+fn parse_duration_full_ns() {
+    let (rest, dur) = fract_sec_duration(b"123456.789012345foo").unwrap();
+
+    assert_eq!(time::Duration::new(123456, 789_012_345), dur);
+    assert_eq!(b"foo", rest);
+}
+
+#[test]
+fn parse_duration_scale_ns() {
+    let (rest, dur) = fract_sec_duration(b"123456.789012foo").unwrap();
+
+    assert_eq!(time::Duration::new(123456, 789_012_000), dur);
+    assert_eq!(b"foo", rest);
+}
+
+#[test]
+fn parse_duration_too_many_ns() {
+    let (rest, dur) = fract_sec_duration(b"123456.7890123456foo").unwrap();
+
+    // consumes all the numbers, but only parses the first 9
+    assert_eq!(time::Duration::new(123456, 789_012_345), dur);
+    assert_eq!(b"foo", rest);
+}
+
+#[test]
+fn duration_fp_roundtrip_accuracy() {
+    let mut rng = rand::thread_rng();
+
+    let mut buf = String::new();
+    let mut errors = Vec::new();
+    for _ in 0..100_000 {
+        buf.clear();
+
+        // pick seconds
+        let secs = rng.gen_range(0, 2_000_000_000);
+        // pick nsecs that only has ms accuracy
+        let nsecs = rng.gen_range(0, 1000) * 1000_000;
+
+        let dur = time::Duration::new(secs, nsecs);
+        let fp_secs = duration_as_fp_seconds(dur);
+
+        write!(&mut buf, "{:.3}", fp_secs).unwrap();
+
+        let (_, dur2) = fract_sec_duration(buf.as_bytes()).unwrap();
+
+        if dur != dur2 {
+            errors.push((dur, dur2));
+        }
+    }
+
+    if !errors.is_empty() {
+        for &(dur, dur2) in &errors {
+            println!("{:?} -> {:?}", dur, dur2);
+        }
+    }
+
+    assert_eq!(0, errors.len());
+}
+
+#[test]
 fn parse_start_time_with_human_date() {
     let (rest, e) = start_time(
         b"#[StartTime: 1441812279.474 (seconds since epoch), Wed Sep 09 08:24:39 PDT 2015]\nfoo",
     ).unwrap();
 
-    let expected = LogEntry::StartTime(1441812279.474);
+    let expected = LogEntry::StartTime(time::Duration::new(1441812279, 474_000_000));
 
     assert_eq!(expected, e);
     assert_eq!(b"foo", rest);
@@ -233,7 +302,7 @@ fn parse_start_time_without_human_date() {
     // Also, BaseTime doesn't have a human-formatted time.
     let (rest, e) = start_time(b"#[StartTime: 1441812279.474 (seconds since epoch)]\nfoo").unwrap();
 
-    let expected = LogEntry::StartTime(1441812279.474);
+    let expected = LogEntry::StartTime(time::Duration::new(1441812279, 474_000_000));
 
     assert_eq!(expected, e);
     assert_eq!(b"foo", rest);
@@ -243,7 +312,7 @@ fn parse_start_time_without_human_date() {
 fn parse_base_time() {
     let (rest, e) = base_time(b"#[BaseTime: 1441812279.474 (seconds since epoch)]\nfoo").unwrap();
 
-    let expected = LogEntry::BaseTime(1441812279.474);
+    let expected = LogEntry::BaseTime(time::Duration::new(1441812279, 474_000_000));
 
     assert_eq!(expected, e);
     assert_eq!(b"foo", rest);
@@ -271,8 +340,8 @@ fn parse_interval_hist_no_tag() {
 
     let expected = LogEntry::Interval(IntervalLogHistogram {
         tag: None,
-        start_timestamp: 0.127,
-        duration: 1.007,
+        start_timestamp: time::Duration::new(0, 127_000_000),
+        duration: time::Duration::new(1, 7_000_000),
         max: 2.769,
         encoded_histogram: "couldBeBase64",
     });
@@ -287,8 +356,8 @@ fn parse_interval_hist_with_tag() {
 
     let expected = LogEntry::Interval(IntervalLogHistogram {
         tag: Some(Tag("t")),
-        start_timestamp: 0.127,
-        duration: 1.007,
+        start_timestamp: time::Duration::new(0, 127_000_000),
+        duration: time::Duration::new(1, 7_000_000),
         max: 2.769,
         encoded_histogram: "couldBeBase64",
     });
@@ -311,13 +380,13 @@ fn iter_with_ignored_prefix() {
 
     let expected0 = LogEntry::Interval(IntervalLogHistogram {
         tag: Some(Tag("t")),
-        start_timestamp: 0.127,
-        duration: 1.007,
+        start_timestamp: time::Duration::new(0, 127_000_000),
+        duration: time::Duration::new(1, 7_000_000),
         max: 2.769,
         encoded_histogram: "couldBeBase64",
     });
 
-    let expected1 = LogEntry::StartTime(1441812279.474);
+    let expected1 = LogEntry::StartTime(time::Duration::new(1441812279, 474_000_000));
 
     assert_eq!(vec![expected0, expected1], entries)
 }
@@ -334,13 +403,13 @@ fn iter_without_ignored_prefix() {
 
     let expected0 = LogEntry::Interval(IntervalLogHistogram {
         tag: Some(Tag("t")),
-        start_timestamp: 0.127,
-        duration: 1.007,
+        start_timestamp: time::Duration::new(0, 127_000_000),
+        duration: time::Duration::new(1, 7_000_000),
         max: 2.769,
         encoded_histogram: "couldBeBase64",
     });
 
-    let expected1 = LogEntry::StartTime(1441812279.474);
+    let expected1 = LogEntry::StartTime(time::Duration::new(1441812279, 474_000_000));
 
     assert_eq!(vec![expected0, expected1], entries)
 }
@@ -363,14 +432,14 @@ fn iter_multiple_entrties_with_interleaved_ignored() {
 
     let expected0 = LogEntry::Interval(IntervalLogHistogram {
         tag: Some(Tag("t")),
-        start_timestamp: 0.127,
-        duration: 1.007,
+        start_timestamp: time::Duration::new(0, 127_000_000),
+        duration: time::Duration::new(1, 7_000_000),
         max: 2.769,
         encoded_histogram: "couldBeBase64",
     });
 
-    let expected1 = LogEntry::StartTime(1441812279.474);
-    let expected2 = LogEntry::BaseTime(1441812279.474);
+    let expected1 = LogEntry::StartTime(time::Duration::new(1441812279, 474_000_000));
+    let expected2 = LogEntry::BaseTime(time::Duration::new(1441812279, 474_000_000));
 
     assert_eq!(vec![expected0, expected1, expected2], entries)
 }
