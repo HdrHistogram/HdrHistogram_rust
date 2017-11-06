@@ -94,7 +94,7 @@
 //! use hdrsample::Histogram;
 //! let hist = Histogram::<u64>::new(2).unwrap();
 //! // ...
-//! println!("# of samples: {}", hist.count());
+//! println!("# of samples: {}", hist.len());
 //! println!("99.9'th percentile: {}", hist.value_at_quantile(0.999));
 //! ```
 //!
@@ -170,7 +170,6 @@
 //!  - `DoubleHistogram`.
 //!  - The `Recorder` feature of HdrHistogram.
 //!  - Value shifting ("normalization").
-//!  - Timestamps and tags.
 //!  - Textual output methods. These seem almost orthogonal to HdrSample, though it might be
 //!    convenient if we implemented some relevant traits (CSV, JSON, and possibly simple
 //!    `fmt::Display`).
@@ -188,6 +187,10 @@
 #![cfg_attr(all(test, feature = "bench_private"), feature(test))]
 
 extern crate num_traits as num;
+
+#[cfg(feature = "serialization")]
+#[macro_use]
+extern crate nom;
 
 use std::borrow::Borrow;
 use std::cmp;
@@ -777,7 +780,8 @@ impl<T: Counter> Histogram<T> {
         };
 
         // Already checked that high >= 2*low
-        h.resize(high).map_err(|_| CreationError::UsizeTypeTooSmall)?;
+        h.resize(high)
+            .map_err(|_| CreationError::UsizeTypeTooSmall)?;
         Ok(h)
     }
 
@@ -1748,9 +1752,6 @@ where
 
 // TODO: shift
 // TODO: hash
-// TODO: encoding/decoding
-// TODO: timestamps and tags
-// TODO: textual output
 
 #[path = "tests/tests.rs"]
 #[cfg(test)]

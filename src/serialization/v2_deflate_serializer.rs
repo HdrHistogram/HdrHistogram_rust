@@ -1,6 +1,6 @@
 use super::super::Histogram;
 use core::counter::Counter;
-use super::V2_COMPRESSED_COOKIE;
+use super::{Serializer, V2_COMPRESSED_COOKIE};
 use super::v2_serializer::{V2SerializeError, V2Serializer};
 use super::byteorder::{BigEndian, WriteBytesExt};
 use super::flate2::Compression;
@@ -48,12 +48,12 @@ impl V2DeflateSerializer {
             v2_serializer: V2Serializer::new(),
         }
     }
+}
 
-    /// Serialize the histogram into the provided writer.
-    /// Returns the number of bytes written, or an error.
-    ///
-    /// Note that `Vec<u8>` is a reasonable `Write` implementation for simple usage.
-    pub fn serialize<T: Counter, W: Write>(
+impl Serializer for V2DeflateSerializer {
+    type SerializeError = V2DeflateSerializeError;
+
+    fn serialize<T: Counter, W: Write>(
         &mut self,
         h: &Histogram<T>,
         writer: &mut W,

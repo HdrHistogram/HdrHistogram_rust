@@ -1,4 +1,4 @@
-//! # Serialization/deserialization
+//! Serialization/deserialization support.
 //!
 //! The upstream Java project has established several different types of serialization. We have
 //! currently implemented V2 and V2 + DEFLATE (following the names used by the Java implementation).
@@ -49,6 +49,10 @@
 //! `Read`. This should make it easy to use them in almost any context, as everything from i/o
 //! streams to `Vec<u8>` can be a `Read` or `Write`.
 //!
+//! # Interval logs
+//!
+//! See the `interval_log` module.
+//!
 //! ### Integration with general-purpose serialization libraries
 //!
 //! In general, serializing histograms should be straightforward: pick the serialization format
@@ -70,27 +74,30 @@
 //!
 //! ```
 //! use hdrsample::Histogram;
-//! use hdrsample::serialization::{Deserializer, V2Serializer};
+//! use hdrsample::serialization::{Serializer, V2Serializer};
 //!
-//! // part of serde, simplified
-//! trait Serializer {
-//!    // ...
-//!    fn serialize_bytes(self, value: &[u8]) -> Result<(), ()>;
-//!    // ...
-//! }
+//! mod serde {
+//!     // part of serde, simplified
+//!     pub trait Serializer {
+//!        // ...
+//!        fn serialize_bytes(self, value: &[u8]) -> Result<(), ()>;
+//!        // ...
+//!     }
 //!
-//! // also in serde
-//! trait Serialize {
-//!     fn serialize<S: Serializer>(&self, serializer: S) -> Result<(), ()>;
+//!     // also in serde
+//!     pub trait Serialize {
+//!         fn serialize<S: Serializer>(&self, serializer: S) -> Result<(), ()>;
+//!     }
 //! }
 //!
 //! // your custom wrapper
+//! #[allow(dead_code)] // to muffle warnings compiling this example
 //! struct V2HistogramWrapper {
 //!     histogram: Histogram<u64>
 //! }
 //!
-//! impl Serialize for V2HistogramWrapper {
-//!     fn serialize<S: Serializer>(&self, serializer: S) -> Result<(), ()> {
+//! impl serde::Serialize for V2HistogramWrapper {
+//!     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<(), ()> {
 //!         // Not optimal to not re-use the vec and serializer, but it'll work
 //!         let mut vec = Vec::new();
 //!         // Pick the serialization format you want to use. Here, we use plain V2, but V2 +
@@ -111,13 +118,13 @@
 //!
 //! ```
 //! use hdrsample::Histogram;
-//! use hdrsample::serialization::{Deserializer, V2Serializer};
+//! use hdrsample::serialization::{Deserializer, Serializer, V2Serializer};
 //!
 //! let mut vec = Vec::new();
 //! let orig_histogram = Histogram::<u64>::new(1).unwrap();
 //! V2Serializer::new().serialize(&orig_histogram, &mut vec).unwrap();
 //!
-//! let histogram: Histogram<u64> = Deserializer::new()
+//! let _histogram: Histogram<u64> = Deserializer::new()
 //!     .deserialize(&mut vec.as_slice()).unwrap();
 //! ```
 //!
@@ -126,7 +133,7 @@
 //!
 //! ```
 //! use hdrsample::Histogram;
-//! use hdrsample::serialization::{Deserializer, V2Serializer};
+//! use hdrsample::serialization::{Deserializer, Serializer, V2Serializer};
 //! use std::io::Cursor;
 //!
 //! // Naturally, do real error handling instead of unwrap() everywhere
@@ -137,7 +144,7 @@
 //! // Make some histograms
 //! for _ in 0..num_histograms {
 //!     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
-//!     h.record_n(42, 7);
+//!     h.record_n(42, 7).unwrap();
 //!     histograms.push(h);
 //! }
 //!
@@ -174,6 +181,10 @@
 extern crate byteorder;
 extern crate flate2;
 
+use std::{fmt, io};
+
+use super::{Counter, Histogram};
+
 #[cfg(test)]
 mod tests;
 
@@ -189,6 +200,8 @@ pub use self::v2_deflate_serializer::{V2DeflateSerializeError, V2DeflateSerializ
 mod deserializer;
 pub use self::deserializer::{DeserializeError, Deserializer};
 
+pub mod interval_log;
+
 const V2_COOKIE_BASE: u32 = 0x1c84_9303;
 const V2_COMPRESSED_COOKIE_BASE: u32 = 0x1c84_9304;
 
@@ -196,3 +209,21 @@ const V2_COOKIE: u32 = V2_COOKIE_BASE | 0x10;
 const V2_COMPRESSED_COOKIE: u32 = V2_COMPRESSED_COOKIE_BASE | 0x10;
 
 const V2_HEADER_SIZE: usize = 40;
+
+/// Histogram serializer.
+///
+/// Different implementations serialize to different formats.
+pub trait Serializer {
+    /// Error type returned when serialization fails.
+    type SerializeError: fmt::Debug;
+
+    /// Serialize the histogram into the provided writer.
+    /// Returns the number of bytes written, or an error.
+    ///
+    /// Note that `Vec<u8>` is a reasonable `Write` implementation for simple usage.
+    fn serialize<T: Counter, W: io::Write>(
+        &mut self,
+        h: &Histogram<T>,
+        writer: &mut W,
+    ) -> Result<usize, Self::SerializeError>;
+}

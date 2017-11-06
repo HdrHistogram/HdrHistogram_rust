@@ -3,7 +3,7 @@ mod tests {
     extern crate hdrsample;
 
     use self::hdrsample::Histogram;
-    use self::hdrsample::serialization::{Deserializer, V2Serializer};
+    use self::hdrsample::serialization::{Deserializer, Serializer, V2Serializer};
 
     use std::io::{BufRead, BufReader, Read};
     use std::fs::File;
@@ -48,6 +48,25 @@ mod tests {
             .unwrap();
 
         assert_eq!(h, deser_h);
+    }
+
+    #[test]
+    fn total_count_overflow_from_deserialize_saturates() {
+        let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+
+        // can't go bigger than i64 max because it will be serialized
+        h.record_n(1, i64::max_value() as u64).unwrap();
+        h.record_n(1000, i64::max_value() as u64).unwrap();
+        h.record_n(1000_000, i64::max_value() as u64).unwrap();
+        assert_eq!(u64::max_value(), h.len());
+
+        let mut vec = Vec::new();
+
+        V2Serializer::new().serialize(&h, &mut vec).unwrap();
+        let deser_h: Histogram<u64> = Deserializer::new()
+            .deserialize(&mut vec.as_slice())
+            .unwrap();
+        assert_eq!(u64::max_value(), deser_h.len());
     }
 
     fn load_histogram_from_num_per_line(path: &Path) -> Histogram<u64> {

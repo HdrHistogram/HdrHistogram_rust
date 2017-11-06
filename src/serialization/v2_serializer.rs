@@ -1,4 +1,4 @@
-use super::{V2_COOKIE, V2_HEADER_SIZE};
+use super::{Serializer, V2_COOKIE, V2_HEADER_SIZE};
 use super::super::{Counter, Histogram};
 use std::io::{ErrorKind, Write};
 use std;
@@ -38,12 +38,12 @@ impl V2Serializer {
     pub fn new() -> V2Serializer {
         V2Serializer { buf: Vec::new() }
     }
+}
 
-    /// Serialize the histogram into the provided writer.
-    /// Returns the number of bytes written, or an error.
-    ///
-    /// Note that `Vec<u8>` is a reasonable `Write` implementation for simple usage.
-    pub fn serialize<T: Counter, W: Write>(
+impl Serializer for V2Serializer {
+    type SerializeError = V2SerializeError;
+
+    fn serialize<T: Counter, W: Write>(
         &mut self,
         h: &Histogram<T>,
         writer: &mut W,
@@ -149,7 +149,9 @@ pub fn encode_counts<T: Counter>(
             // serializing. Don't want to silently eat counts beyond i63 max when serializing.
             // Perhaps we should provide some sort of pluggability here -- choose whether you want
             // to truncate counts to i63 max, or report errors if you need maximum fidelity?
-            count.to_i64().ok_or(V2SerializeError::CountNotSerializable)?
+            count
+                .to_i64()
+                .ok_or(V2SerializeError::CountNotSerializable)?
         };
 
         let zz = zig_zag_encode(count_or_zeros);

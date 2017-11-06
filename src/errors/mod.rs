@@ -1,4 +1,4 @@
-//! Errors types used throughout this library
+//! Error types used throughout this library
 
 /// Errors that can occur when creating a histogram.
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]

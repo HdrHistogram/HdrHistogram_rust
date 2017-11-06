@@ -9,8 +9,9 @@ use std::fmt::Display;
 use clap::{App, Arg, SubCommand};
 
 use hdrsample::{Histogram, RecordError};
-use hdrsample::serialization::{DeserializeError, Deserializer, V2DeflateSerializeError,
-                               V2DeflateSerializer, V2SerializeError, V2Serializer};
+use hdrsample::serialization::{DeserializeError, Deserializer, Serializer,
+                               V2DeflateSerializeError, V2DeflateSerializer, V2SerializeError,
+                               V2Serializer};
 
 fn main() {
     let default_max = format!("{}", u64::max_value());

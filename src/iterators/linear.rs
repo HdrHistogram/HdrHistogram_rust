@@ -22,6 +22,8 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
             value_units_per_bucket > 0,
             "value_units_per_bucket must be > 0"
         );
+
+        let new_lowest = hist.lowest_equivalent(value_units_per_bucket - 1);
         HistogramIterator::new(
             hist,
             Iter {
@@ -29,9 +31,7 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
                 value_units_per_bucket,
                 // won't underflow because value_units_per_bucket > 0
                 current_step_highest_value_reporting_level: value_units_per_bucket - 1,
-                current_step_lowest_value_reporting_level: hist.lowest_equivalent(
-                    value_units_per_bucket - 1,
-                ),
+                current_step_lowest_value_reporting_level: new_lowest,
             },
         )
     }

@@ -536,27 +536,6 @@ fn total_count_overflow_from_add_with_resize_saturates() {
 }
 
 #[test]
-#[cfg(feature = "serialization")]
-fn total_count_overflow_from_deserialize_saturates() {
-    use hdrsample::serialization::{Deserializer, V2Serializer};
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
-
-    // can't go bigger than i64 max because it will be serialized
-    h.record_n(1, i64::max_value() as u64).unwrap();
-    h.record_n(1000, i64::max_value() as u64).unwrap();
-    h.record_n(1_000_000, i64::max_value() as u64).unwrap();
-    assert_eq!(u64::max_value(), h.len());
-
-    let mut vec = Vec::new();
-
-    V2Serializer::new().serialize(&h, &mut vec).unwrap();
-    let deser_h: Histogram<u64> = Deserializer::new()
-        .deserialize(&mut vec.as_slice())
-        .unwrap();
-    assert_eq!(u64::max_value(), deser_h.len());
-}
-
-#[test]
 fn subtract_underflow_guarded_by_per_value_count_check() {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
     let mut h2 = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
