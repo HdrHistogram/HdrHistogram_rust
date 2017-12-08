@@ -37,7 +37,10 @@
 //! while to start up. If this is relevant to your workload, use StartTime to record the actual
 //! process start time (or other relevant "start" condition, like when a benchmark begins on an
 //! already long-running process). You could then use this when processing a log to more accurately
-//! plot interval data over time.
+//! plot interval data over time. Put differently, StartTime doesn't change the interpretation of
+//! interval timestamps directly like BaseTime; instead, it provides a hint to the consumer of the
+//! log that the "start" (whatever that means to you -- process start, etc) was at a different time
+//! than that associated with the first interval.
 //!
 //! #### Example scenario
 //!
@@ -92,9 +95,12 @@
 //! - StartTime is present: StartTime is a number of seconds since epoch, and interval timestamps
 //! may be interpreted as deltas to be added to StartTime or as "absolute" Unix time depending on a
 //! heuristic. In other words, the heuristic chooses between setting the effective BaseTime to 0 or
-//! to StartTime.
+//! to StartTime. Specifically, the heuristic interprets interval timestamps as deltas if they are
+//! more than a year's worth of seconds smaller than StartTime and as absolute timestamps otherwise.
 //! - BaseTime is present: BaseTime is a number of seconds since epoch, and interval timestamps are
-//! interpreted as deltas. The first interval's timestamp is stored to the StartTime field.
+//! interpreted as deltas. The first interval's (delta) timestamp is stored to the StartTime field.
+//! This is likely a bug, since StartTime should be an absolute timestamp, and appears to cause
+//! erroneous behavior when filtering by offset timestamps.
 //! - BaseTime and StartTime are present: The BaseTime is used like it is when it's the only one
 //! present: it's a number of seconds since epoch that serves as the starting point for the
 //! per-interval deltas to get a wall-clock time for each interval. No heuristics are applied to
