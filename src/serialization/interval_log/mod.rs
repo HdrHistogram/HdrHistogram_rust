@@ -12,58 +12,102 @@
 //! The intervals in the log should be ordered by start timestamp. It's possible to write (and
 //! parse) logs with intervals in any order, but the expectation is that they will be sorted.
 //!
-//! To parse a log, see `IntervalLogIterator`. To write a log, see `IntervalLogHeaderWriter`.
+//! To parse a log, see `IntervalLogIterator`. To write a log, see `IntervalLogWriterBuilder`.
 //!
 //! # Timestamps
 //!
 //! Each interval has a timestamp in seconds associated with it. However, it's not necessarily as
-//! simple as just interpreting the number as seconds since the epoch.
+//! simple as just interpreting the number as seconds since the epoch. There are two optional pieces
+//! of header metadata: "StartTime" and "BaseTime". Neither, one, or both of these may be present.
+//! It is possible to have multiple StartTime or BaseTime entries in the log, or even interleaved
+//! with interval histograms, but that is confusing, so this API prevents you from doing so.
 //!
-//! There are two optional pieces of header metadata: "StartTime" and "BaseTime". Neither, one, or
-//! both of these may be present. It is possible to have multiple StartTime or BaseTime entries in
-//! the log, but that is discouraged as it is confusing to interpret. It is also possible to have
-//! StartTime and BaseTime interleaved with interval histograms, but that is even more confusing, so
-//! this API prevents you from doing so.
+//! When BaseTime is present, per-interval timestamps are the number of seconds since BaseTime. When
+//! it is absent, the per-interval timestamps represent fractional seconds since the epoch (aka
+//! Unix time). BaseTime is useful because it allows you to have somewhat human-readable timestamps
+//! for each interval -- it's easier to see 245.3 and see that that's 4 minutes after the start of
+//! whatever it is you're doing than it is to mentally parse a Unix timestamp. Naturally, you can
+//! always calculate the deltas after the fact if you're willing to write a little tooling, but in
+//! some cases log files are consumed by humans too.
 //!
-//! ### Timestamp options
+//! While BaseTime is used to redefine per-interval timestamps for human readability, StartTime
+//! provides information about when the process that is generating the log reached some "start"
+//! condition. It's frequently the case that intervals will start some seconds after the process
+//! started, whether due to initial warmup before a benchmark or because it just takes a
+//! while to start up. If this is relevant to your workload, use StartTime to record the actual
+//! process start time (or other relevant "start" condition, like when a benchmark begins on an
+//! already long-running process). You could then use this when processing a log to more accurately
+//! plot interval data over time.
 //!
-//! This is a summary of the logic used by the Java impl's `HistogramLogReader` for StartTime and
-//! BaseTime.
+//! #### Example scenario
 //!
-//! - Neither are present: interval timestamps should be interpreted as seconds since the epoch.
+//! To explain their usage, suppose we're running a multi-hour benchmark on a process that starts
+//! up at a Unix time of 1500000000. We'll be recording separate log files per hour just to
+//! demonstrate the interaction between BaseTime, StartTime, and interval log timestamps.
+//!
+//! The process starts up, warms up its caches, JIT compiles, etc and is ready to start its
+//! benchmark 40 seconds later, so we create the first interval log file and record a StartTime of
+//! 1500000040. If the actual process start (rather than benchmark start) is more useful to you,
+//! using a StartTime of 1500000000 would be reasonable, but we'll stick with 1500000040.
+//!
+//! We'll use a BaseTime of 1500000040 because that's when the benchmark began, but 1500000000 would
+//! also be a reasonable choice here -- it would just make the per-interval deltas 40 seconds
+//! larger, which might be a more useful way of recording them, depending on the situation.
+//!
+//! The benchmark produces an interval histogram for each 60 seconds of workload, so the first one
+//! is ready at 1500000100, and is recorded with a delta timestamp of 60. This goes on for another
+//! hour, with the last one being 3540 seconds after the start of the benchmark with a corresponding
+//! delta of 3540.
+//!
+//! At the start of the second hour, the time is 1500003640 and the first log file is ended (which
+//! is straightforward: just stop writing to it and close the file) and the second log file is
+//! opened. It still uses a StartTime of 1500000040 because we want to represent that this log
+//! pertains to something that started an hour ago, but we'll use a BaseTime of 1500003640 so that
+//! our delta timestamps start over at 0. Again, you could just as well decide to use the same
+//! BaseTime of 1500000040 if you prefer, but it's arguably easier for a human to parse "h hours
+//! into the benchmark, s seconds past the hour" than it is to mentally divide by 3600, so we'll
+//! go with the new BaseTime.
+//!
+//! Suppose now you wanted to process these logs and show information (e.g. the 0.999th quantile of
+//! each interval) as the y-axis on a plot where time is the x-axis. You would want to have
+//! StartTime be the zero of the x-axis. For each interval, calculate the Unix time by adding its
+//! timestamp to BaseTime, where BaseTime is assumed to be zero if it's not specified. The point on
+//! the x-axis for that interval would be the result of subtracting StartTime from that Unix time.
+//! As an example, the 17th minute in the 2nd hour would have an interval timestamp of approximately
+//! 1020, which when added to 1500003640 is 1500004660. The difference between StartTime and then is
+//! 4620. You might choose to display that in units of minutes, which would be 4620 / 60 = 77.
+//!
+//! #### Java interop
+//!
+//! Since you may be interoperating with the Java reference implementation, here's a summary of the
+//! logic used by the `HistogramLogReader` class for StartTime and BaseTime. It's slightly different
+//! than what was described above, presumably for legacy compatibility reasons. This class stores
+//! the StartTime as a field which is exposed via a getter, and also integrates filtering intervals
+//! based on windows for either "absolute" (Unix time) timestamps or "offset" timestamps (delta vs
+//! the StartTime), so if you're using that filtering functionality, you need to understand how it
+//! ends up setting its internal version of StartTime.
+//!
+//! - Neither StartTime nor BaseTime are present: interval timestamps are interpreted as seconds
+//! since the epoch. The first interval's timestamp is stored to the StartTime field.
 //! - StartTime is present: StartTime is a number of seconds since epoch, and interval timestamps
-//! should be interpreted as deltas that could be added to StartTime if seconds since epoch for each
-//! interval is needed.
-//! - BaseTime is present: same as the case where StartTime is present. It's seconds since epoch,
-//! with interval timestamps as deltas.
+//! may be interpreted as deltas to be added to StartTime or as "absolute" Unix time depending on a
+//! heuristic. In other words, the heuristic chooses between setting the effective BaseTime to 0 or
+//! to StartTime.
+//! - BaseTime is present: BaseTime is a number of seconds since epoch, and interval timestamps are
+//! interpreted as deltas. The first interval's timestamp is stored to the StartTime field.
 //! - BaseTime and StartTime are present: The BaseTime is used like it is when it's the only one
 //! present: it's a number of seconds since epoch that serves as the starting point for the
-//! per-interval deltas to get a wall-clock time for each interval. The StartTime is a *different*
-//! number of seconds since epoch whose meaning is really up to the user. One hypothetical use might
-//! be if you're performing a long-running benchmark and outputting a new interval log every hour.
-//! The BaseTime of each log would be the seconds since epoch at the creation time of that log file,
-//! but the StartTime would be the same for each file: the time that the benchmark started. Thus,
-//! if you wanted to find the interval histogram for 4000 seconds into the benchmark, you would load
-//! the second hour's file, add each interval's timestamp to that log's BaseTime, and select the one
-//! whose (timestmap + BaseTime) was 4000 bigger than the StartTime. This seems to be how the Java
-//! impl uses it: `HistogramLogReader` lets you filter by "non-absolute" start/end time or by
-//! "absolute" start/end time. The former uses a range of deltas from StartTime and selects
-//! intervals where `interval_timestamp + base_time - start_time` is in the requested range, while
-//! the latter uses a range of absolute timestamps and selects via `interval_timestamp + base_time`.
+//! per-interval deltas to get a wall-clock time for each interval. No heuristics are applied to
+//! guess whether or not the intervals are absolute or deltas.
 //!
-//! ### Timestamp recommendations
-//!
-//! As you can see from that slab of text, using both BaseTime and StartTime is complex.
-//!
-//! We suggest one of the following:
-//!
-//! - Don't use a timestamp header, and simply have each interval's timestamp be the seconds since
-//! epoch.
-//! - Use StartTime, and have each interval's timestamp be a delta from StartTime.
-//!
-//! Of course, if you are writing logs that need to work with an existing log processing pipeline,
-//! you should use timestamps as expected by that logic, so we provide the ability to have all
-//! combinations of timestamp headers if need be.
+//! The Java implementation also supports re-setting the StartTime and BaseTime if those entries
+//! exist more than once in the log. Suppose that you had an hour's worth of per-minute intervals,
+//! and then you set another StartTime to the current time and added a second hour's worth of
+//! intervals. Filtering for "all intervals between 5 and 10 minutes past the start" would result in
+//! two disjoint sequences of intervals, which is at the very least arguably unintuitive. However,
+//! you may well be working with log files that are structured that way, so this implementation's
+//! `IntervalLogIterator` will expose multiple StartTime, etc, entries as they appear in the log
+//! file.
 //!
 //! # Examples
 //!
