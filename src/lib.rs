@@ -813,12 +813,37 @@ impl<T: Counter> Histogram<T> {
         self.record_n(value, T::one())
     }
 
+    /// Record `value` in the histogram, clamped to the range of the histogram.
+    ///
+    /// This method cannot fail, as any values that are too small or too large to be tracked will
+    /// automatically be clamed to be in range. Be aware that this *will* hide extreme outliers
+    /// from the resulting histogram without warning.
+    pub fn saturating_record(&mut self, value: u64) {
+        self.saturating_record_n(value, T::one())
+    }
+
     /// Record multiple samples for a value in the histogram, adding to the value's current count.
     ///
     /// `count` is the number of occurrences of this value to record.
     ///
     /// Returns an error if `value` cannot be recorded; see `RecordError`.
     pub fn record_n(&mut self, value: u64, count: T) -> Result<(), RecordError> {
+        self.record_n_inner(value, count, false)
+    }
+
+    /// Record multiple samples for a value in the histogram, each one clamped to the histogram's
+    /// range.
+    ///
+    /// `count` is the number of occurrences of this value to record.
+    ///
+    /// This method cannot fail, as values that are too small or too large to be recorded will
+    /// automatically be clamed to be in range. Be aware that this *will* hide extreme outliers
+    /// from the resulting histogram without warning.
+    pub fn saturating_record_n(&mut self, value: u64, count: T) {
+        self.record_n_inner(value, count, true).unwrap()
+    }
+
+    fn record_n_inner(&mut self, mut value: u64, count: T, clamp: bool) -> Result<(), RecordError> {
         let recorded_without_resize = if let Some(c) = self.mut_at(value) {
             *c = (*c).saturating_add(count);
             true
@@ -827,21 +852,33 @@ impl<T: Counter> Histogram<T> {
         };
 
         if !recorded_without_resize {
-            if !self.auto_resize {
+            if clamp {
+                value = if value > self.highest_trackable_value {
+                    self.highest_trackable_value
+                } else {
+                    // must be smaller than the lowest_discernible_value, since self.mut_at(value)
+                    // failed, and it's not too large (per above).
+                    self.lowest_discernible_value
+                };
+
+                // unwrap must succeed since low and high are always representable
+                let c = self.mut_at(value).unwrap();
+                *c = c.saturating_add(count);
+            } else if !self.auto_resize {
                 return Err(RecordError::ValueOutOfRangeResizeDisabled);
-            }
+            } else {
+                // We're growing the histogram, so new high > old high and is therefore >= 2x low.
+                self.resize(value)
+                    .map_err(|_| RecordError::ResizeFailedUsizeTypeTooSmall)?;
+                self.highest_trackable_value =
+                    self.highest_equivalent(self.value_for(self.last_index()));
 
-            // We're growing the histogram, so new high > old high and is therefore >= 2x low.
-            self.resize(value)
-                .map_err(|_| RecordError::ResizeFailedUsizeTypeTooSmall)?;
-            self.highest_trackable_value =
-                self.highest_equivalent(self.value_for(self.last_index()));
-
-            {
-                let c = self.mut_at(value).expect("value should fit after resize");
-                // after resize, should be no possibility of overflow because this is a new slot
-                *c = (*c).checked_add(&count)
-                    .expect("count overflow after resize");
+                {
+                    let c = self.mut_at(value).expect("value should fit after resize");
+                    // after resize, should be no possibility of overflow because this is a new slot
+                    *c = (*c).checked_add(&count)
+                        .expect("count overflow after resize");
+                }
             }
         }
 
@@ -885,7 +922,7 @@ impl<T: Counter> Histogram<T> {
             // only enter loop when calculations will stay non-negative
             let mut missing_value = value - interval;
             while missing_value >= interval {
-                self.record_n(missing_value, count)?;
+                self.record_n_inner(missing_value, count, false)?;
                 missing_value -= interval;
             }
         }

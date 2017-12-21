@@ -84,6 +84,15 @@ fn record_past_trackable_max() {
 }
 
 #[test]
+fn saturating_record_past_trackable_max() {
+    let mut h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
+    h.saturating_record(3 * TRACKABLE_MAX);
+    assert_eq!(h.count_at(TRACKABLE_MAX), 1);
+    assert_eq!(h.len(), 1);
+    assert!(verify_max(h));
+}
+
+#[test]
 fn record_in_interval() {
     let mut h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     h.record_correct(TEST_VALUE_LEVEL, TEST_VALUE_LEVEL / 4)
