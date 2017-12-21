@@ -817,7 +817,8 @@ impl<T: Counter> Histogram<T> {
     ///
     /// This method cannot fail, as any values that are too small or too large to be tracked will
     /// automatically be clamed to be in range. Be aware that this *will* hide extreme outliers
-    /// from the resulting histogram without warning.
+    /// from the resulting histogram without warning. Since the values are clamped, the histogram
+    /// will also not be resized to accomodate the value, even if auto-resize is enabled.
     pub fn saturating_record(&mut self, value: u64) {
         self.saturating_record_n(value, T::one())
     }
@@ -838,7 +839,8 @@ impl<T: Counter> Histogram<T> {
     ///
     /// This method cannot fail, as values that are too small or too large to be recorded will
     /// automatically be clamed to be in range. Be aware that this *will* hide extreme outliers
-    /// from the resulting histogram without warning.
+    /// from the resulting histogram without warning. Since the values are clamped, the histogram
+    /// will also not be resized to accomodate the value, even if auto-resize is enabled.
     pub fn saturating_record_n(&mut self, value: u64, count: T) {
         self.record_n_inner(value, count, true).unwrap()
     }
@@ -861,8 +863,8 @@ impl<T: Counter> Histogram<T> {
                     self.lowest_discernible_value
                 };
 
-                // unwrap must succeed since low and high are always representable
-                let c = self.mut_at(value).unwrap();
+                let c = self.mut_at(value)
+                    .expect("unwrap must succeed since low and high are always representable");
                 *c = c.saturating_add(count);
             } else if !self.auto_resize {
                 return Err(RecordError::ValueOutOfRangeResizeDisabled);
