@@ -70,16 +70,16 @@ fn write_comment_control_characters_still_parseable() {
     let after_newline = &control_chars[11..];
     let expected = format!(
         "#unicode\n#{}\n#{}\n#whew\n#[StartTime: 123.456 (seconds since epoch)]\n#baz\n",
-        before_newline,
-        after_newline
+        before_newline, after_newline
     );
     assert_eq!(&expected, str::from_utf8(&buf[..]).unwrap());
 
     let mut i = IntervalLogIterator::new(&buf);
     assert_eq!(
-        Some(Ok(
-            LogEntry::StartTime(time::Duration::new(123, 456_000_000))
-        )),
+        Some(Ok(LogEntry::StartTime(time::Duration::new(
+            123,
+            456_000_000
+        )))),
         i.next()
     );
     assert_eq!(None, i.next());
@@ -154,9 +154,10 @@ fn write_interval_histo_no_tag() {
             .unwrap();
     }
 
-    let expected = "\
-                    #[MaxValueDivisor: 10.000]\n\
-                    1.235,5.670,100.000,HISTEwAAAAMAAAAAAAAAAwAAAAAAAAAB//////////8/8AAAAAAAAM8PAg==\n";
+    let expected =
+        "\
+         #[MaxValueDivisor: 10.000]\n\
+         1.235,5.670,100.000,HISTEwAAAAMAAAAAAAAAAwAAAAAAAAAB//////////8/8AAAAAAAAM8PAg==\n";
 
     assert_eq!(expected, str::from_utf8(&buf[..]).unwrap());
 }

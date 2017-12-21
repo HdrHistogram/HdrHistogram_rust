@@ -96,7 +96,6 @@ fn serialize_roundtrip_1_count_for_every_value_1_bucket() {
     assert_eq!(1, h.bucket_count);
     assert_eq!(10, h.sub_bucket_half_count_magnitude);
 
-
     for v in 0..2048 {
         h.record(v).unwrap();
     }
@@ -284,7 +283,6 @@ fn encode_counts_count_too_big() {
         encode_counts(&h, &mut vec[..]).unwrap_err()
     );
 }
-
 
 #[test]
 fn varint_write_3_bit_value() {

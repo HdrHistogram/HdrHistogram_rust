@@ -153,7 +153,6 @@ fn equivalent_range_unit_magnitude_50_max_buckets() {
     assert_eq!(1 << 53, h.equivalent_range(u64::max_value()));
 }
 
-
 #[test]
 fn highest_equivalent_unit_magnitude_0() {
     let h = histo64(1, 100_000, 3);
@@ -204,7 +203,6 @@ fn highest_equivalent_u64_max_value_saturates() {
 
     assert_eq!(u64::max_value(), h.highest_equivalent(u64::max_value()));
 }
-
 
 #[test]
 fn next_non_equivalent_unit_magnitude_0() {

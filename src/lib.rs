@@ -1316,9 +1316,7 @@ impl<T: Counter> Histogram<T> {
         let target_index = self.index_for_or_last(value);
         // TODO use RangeInclusive when it's stable to avoid checked_add
         let total_to_current_index = (0..target_index.checked_add(1).expect("usize overflow"))
-            .map(|i| {
-                self.count_at_index(i).expect("index is <= last_index()")
-            })
+            .map(|i| self.count_at_index(i).expect("index is <= last_index()"))
             .fold(0_u64, |t, v| t.saturating_add(v.as_u64()));
         total_to_current_index.as_f64() / self.total_count as f64
     }
@@ -1341,9 +1339,7 @@ impl<T: Counter> Histogram<T> {
         let high_index = self.index_for_or_last(high);
         // TODO use RangeInclusive when it's stable to avoid checked_add
         (low_index..high_index.checked_add(1).expect("usize overflow"))
-            .map(|i| {
-                self.count_at_index(i).expect("index is <= last_index()")
-            })
+            .map(|i| self.count_at_index(i).expect("index is <= last_index()"))
             .fold(0_u64, |t, v| t.saturating_add(v.as_u64()))
     }
 
@@ -1451,7 +1447,6 @@ impl<T: Counter> Histogram<T> {
         }
         self.value_from_loc(bucket_index as u8, sub_bucket_index)
     }
-
 
     /// Returns count at index, or None if out of bounds
     fn count_at_index(&self, index: usize) -> Option<T> {

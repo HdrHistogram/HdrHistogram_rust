@@ -92,7 +92,6 @@ impl Deserializer {
         self.deser_v2(&mut deflate_reader)
     }
 
-
     #[cfg_attr(feature = "cargo-clippy", allow(float_cmp))]
     fn deser_v2<T: Counter, R: Read>(
         &mut self,
