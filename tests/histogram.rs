@@ -84,6 +84,22 @@ fn record_past_trackable_max() {
 }
 
 #[test]
+fn saturating_record() {
+    let mut h = Histogram::<u64>::new_with_bounds(512, TRACKABLE_MAX, SIGFIG).unwrap();
+
+    h.saturating_record(1); // clamped below
+    h.saturating_record(1000*1000); // not clamped
+    h.saturating_record(3 * TRACKABLE_MAX); // clamped above
+
+    // https://github.com/jonhoo/hdrsample/pull/74#discussion_r158192909
+    assert_eq!(h.count_at(511), 1);
+    assert_eq!(h.count_at(1000*1000), 1);
+    assert_eq!(h.count_at(h.high()), 1);
+    assert_eq!(h.len(), 3);
+    assert!(verify_max(h));
+}
+
+#[test]
 fn record_in_interval() {
     let mut h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     h.record_correct(TEST_VALUE_LEVEL, TEST_VALUE_LEVEL / 4)
