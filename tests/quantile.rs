@@ -9,7 +9,7 @@ use rand::Rng;
 use rand::distributions::range::Range;
 use rand::distributions::IndependentSample;
 use ieee754::Ieee754;
-use rug::{Integer, Rational};
+use rug::Rational;
 
 #[test]
 fn value_at_quantile_internal_count_exceeds_bucket_type() {
@@ -215,9 +215,7 @@ fn value_at_quantile_matches_quantile_at_each_value_sequence_values() {
         assert_eq!(length, h.len());
 
         for v in 1..(length + 1) {
-            let quantile = (Rational::from(Integer::from(v as u64))
-                / Rational::from(Integer::from(length as u64)))
-                .to_f64();
+            let quantile = Rational::from((v as u64, length as u64)).to_f64();
             let calculated_value = h.value_at_quantile(quantile);
             if !h.equivalent(v, calculated_value) {
                 println!(
@@ -264,9 +262,7 @@ fn value_at_quantile_matches_quantile_at_each_value_random_values() {
         assert_eq!(length as u64, h.len());
 
         for (index, &v) in values.iter().enumerate() {
-            let quantile = (Rational::from(Integer::from(index as u64 + 1))
-                / Rational::from(Integer::from(length as u64)))
-                .to_f64();
+            let quantile = Rational::from((index as u64 + 1, length as u64)).to_f64();
             let calculated_value = h.value_at_quantile(quantile);
             if !h.equivalent(v, calculated_value) {
                 errors += 1;
@@ -316,7 +312,7 @@ fn value_at_quantile_matches_random_quantile_random_values() {
         for _ in 0..1_000 {
             let quantile = quantile_range.ind_sample(&mut rng);
             let index_at_quantile = (Rational::from_f64(quantile).unwrap()
-                * Rational::from(Integer::from(length as u64)))
+                * Rational::from(length as u64))
                 .to_integer()
                 .to_u64()
                 .unwrap() as usize;
@@ -373,16 +369,8 @@ impl<'a, R: Rng + 'a> Iterator for RandomMaxIter<'a, R> {
 
 /// Calculate the count at a quantile with arbitrary precision arithmetic
 fn calculate_quantile_count(quantile: f64, count: u64) -> u64 {
-    let product = Rational::from_f64(quantile).unwrap() * Rational::from(Integer::from(count));
-    let prod_as_int = (product).to_integer();
-
-    // emulate ceil()
-    if product == Rational::from(prod_as_int.clone()) {
-        return prod_as_int.to_u64().unwrap();
-    } else {
-        // to_integer()'s rounding down has chopped off a fractional part
-        return prod_as_int.to_u64().unwrap() + 1;
-    }
+    let product = Rational::from_f64(quantile).unwrap() * Rational::from(count);
+    product.ceil().to_u64().unwrap()
 }
 
 
