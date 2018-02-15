@@ -25,7 +25,7 @@ fn equivalent_range_unit_magnitude_0() {
     // max value in top bucket
     assert_eq!(1 << 6, h.equivalent_range((1 << 17) - 1));
     // even bigger
-    assert_eq!(1 << 7, h.equivalent_range((1 << 17)));
+    assert_eq!(1 << 7, h.equivalent_range(1 << 17));
 }
 
 #[test]
@@ -53,7 +53,7 @@ fn equivalent_range_unit_magnitude_2() {
     // max value in top bucket
     assert_eq!(1 << 6, h.equivalent_range((1 << 17) - 1));
     // even bigger
-    assert_eq!(1 << 7, h.equivalent_range((1 << 17)));
+    assert_eq!(1 << 7, h.equivalent_range(1 << 17));
 }
 
 #[test]
