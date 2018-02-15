@@ -1,6 +1,6 @@
 [package]
-name = "hdrsample"
-version = "6.0.1"
+name = "hdrhistogram"
+version = "6.0.2"
 
 description = "A port of HdrHistogram to Rust"
 readme = "README.md"
@@ -10,9 +10,9 @@ authors = [
 	"Marshall Pierce <marshall@mpierce.org>",
 ]
 
-documentation = "https://docs.rs/hdrsample"
-homepage = "https://github.com/jonhoo/hdrsample"
-repository = "https://github.com/jonhoo/hdrsample.git"
+documentation = "https://docs.rs/hdrhistogram"
+homepage = "https://github.com/HdrHistogram/HdrHistogram_rust"
+repository = "https://github.com/HdrHistogram/HdrHistogram_rust.git"
 
 keywords = ["sampling", "statistics", "analytics"]
 categories = ["data-structures", "development-tools::profiling"]
@@ -20,7 +20,7 @@ categories = ["data-structures", "development-tools::profiling"]
 license = "MIT/Apache-2.0"
 
 [badges]
-travis-ci = { repository = "jonhoo/hdrsample" }
+travis-ci = { repository = "HdrHistogram/HdrHistogram_rust" }
 
 [features]
 bench_private = [] # for enabling nightly-only feature(test) on the main crate to allow benchmarking private code

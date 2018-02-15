@@ -36,6 +36,10 @@
 //! directly computes storage index locations such that no iteration or searching is ever involved
 //! in recording data values.
 //!
+//! If you are looking for FFI bindings to
+//! [`HdrHistogram_c`](https://github.com/HdrHistogram/HdrHistogram_c), you want the
+//! [`hdrhistogram_c`](https://crates.io/crates/hdrhistogram_c) crate instead.
+//!
 //! # Interacting with the library
 //!
 //! HdrSample's API follows that of the original HdrHistogram Java implementation, with some

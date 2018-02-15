@@ -1,4 +1,4 @@
-# hdrsample
+# HdrHistogram_rust
 
 [![Crates.io](https://img.shields.io/crates/v/hdrsample.svg)](https://crates.io/crates/hdrsample)
 [![Documentation](https://docs.rs/hdrsample/badge.svg)](https://docs.rs/hdrsample/)
@@ -41,6 +41,10 @@ regardless of the number of data value samples recorded, and depends solely on t
 range and precision chosen. The amount of work involved in recording a sample is constant, and
 directly computes storage index locations such that no iteration or searching is ever involved
 in recording data values.
+
+If you are looking for FFI bindings to
+[`HdrHistogram_c`](https://github.com/HdrHistogram/HdrHistogram_c), you want the
+[`hdrhistogram_c`](https://crates.io/crates/hdrhistogram_c) crate instead.
 
 ## Interacting with the library
 
@@ -100,7 +104,7 @@ as the total number of recorded samples, or the value at a given quantile:
 use hdrsample::Histogram;
 let hist = Histogram::<u64>::new(2).unwrap();
 // ...
-println!("# of samples: {}", hist.count());
+println!("# of samples: {}", hist.len());
 println!("99.9'th percentile: {}", hist.value_at_quantile(0.999));
 ```
 
@@ -115,7 +119,7 @@ let hist = Histogram::<u64>::new(2).unwrap();
 // ...
 for v in hist.iter_recorded() {
     println!("{}'th percentile of data is {} with {} samples",
-        v.percentile(), v.value(), v.count_at_value());
+        v.percentile(), v.value_iterated_to(), v.count_at_value());
 }
 ```
 
@@ -176,7 +180,6 @@ not (yet) been implemented:
  - `DoubleHistogram`.
  - The `Recorder` feature of HdrHistogram.
  - Value shifting ("normalization").
- - Timestamps and tags.
  - Textual output methods. These seem almost orthogonal to HdrSample, though it might be
    convenient if we implemented some relevant traits (CSV, JSON, and possibly simple
    `fmt::Display`).
