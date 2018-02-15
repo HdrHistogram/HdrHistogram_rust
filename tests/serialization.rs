@@ -1,9 +1,9 @@
 #[cfg(all(feature = "serialization", test))]
 mod tests {
-    extern crate hdrsample;
+    extern crate hdrhistogram;
 
-    use self::hdrsample::Histogram;
-    use self::hdrsample::serialization::{Deserializer, Serializer, V2Serializer};
+    use self::hdrhistogram::Histogram;
+    use self::hdrhistogram::serialization::{Deserializer, Serializer, V2Serializer};
 
     use std::io::{BufRead, BufReader, Read};
     use std::fs::File;

@@ -60,7 +60,7 @@ impl Serializer for V2DeflateSerializer {
     ) -> Result<usize, V2DeflateSerializeError> {
         // TODO benchmark serializing in chunks rather than all at once: each uncompressed v2 chunk
         // could be compressed and written to the compressed buf, possibly using an approach like
-        // that of https://github.com/jonhoo/hdrsample/issues/32#issuecomment-287583055.
+        // that of https://github.com/HdrHistogram/HdrHistogram_rust/issues/32#issuecomment-287583055.
         // This would reduce the overall buffer size needed for plain v2 serialization, and be
         // more cache friendly.
 

@@ -1,10 +1,10 @@
 #![feature(test)]
 
-extern crate hdrsample;
+extern crate hdrhistogram;
 extern crate rand;
 extern crate test;
 
-use hdrsample::*;
+use hdrhistogram::*;
 use self::test::Bencher;
 
 use self::rand_varint::*;

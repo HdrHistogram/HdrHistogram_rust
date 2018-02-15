@@ -1,9 +1,9 @@
-extern crate hdrsample;
+extern crate hdrhistogram;
 extern crate ieee754;
 extern crate rand;
 extern crate rug;
 
-use hdrsample::{Counter, Histogram};
+use hdrhistogram::{Counter, Histogram};
 
 use rand::Rng;
 use rand::distributions::range::Range;

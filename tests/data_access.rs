@@ -1,10 +1,10 @@
 //! Tests from HistogramDataAccessTest.java
 
-extern crate hdrsample;
+extern crate hdrhistogram;
 extern crate ieee754;
 extern crate rug;
 
-use hdrsample::Histogram;
+use hdrhistogram::Histogram;
 
 macro_rules! assert_near {
     ($a: expr, $b: expr, $tolerance: expr) => {{

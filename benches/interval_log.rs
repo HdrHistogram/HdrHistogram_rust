@@ -1,14 +1,14 @@
 #![feature(test)]
 
-extern crate hdrsample;
+extern crate hdrhistogram;
 extern crate rand;
 extern crate test;
 
 use std::time;
 
-use hdrsample::*;
-use hdrsample::serialization;
-use hdrsample::serialization::interval_log;
+use hdrhistogram::*;
+use hdrhistogram::serialization;
+use hdrhistogram::serialization::interval_log;
 use test::Bencher;
 
 use self::rand_varint::*;

@@ -1,7 +1,7 @@
 # HdrHistogram_rust
 
 [![Crates.io](https://img.shields.io/crates/v/hdrhistogram.svg)](https://crates.io/crates/hdrhistogram)
-[![Documentation](https://docs.rs/hdrsample/badge.svg)](https://docs.rs/hdrhistogram/)
+[![Documentation](https://docs.rs/hdrhistogram/badge.svg)](https://docs.rs/hdrhistogram/)
 [![Build Status](https://travis-ci.org/HdrHistogram/HdrHistogram_rust.svg?branch=master)](https://travis-ci.org/HdrHistogram/HdrHistogram_rust)
 
 {{readme}}
@@ -12,13 +12,13 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-hdrsample = "5.0"
+hdrhistogram = "6.0"
 ```
 
 and this to your crate root:
 
 ```rust
-extern crate hdrsample;
+extern crate hdrhistogram;
 ```
 
 ## License

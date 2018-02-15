@@ -69,7 +69,7 @@
 //! msec..1 hour]`).
 //!
 //! ```
-//! use hdrsample::Histogram;
+//! use hdrhistogram::Histogram;
 //! let mut hist = Histogram::<u64>::new_with_bounds(1, 60 * 60 * 1000, 2).unwrap();
 //!
 //! // samples can be recorded using .record, which will error if the value is too small or large
@@ -95,7 +95,7 @@
 //! as the total number of recorded samples, or the value at a given quantile:
 //!
 //! ```
-//! use hdrsample::Histogram;
+//! use hdrhistogram::Histogram;
 //! let hist = Histogram::<u64>::new(2).unwrap();
 //! // ...
 //! println!("# of samples: {}", hist.len());
@@ -108,7 +108,7 @@
 //! the [Java documentation](https://hdrhistogram.github.io/HdrHistogram/JavaDoc/).
 //!
 //! ```
-//! use hdrsample::Histogram;
+//! use hdrhistogram::Histogram;
 //! let hist = Histogram::<u64>::new(2).unwrap();
 //! // ...
 //! for v in hist.iter_recorded() {
@@ -964,8 +964,8 @@ impl<T: Counter> Histogram<T> {
     /// straight to 1.0 as well.
     ///
     /// ```
-    /// use hdrsample::Histogram;
-    /// use hdrsample::iterators::IterationValue;
+    /// use hdrhistogram::Histogram;
+    /// use hdrhistogram::iterators::IterationValue;
     /// let mut hist = Histogram::<u64>::new_with_max(10000, 4).unwrap();
     /// for i in 0..10000 {
     ///     hist += i;
@@ -1022,8 +1022,8 @@ impl<T: Counter> Histogram<T> {
     /// The iterator yields an `iterators::IterationValue` struct.
     ///
     /// ```
-    /// use hdrsample::Histogram;
-    /// use hdrsample::iterators::IterationValue;
+    /// use hdrhistogram::Histogram;
+    /// use hdrhistogram::iterators::IterationValue;
     /// let mut hist = Histogram::<u64>::new_with_max(1000, 3).unwrap();
     /// hist += 100;
     /// hist += 500;
@@ -1080,8 +1080,8 @@ impl<T: Counter> Histogram<T> {
     /// The iterator yields an `iterators::IterationValue` struct.
     ///
     /// ```
-    /// use hdrsample::Histogram;
-    /// use hdrsample::iterators::IterationValue;
+    /// use hdrhistogram::Histogram;
+    /// use hdrhistogram::iterators::IterationValue;
     /// let mut hist = Histogram::<u64>::new_with_max(1000, 3).unwrap();
     /// hist += 100;
     /// hist += 500;
@@ -1118,8 +1118,8 @@ impl<T: Counter> Histogram<T> {
     /// The iterator yields an `iterators::IterationValue` struct.
     ///
     /// ```
-    /// use hdrsample::Histogram;
-    /// use hdrsample::iterators::IterationValue;
+    /// use hdrhistogram::Histogram;
+    /// use hdrhistogram::iterators::IterationValue;
     /// let mut hist = Histogram::<u64>::new_with_max(1000, 3).unwrap();
     /// hist += 100;
     /// hist += 500;
@@ -1157,8 +1157,8 @@ impl<T: Counter> Histogram<T> {
     /// The iterator yields an `iterators::IterationValue` struct.
     ///
     /// ```
-    /// use hdrsample::Histogram;
-    /// use hdrsample::iterators::IterationValue;
+    /// use hdrhistogram::Histogram;
+    /// use hdrhistogram::iterators::IterationValue;
     /// let mut hist = Histogram::<u64>::new_with_max(10, 1).unwrap();
     /// hist += 1;
     /// hist += 5;

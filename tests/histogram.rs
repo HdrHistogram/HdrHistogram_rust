@@ -1,11 +1,11 @@
 //! Tests from HistogramTest.java
 
-extern crate hdrsample;
+extern crate hdrhistogram;
 extern crate rand;
 
 use self::rand::Rng;
 
-use hdrsample::{Counter, Histogram, SubtractionError};
+use hdrhistogram::{Counter, Histogram, SubtractionError};
 use std::borrow::Borrow;
 use std::fmt;
 
@@ -88,12 +88,12 @@ fn saturating_record() {
     let mut h = Histogram::<u64>::new_with_bounds(512, TRACKABLE_MAX, SIGFIG).unwrap();
 
     h.saturating_record(1); // clamped below
-    h.saturating_record(1000*1000); // not clamped
+    h.saturating_record(1000 * 1000); // not clamped
     h.saturating_record(3 * TRACKABLE_MAX); // clamped above
 
-    // https://github.com/jonhoo/hdrsample/pull/74#discussion_r158192909
+    // https://github.com/HdrHistogram/HdrHistogram_rust/pull/74#discussion_r158192909
     assert_eq!(h.count_at(511), 1);
-    assert_eq!(h.count_at(1000*1000), 1);
+    assert_eq!(h.count_at(1000 * 1000), 1);
     assert_eq!(h.count_at(h.high()), 1);
     assert_eq!(h.len(), 3);
     assert!(verify_max(h));
@@ -196,7 +196,6 @@ fn lowest_equivalent() {
     assert_eq!(h.lowest_equivalent(10_009), 10_008);
 }
 
-
 #[test]
 fn scaled_lowest_equivalent() {
     let h = Histogram::<u64>::new_with_bounds(1024, TRACKABLE_MAX, SIGFIG).unwrap();
@@ -225,7 +224,6 @@ fn scaled_highest_equivalent() {
     assert_eq!(h.highest_equivalent(10_007 * 1024), 10_007 * 1024 + 1023);
     assert_eq!(h.highest_equivalent(10_008 * 1024), 10_015 * 1024 + 1023);
 }
-
 
 #[test]
 fn median_equivalent() {
@@ -341,7 +339,6 @@ fn scaled_set_to() {
     are_equal(&h1, &h2);
 }
 
-
 #[test]
 fn random_write_full_value_range_precision_5_no_panic() {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 5).unwrap();
@@ -357,7 +354,6 @@ fn random_write_full_value_range_precision_5_no_panic() {
         h.record(r).unwrap();
     }
 }
-
 
 #[test]
 fn random_write_full_value_range_precision_0_no_panic() {

@@ -1,6 +1,6 @@
 extern crate clap;
 /// Reads numbers from stdin, one per line, and writes them to a serialized histogram on stdout.
-extern crate hdrsample;
+extern crate hdrhistogram;
 
 use std::io;
 use std::io::{BufRead, Write};
@@ -8,14 +8,14 @@ use std::fmt::Display;
 
 use clap::{App, Arg, SubCommand};
 
-use hdrsample::{Histogram, RecordError};
-use hdrsample::serialization::{DeserializeError, Deserializer, Serializer,
+use hdrhistogram::{Histogram, RecordError};
+use hdrhistogram::serialization::{DeserializeError, Deserializer, Serializer,
                                V2DeflateSerializeError, V2DeflateSerializer, V2SerializeError,
                                V2Serializer};
 
 fn main() {
     let default_max = format!("{}", u64::max_value());
-    let matches = App::new("hdrsample cli")
+    let matches = App::new("hdrhistogram cli")
         .subcommand(
             SubCommand::with_name("serialize")
                 .about(

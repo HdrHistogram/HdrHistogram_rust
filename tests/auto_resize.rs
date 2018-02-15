@@ -1,8 +1,8 @@
 //! Tests from HistogramAutosizingTest.java
 
-extern crate hdrsample;
+extern crate hdrhistogram;
 
-use hdrsample::Histogram;
+use hdrhistogram::Histogram;
 
 #[test]
 fn histogram_autosizing_edges() {

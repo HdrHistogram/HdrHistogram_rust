@@ -1,11 +1,11 @@
 #![feature(test)]
 
-extern crate hdrsample;
+extern crate hdrhistogram;
 extern crate rand;
 extern crate test;
 
-use hdrsample::*;
-use hdrsample::serialization::*;
+use hdrhistogram::*;
+use hdrhistogram::serialization::*;
 use self::test::Bencher;
 use std::io::Cursor;
 

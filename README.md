@@ -1,7 +1,7 @@
 # HdrHistogram_rust
 
 [![Crates.io](https://img.shields.io/crates/v/hdrhistogram.svg)](https://crates.io/crates/hdrhistogram)
-[![Documentation](https://docs.rs/hdrsample/badge.svg)](https://docs.rs/hdrhistogram/)
+[![Documentation](https://docs.rs/hdrhistogram/badge.svg)](https://docs.rs/hdrhistogram/)
 [![Build Status](https://travis-ci.org/HdrHistogram/HdrHistogram_rust.svg?branch=master)](https://travis-ci.org/HdrHistogram/HdrHistogram_rust)
 
 HdrSample is a port of Gil Tene's HdrHistogram to native Rust. It provides recording and
@@ -75,7 +75,7 @@ For example the example below shows how to create a `Histogram` that can count v
 msec..1 hour]`).
 
 ```rust
-use hdrsample::Histogram;
+use hdrhistogram::Histogram;
 let mut hist = Histogram::<u64>::new_with_bounds(1, 60 * 60 * 1000, 2).unwrap();
 
 // samples can be recorded using .record, which will error if the value is too small or large
@@ -101,7 +101,7 @@ At any time, the histogram can be queried to return interesting statistical meas
 as the total number of recorded samples, or the value at a given quantile:
 
 ```rust
-use hdrsample::Histogram;
+use hdrhistogram::Histogram;
 let hist = Histogram::<u64>::new(2).unwrap();
 // ...
 println!("# of samples: {}", hist.len());
@@ -114,7 +114,7 @@ the HdrHistogram iterators are supported in HdrSample, so look for the `*Iterato
 the [Java documentation](https://hdrhistogram.github.io/HdrHistogram/JavaDoc/).
 
 ```rust
-use hdrsample::Histogram;
+use hdrhistogram::Histogram;
 let hist = Histogram::<u64>::new(2).unwrap();
 // ...
 for v in hist.iter_recorded() {
@@ -197,13 +197,13 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-hdrsample = "5.0"
+hdrhistogram = "6.0"
 ```
 
 and this to your crate root:
 
 ```rust
-extern crate hdrsample;
+extern crate hdrhistogram;
 ```
 
 ## License

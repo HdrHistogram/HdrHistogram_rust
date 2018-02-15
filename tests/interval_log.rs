@@ -1,14 +1,14 @@
 #[cfg(all(feature = "serialization", test))]
 mod tests {
     extern crate base64;
-    extern crate hdrsample;
+    extern crate hdrhistogram;
     extern crate rand;
 
     use self::rand::Rng;
 
-    use self::hdrsample::Histogram;
-    use self::hdrsample::serialization::{Deserializer, Serializer, V2Serializer};
-    use self::hdrsample::serialization::interval_log::{IntervalLogHistogram, IntervalLogIterator,
+    use self::hdrhistogram::Histogram;
+    use self::hdrhistogram::serialization::{Deserializer, Serializer, V2Serializer};
+    use self::hdrhistogram::serialization::interval_log::{IntervalLogHistogram, IntervalLogIterator,
                                                        IntervalLogWriterBuilder, LogEntry,
                                                        LogIteratorError, Tag};
 

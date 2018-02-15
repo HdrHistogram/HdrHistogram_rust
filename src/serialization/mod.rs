@@ -73,8 +73,8 @@
 //! Here's a sketch of how that would look for serde's `Serialize`:
 //!
 //! ```
-//! use hdrsample::Histogram;
-//! use hdrsample::serialization::{Serializer, V2Serializer};
+//! use hdrhistogram::Histogram;
+//! use hdrhistogram::serialization::{Serializer, V2Serializer};
 //!
 //! mod serde {
 //!     // part of serde, simplified
@@ -117,8 +117,8 @@
 //! `&[u8]` slice from the vec as a `Read`.
 //!
 //! ```
-//! use hdrsample::Histogram;
-//! use hdrsample::serialization::{Deserializer, Serializer, V2Serializer};
+//! use hdrhistogram::Histogram;
+//! use hdrhistogram::serialization::{Deserializer, Serializer, V2Serializer};
 //!
 //! let mut vec = Vec::new();
 //! let orig_histogram = Histogram::<u64>::new(1).unwrap();
@@ -132,8 +132,8 @@
 //! at which point they are summed into one histogram (for further hypothetical analysis).
 //!
 //! ```
-//! use hdrsample::Histogram;
-//! use hdrsample::serialization::{Deserializer, Serializer, V2Serializer};
+//! use hdrhistogram::Histogram;
+//! use hdrhistogram::serialization::{Deserializer, Serializer, V2Serializer};
 //! use std::io::Cursor;
 //!
 //! // Naturally, do real error handling instead of unwrap() everywhere

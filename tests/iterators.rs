@@ -1,6 +1,6 @@
-extern crate hdrsample;
+extern crate hdrhistogram;
 
-use hdrsample::Histogram;
+use hdrhistogram::Histogram;
 
 #[test]
 fn iter_recorded_non_saturated_total_count() {

@@ -121,7 +121,7 @@
 //!
 //! ```
 //! use std::time;
-//! use hdrsample::serialization::interval_log;
+//! use hdrhistogram::serialization::interval_log;
 //!
 //! // two newline-separated log lines: a comment, then an interval
 //! let log = b"#I'm a comment\nTag=t,0.127,1.007,2.769,base64EncodedHisto\n";
@@ -143,7 +143,7 @@
 //! Skip logs that started before 3 seconds.
 //!
 //! ```
-//! use hdrsample::serialization::interval_log;
+//! use hdrhistogram::serialization::interval_log;
 //!
 //! let log = "\
 //!     #I'm a comment\n\
@@ -174,14 +174,14 @@
 //!
 //! ```
 //! use std::{str, time};
-//! use hdrsample;
-//! use hdrsample::serialization;
-//! use hdrsample::serialization::interval_log;
+//! use hdrhistogram;
+//! use hdrhistogram::serialization;
+//! use hdrhistogram::serialization::interval_log;
 //!
 //! let mut buf = Vec::new();
 //! let mut serializer = serialization::V2Serializer::new();
 //!
-//! let mut h = hdrsample::Histogram::<u64>::new_with_bounds(
+//! let mut h = hdrhistogram::Histogram::<u64>::new_with_bounds(
 //!     1, u64::max_value(), 3).unwrap();
 //! h.record(12345).unwrap();
 //!
@@ -337,8 +337,8 @@ impl IntervalLogWriterBuilder {
 /// at regular intervals (e.g. once a second).
 ///
 /// ```
-/// use hdrsample::serialization;
-/// use hdrsample::serialization::interval_log;
+/// use hdrhistogram::serialization;
+/// use hdrhistogram::serialization::interval_log;
 ///
 /// let mut buf = Vec::new();
 /// let mut serializer = serialization::V2Serializer::new();
