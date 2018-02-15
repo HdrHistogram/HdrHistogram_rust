@@ -1,3 +1,5 @@
+//! **Use [`hdrhistogram`](https://crates.io/crates/hdrhistogram) instead**.
+//!
 //! HdrSample is a port of Gil Tene's HdrHistogram to native Rust. It provides recording and
 //! analyzing of sampled data value counts across a large, configurable value range with
 //! configurable precision within the range. The resulting "HDR" histogram allows for fast and
@@ -183,6 +185,7 @@
 
 #![deny(missing_docs, trivial_casts, trivial_numeric_casts, unused_extern_crates,
         unused_import_braces, unused_results, variant_size_differences, warnings)]
+#![allow(deprecated)]
 // Enable feature(test) is enabled so that we can have benchmarks of private code
 #![cfg_attr(all(test, feature = "bench_private"), feature(test))]
 
@@ -240,6 +243,7 @@ const ORIGINAL_MAX: u64 = 0;
 /// for those lower values as it has better precision.
 ///
 #[derive(Debug)]
+#[deprecated(since="6.0.2", note="use the hdrhistogram crate instead")]
 pub struct Histogram<T: Counter> {
     auto_resize: bool,
 
