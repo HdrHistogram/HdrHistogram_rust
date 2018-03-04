@@ -11,16 +11,12 @@ authors = [
 ]
 
 documentation = "https://docs.rs/hdrsample"
-homepage = "https://github.com/jonhoo/hdrsample"
-repository = "https://github.com/jonhoo/hdrsample.git"
+homepage = "https://github.com/HdrHistogram/HdrHistogram_rust/tree/hdrsample-deprecation"
 
 keywords = ["sampling", "statistics", "analytics"]
 categories = ["data-structures", "development-tools::profiling"]
 
 license = "MIT/Apache-2.0"
-
-[badges]
-travis-ci = { repository = "jonhoo/hdrsample" }
 
 [features]
 bench_private = [] # for enabling nightly-only feature(test) on the main crate to allow benchmarking private code
