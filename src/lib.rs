@@ -6,7 +6,7 @@
 //! # HdrHistogram
 //!
 //! What follows is a description from [the HdrHistogram
-//! website](https://hdrhistogram.github.io/HdrHistogram/). Users are encourages to read the
+//! website](https://hdrhistogram.github.io/HdrHistogram/). Users are encouraged to read the
 //! documentation from the original [Java
 //! implementation](https://github.com/HdrHistogram/HdrHistogram), as most of the concepts
 //! translate directly to the Rust port.
@@ -26,7 +26,7 @@
 //! to one second, and a resolution of 1 second (or better) up to 1,000 seconds. At it's maximum
 //! tracked value (1 hour), it would still maintain a resolution of 3.6 seconds (or better).
 //!
-//! HDR Histogram is designed for recoding histograms of value measurements in latency and
+//! HDR Histogram is designed for recording histograms of value measurements in latency and
 //! performance sensitive applications. Measurements show value recording times as low as 3-6
 //! nanoseconds on modern (circa 2014) Intel CPUs. The HDR Histogram maintains a fixed cost in both
 //! space and time. A Histogram's memory footprint is constant, with no allocation operations
