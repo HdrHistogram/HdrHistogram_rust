@@ -66,9 +66,7 @@ fn iter_linear_count_since_last_iteration_saturates() {
     assert_eq!(
         expected,
         h.iter_linear(2)
-            .map(|iv| {
-                (iv.value_iterated_to(), iv.count_since_last_iteration())
-            })
+            .map(|iv| (iv.value_iterated_to(), iv.count_since_last_iteration()))
             .collect::<Vec<(u64, u64)>>()
     );
 }
@@ -92,9 +90,7 @@ fn iter_linear_visits_buckets_wider_than_step_size_multiple_times() {
     h.record(4100).unwrap();
 
     let iter_values = h.iter_linear(1)
-        .map(|iv| {
-            (iv.value_iterated_to(), iv.count_since_last_iteration())
-        })
+        .map(|iv| (iv.value_iterated_to(), iv.count_since_last_iteration()))
         .collect::<Vec<(u64, u64)>>();
 
     // bucket size 1
@@ -142,9 +138,7 @@ fn iter_linear_visits_buckets_once_when_step_size_equals_bucket_size() {
     h.record(4100).unwrap();
 
     let iter_values = h.iter_linear(4)
-        .map(|iv| {
-            (iv.value_iterated_to(), iv.count_since_last_iteration())
-        })
+        .map(|iv| (iv.value_iterated_to(), iv.count_since_last_iteration()))
         .collect::<Vec<(u64, u64)>>();
 
     // bucket size 1
@@ -232,7 +226,6 @@ fn iter_all_values_all_buckets_unit_magnitude_2() {
 
     assert_eq!(expected, nonzero_count);
 }
-
 
 #[test]
 fn iter_recorded_values_all_buckets() {

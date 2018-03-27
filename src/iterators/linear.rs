@@ -1,5 +1,5 @@
-use core::counter::Counter;
 use Histogram;
+use core::counter::Counter;
 use iterators::{HistogramIterator, PickMetadata, PickyIterator};
 
 /// An iterator that will yield at fixed-size steps through the histogram's value range.

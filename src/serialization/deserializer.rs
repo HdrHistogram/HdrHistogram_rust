@@ -1,11 +1,11 @@
-use super::{V2_COMPRESSED_COOKIE, V2_COOKIE};
-use super::super::{Counter, Histogram, RestatState};
 use super::super::num::ToPrimitive;
-use std::io::{self, Cursor, ErrorKind, Read};
-use std::marker::PhantomData;
-use std;
+use super::super::{Counter, Histogram, RestatState};
 use super::byteorder::{BigEndian, ReadBytesExt};
 use super::flate2::read::ZlibDecoder;
+use super::{V2_COMPRESSED_COOKIE, V2_COOKIE};
+use std;
+use std::io::{self, Cursor, ErrorKind, Read};
+use std::marker::PhantomData;
 
 /// Errors that can happen during deserialization.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

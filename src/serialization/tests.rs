@@ -1,20 +1,20 @@
 extern crate rand;
 
-use super::{Serializer, V2DeflateSerializer, V2SerializeError, V2Serializer, V2_COOKIE,
-            V2_HEADER_SIZE};
+use self::rand::distributions::IndependentSample;
+use self::rand::distributions::range::{Range, SampleRange};
+use self::rand::{Rand, Rng};
+use super::super::tests::helpers::histo64;
+use super::super::{Counter, Histogram};
+use super::byteorder::{BigEndian, ReadBytesExt};
+use super::deserializer::{varint_read, varint_read_slice, zig_zag_decode, Deserializer};
 use super::v2_serializer::{counts_array_max_encoded_size, encode_counts, varint_write,
                            zig_zag_encode};
-use super::deserializer::{varint_read, varint_read_slice, zig_zag_decode, Deserializer};
-use super::byteorder::{BigEndian, ReadBytesExt};
-use super::super::{Counter, Histogram};
+use super::{Serializer, V2DeflateSerializer, V2SerializeError, V2Serializer, V2_COOKIE,
+            V2_HEADER_SIZE};
 use num::ToPrimitive;
-use super::super::tests::helpers::histo64;
-use std::io::Cursor;
 use std::fmt::{Debug, Display};
+use std::io::Cursor;
 use std::iter::once;
-use self::rand::{Rand, Rng};
-use self::rand::distributions::range::{Range, SampleRange};
-use self::rand::distributions::IndependentSample;
 
 use self::rand_varint::*;
 

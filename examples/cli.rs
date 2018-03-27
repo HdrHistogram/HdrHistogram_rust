@@ -2,16 +2,16 @@ extern crate clap;
 /// Reads numbers from stdin, one per line, and writes them to a serialized histogram on stdout.
 extern crate hdrhistogram;
 
+use std::fmt::Display;
 use std::io;
 use std::io::{BufRead, Write};
-use std::fmt::Display;
 
 use clap::{App, Arg, SubCommand};
 
-use hdrhistogram::{Histogram, RecordError};
 use hdrhistogram::serialization::{DeserializeError, Deserializer, Serializer,
-                               V2DeflateSerializeError, V2DeflateSerializer, V2SerializeError,
-                               V2Serializer};
+                                  V2DeflateSerializeError, V2DeflateSerializer, V2SerializeError,
+                                  V2Serializer};
+use hdrhistogram::{Histogram, RecordError};
 
 fn main() {
     let default_max = format!("{}", u64::max_value());
@@ -198,10 +198,7 @@ fn quantiles<R: BufRead, W: Write>(
         writer.write_all(
             format!(
                 "#[{:10} = {:12.2}, {:14} = {:12.2}]\n",
-                label1,
-                data1,
-                label2,
-                data2
+                label1, data1, label2, data2
             ).as_ref(),
         )
     }
@@ -224,7 +221,6 @@ fn quantiles<R: BufRead, W: Write>(
 
     Ok(())
 }
-
 
 // A handy way to enable ? use in subcommands by mapping common errors.
 // Normally I frown on excessive use of From as it's too "magic", but in the limited confines of

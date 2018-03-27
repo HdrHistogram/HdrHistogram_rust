@@ -10,16 +10,18 @@ use std::borrow::Borrow;
 use std::fmt;
 
 macro_rules! assert_near {
-    ($a: expr, $b: expr, $tolerance: expr) => {{
+    ($a:expr, $b:expr, $tolerance:expr) => {{
         let a = $a as f64;
         let b = $b as f64;
         let tol = $tolerance as f64;
-        assert!((a - b).abs() <= b * tol,
+        assert!(
+            (a - b).abs() <= b * tol,
             "assertion failed: `(left ~= right) (left: `{}`, right: `{}`, tolerance: `{:.5}%`)",
             a,
             b,
-            100.0 * tol);
-    }}
+            100.0 * tol
+        );
+    }};
 }
 
 fn verify_max<T: Counter, B: Borrow<Histogram<T>>>(hist: B) -> bool {

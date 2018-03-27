@@ -213,8 +213,8 @@
 
 extern crate base64;
 
-use std::{fmt, io, ops, str, time};
 use std::fmt::Write;
+use std::{fmt, io, ops, str, time};
 
 use nom::{double, is_digit, ErrorKind, IResult};
 

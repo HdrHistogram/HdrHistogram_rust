@@ -1,12 +1,12 @@
 use super::super::Histogram;
-use core::counter::Counter;
-use super::{Serializer, V2_COMPRESSED_COOKIE};
-use super::v2_serializer::{V2SerializeError, V2Serializer};
 use super::byteorder::{BigEndian, WriteBytesExt};
 use super::flate2::Compression;
+use super::flate2::write::ZlibEncoder;
+use super::v2_serializer::{V2SerializeError, V2Serializer};
+use super::{Serializer, V2_COMPRESSED_COOKIE};
+use core::counter::Counter;
 use std;
 use std::io::{ErrorKind, Write};
-use super::flate2::write::ZlibEncoder;
 
 /// Errors that occur during serialization.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

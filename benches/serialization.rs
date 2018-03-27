@@ -4,9 +4,9 @@ extern crate hdrhistogram;
 extern crate rand;
 extern crate test;
 
-use hdrhistogram::*;
-use hdrhistogram::serialization::*;
 use self::test::Bencher;
+use hdrhistogram::serialization::*;
+use hdrhistogram::*;
 use std::io::Cursor;
 
 use self::rand_varint::*;

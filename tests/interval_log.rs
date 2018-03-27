@@ -7,15 +7,16 @@ mod tests {
     use self::rand::Rng;
 
     use self::hdrhistogram::Histogram;
+    use self::hdrhistogram::serialization::interval_log::{IntervalLogHistogram,
+                                                          IntervalLogIterator,
+                                                          IntervalLogWriterBuilder, LogEntry,
+                                                          LogIteratorError, Tag};
     use self::hdrhistogram::serialization::{Deserializer, Serializer, V2Serializer};
-    use self::hdrhistogram::serialization::interval_log::{IntervalLogHistogram, IntervalLogIterator,
-                                                       IntervalLogWriterBuilder, LogEntry,
-                                                       LogIteratorError, Tag};
 
-    use std::{io, iter, str, time};
-    use std::io::{BufRead, Read};
     use std::fs::File;
+    use std::io::{BufRead, Read};
     use std::path::Path;
+    use std::{io, iter, str, time};
 
     #[test]
     fn parse_sample_tagged_interval_log_start_timestamp() {
@@ -96,13 +97,11 @@ mod tests {
             intervals
                 .iter()
                 .filter(|ilh| ilh.tag().is_none())
-                .map(|ilh| {
-                    (
-                        round(duration_as_fp_seconds(ilh.start_timestamp())),
-                        round(duration_as_fp_seconds(ilh.duration())),
-                        ilh.max(),
-                    )
-                })
+                .map(|ilh| (
+                    round(duration_as_fp_seconds(ilh.start_timestamp())),
+                    round(duration_as_fp_seconds(ilh.duration())),
+                    ilh.max(),
+                ))
                 .collect::<Vec<(f64, f64, f64)>>()
         );
 
@@ -111,13 +110,11 @@ mod tests {
             intervals
                 .iter()
                 .filter(|ilh| !ilh.tag().is_none())
-                .map(|ilh| {
-                    (
-                        round(duration_as_fp_seconds(ilh.start_timestamp())),
-                        round(duration_as_fp_seconds(ilh.duration())),
-                        ilh.max(),
-                    )
-                })
+                .map(|ilh| (
+                    round(duration_as_fp_seconds(ilh.start_timestamp())),
+                    round(duration_as_fp_seconds(ilh.duration())),
+                    ilh.max(),
+                ))
                 .collect::<Vec<(f64, f64, f64)>>()
         );
 
@@ -207,7 +204,6 @@ mod tests {
                 });
         }
 
-
         let orig_str = str::from_utf8(&log_without_headers).unwrap();
         let rewritten_str = str::from_utf8(&duplicate_log)
             .unwrap()
@@ -217,7 +213,6 @@ mod tests {
             // put newlines back in
             .flat_map(|l| iter::once(l).chain(iter::once("\n")))
             .collect::<String>();
-
 
         assert_eq!(orig_str, rewritten_str);
     }

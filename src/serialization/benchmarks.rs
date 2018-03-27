@@ -1,12 +1,12 @@
 extern crate rand;
 extern crate test;
 
-use super::v2_serializer::varint_write;
-use super::deserializer::{varint_read, varint_read_slice};
-use std::io::Cursor;
-use self::rand::distributions::range::Range;
 use self::rand::distributions::IndependentSample;
+use self::rand::distributions::range::Range;
 use self::test::Bencher;
+use super::deserializer::{varint_read, varint_read_slice};
+use super::v2_serializer::varint_write;
+use std::io::Cursor;
 
 #[bench]
 fn varint_write_rand(b: &mut Bencher) {

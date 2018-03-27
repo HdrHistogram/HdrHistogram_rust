@@ -5,10 +5,10 @@ extern crate rug;
 
 use hdrhistogram::{Counter, Histogram};
 
-use rand::Rng;
-use rand::distributions::range::Range;
-use rand::distributions::IndependentSample;
 use ieee754::Ieee754;
+use rand::Rng;
+use rand::distributions::IndependentSample;
+use rand::distributions::range::Range;
 use rug::Rational;
 
 #[test]
@@ -19,7 +19,6 @@ fn value_at_quantile_internal_count_exceeds_bucket_type() {
         h.record(100).unwrap();
     }
 
-
     for _ in 0..200 {
         h.record(100_000).unwrap();
     }
@@ -27,7 +26,6 @@ fn value_at_quantile_internal_count_exceeds_bucket_type() {
     // we won't get back the original input because of bucketing
     assert_eq!(h.highest_equivalent(100_000), h.value_at_quantile(1.0));
 }
-
 
 #[test]
 fn value_at_quantile_2_values() {
@@ -373,7 +371,6 @@ fn calculate_quantile_count(quantile: f64, count: u64) -> u64 {
     product.ceil().to_u64().unwrap()
 }
 
-
 fn next_value_nonzero_count<C: Counter>(h: &Histogram<C>, start_value: u64) -> u64 {
     let mut v = h.next_non_equivalent(start_value);
 
@@ -385,7 +382,6 @@ fn next_value_nonzero_count<C: Counter>(h: &Histogram<C>, start_value: u64) -> u
         v = h.next_non_equivalent(v);
     }
 }
-
 
 fn prev_value_nonzero_count<C: Counter>(h: &Histogram<C>, start_value: u64) -> u64 {
     let mut v = h.lowest_equivalent(start_value).saturating_sub(1);

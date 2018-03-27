@@ -196,10 +196,10 @@ extern crate num_traits as num;
 #[macro_use]
 extern crate nom;
 
+use num::ToPrimitive;
 use std::borrow::Borrow;
 use std::cmp;
 use std::ops::{AddAssign, SubAssign};
-use num::ToPrimitive;
 
 use iterators::HistogramIterator;
 
@@ -1795,9 +1795,9 @@ where
 #[cfg(test)]
 mod tests;
 
-#[cfg(feature = "serialization")]
-pub mod serialization;
 mod core;
 pub mod errors;
-pub use errors::*;
+#[cfg(feature = "serialization")]
+pub mod serialization;
 pub use core::counter::*;
+pub use errors::*;

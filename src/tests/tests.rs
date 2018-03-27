@@ -2,14 +2,14 @@ use super::{CreationError, Histogram};
 
 #[path = "helpers.rs"]
 pub mod helpers;
-#[path = "init.rs"]
-mod init;
 #[path = "index_calculation.rs"]
 mod index_calculation;
-#[path = "value_calculation.rs"]
-mod value_calculation;
+#[path = "init.rs"]
+mod init;
 #[path = "subtract.rs"]
 mod subtract;
+#[path = "value_calculation.rs"]
+mod value_calculation;
 
 #[test]
 fn new_err_high_not_double_low() {

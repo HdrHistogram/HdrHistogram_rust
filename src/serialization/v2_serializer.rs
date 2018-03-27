@@ -1,8 +1,8 @@
-use super::{Serializer, V2_COOKIE, V2_HEADER_SIZE};
 use super::super::{Counter, Histogram};
-use std::io::{ErrorKind, Write};
-use std;
 use super::byteorder::{BigEndian, WriteBytesExt};
+use super::{Serializer, V2_COOKIE, V2_HEADER_SIZE};
+use std;
+use std::io::{ErrorKind, Write};
 
 /// Errors that occur during serialization.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

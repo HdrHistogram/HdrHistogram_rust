@@ -1,6 +1,6 @@
 use super::super::{Counter, Histogram, SubtractionError};
-use std::cmp;
 use std::borrow::Borrow;
+use std::cmp;
 
 use num::Saturating;
 

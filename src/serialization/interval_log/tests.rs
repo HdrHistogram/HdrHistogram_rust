@@ -2,8 +2,8 @@ extern crate rand;
 
 use self::rand::Rng;
 
-use std::{iter, time};
 use std::ops::Add;
+use std::{iter, time};
 
 use super::super::super::*;
 use super::super::*;

@@ -6,9 +6,9 @@ extern crate test;
 
 use std::time;
 
-use hdrhistogram::*;
 use hdrhistogram::serialization;
 use hdrhistogram::serialization::interval_log;
+use hdrhistogram::*;
 use test::Bencher;
 
 use self::rand_varint::*;

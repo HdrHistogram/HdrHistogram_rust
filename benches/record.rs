@@ -4,8 +4,8 @@ extern crate hdrhistogram;
 extern crate rand;
 extern crate test;
 
-use hdrhistogram::*;
 use self::test::Bencher;
+use hdrhistogram::*;
 
 use self::rand_varint::*;
 

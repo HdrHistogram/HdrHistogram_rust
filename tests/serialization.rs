@@ -5,8 +5,8 @@ mod tests {
     use self::hdrhistogram::Histogram;
     use self::hdrhistogram::serialization::{Deserializer, Serializer, V2Serializer};
 
-    use std::io::{BufRead, BufReader, Read};
     use std::fs::File;
+    use std::io::{BufRead, BufReader, Read};
     use std::path::Path;
 
     #[test]

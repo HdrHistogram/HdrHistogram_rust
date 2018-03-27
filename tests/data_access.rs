@@ -7,16 +7,18 @@ extern crate rug;
 use hdrhistogram::Histogram;
 
 macro_rules! assert_near {
-    ($a: expr, $b: expr, $tolerance: expr) => {{
+    ($a:expr, $b:expr, $tolerance:expr) => {{
         let a = $a as f64;
         let b = $b as f64;
         let tol = $tolerance as f64;
-        assert!((a - b).abs() <= b * tol,
+        assert!(
+            (a - b).abs() <= b * tol,
             "assertion failed: `(left ~= right) (left: `{}`, right: `{}`, tolerance: `{:.5}%`)",
             a,
             b,
-            100.0 * tol);
-    }}
+            100.0 * tol
+        );
+    }};
 }
 
 #[allow(dead_code)]
@@ -520,7 +522,6 @@ fn linear_iter_steps() {
     assert_eq!(histogram.iter_linear(64).count(), 4);
 }
 
-
 #[test]
 fn value_duplication() {
     let Loaded { hist, .. } = load_histograms();
@@ -544,8 +545,7 @@ fn value_duplication() {
     }
 
     assert_eq!(
-        histogram1,
-        histogram2,
+        histogram1, histogram2,
         "histograms should be equal after re-recording"
     );
 }
@@ -557,7 +557,6 @@ fn total_count_exceeds_bucket_type() {
     for _ in 0..200 {
         h.record(100).unwrap();
     }
-
 
     for _ in 0..200 {
         h.record(100_000).unwrap();

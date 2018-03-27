@@ -1,5 +1,5 @@
-use core::counter::Counter;
 use Histogram;
+use core::counter::Counter;
 
 /// An iterator that iterates over histogram quantiles.
 pub mod quantile;
