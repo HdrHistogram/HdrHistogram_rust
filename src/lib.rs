@@ -1736,9 +1736,39 @@ impl<'a, T: Counter> AddAssign<&'a Histogram<T>> for Histogram<T> {
     }
 }
 
+impl<T: Counter> AddAssign<Histogram<T>> for Histogram<T> {
+    fn add_assign(&mut self, source: Histogram<T>) {
+        self.add(&source).unwrap();
+    }
+}
+
+use std::iter;
+impl<T: Counter> iter::Sum for Histogram<T> {
+    fn sum<I>(mut iter: I) -> Self
+    where
+        I: Iterator<Item = Self>,
+    {
+        match iter.next() {
+            Some(mut first) => {
+                for h in iter {
+                    first += h;
+                }
+                first
+            }
+            None => Histogram::new(3).expect("histograms with sigfig=3 should always work"),
+        }
+    }
+}
+
 impl<'a, T: Counter> SubAssign<&'a Histogram<T>> for Histogram<T> {
     fn sub_assign(&mut self, other: &'a Histogram<T>) {
         self.subtract(other).unwrap();
+    }
+}
+
+impl<T: Counter> SubAssign<Histogram<T>> for Histogram<T> {
+    fn sub_assign(&mut self, source: Histogram<T>) {
+        self.subtract(&source).unwrap();
     }
 }
 
