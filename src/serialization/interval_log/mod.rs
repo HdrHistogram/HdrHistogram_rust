@@ -216,7 +216,7 @@ extern crate base64;
 use std::fmt::Write;
 use std::{fmt, io, ops, str, time};
 
-use nom::{double, is_digit, ErrorKind, IResult};
+use nom::{double, is_digit, ErrorKind, IResult, Err};
 
 use super::super::{Counter, Histogram};
 use super::Serializer;
@@ -633,14 +633,14 @@ impl<'a> Iterator for IntervalLogIterator<'a> {
 
             // Look for magic comments first otherwise they will get matched by the simple comment
             // parser
-            if let IResult::Done(rest, e) = log_entry(self.input) {
+            if let Ok((rest, e)) = log_entry(self.input) {
                 self.input = rest;
                 return Some(Ok(e));
             }
 
             // it wasn't a log entry; try parsing a comment
             match ignored_line(self.input) {
-                IResult::Done(rest, _) => {
+                Ok((rest, _)) => {
                     self.input = rest;
                     continue;
                 }
@@ -726,7 +726,7 @@ named!(ignored_line<&[u8], ()>, alt!(comment_line | legend));
 
 fn fract_sec_duration(input: &[u8]) -> IResult<&[u8], time::Duration> {
     match fract_sec_tuple(input) {
-        IResult::Done(rest, data) => {
+        Ok((rest, data)) => {
             let (secs, nanos_str) = data;
 
             // only read up to 9 digits since we can only support nanos, not smaller precision
@@ -742,23 +742,40 @@ fn fract_sec_duration(input: &[u8]) -> IResult<&[u8], time::Duration> {
             };
 
             if let Ok(nanos) = nanos_parse_res {
-                return IResult::Done(rest, time::Duration::new(secs, nanos));
+                return Ok((rest, time::Duration::new(secs, nanos)));
             }
 
             // nanos were invalid utf8. We don't expose these errors, so don't bother defining a
             // custom error type.
-            return IResult::Error(ErrorKind::Custom(0));
-        }
-        IResult::Error(e) => return IResult::Error(e),
-        IResult::Incomplete(n) => return IResult::Incomplete(n),
+            return Err(Err::Error(error_position!(input, ErrorKind::Custom(0))));
+        },
+        Err(e) => return Err(e),
     }
 }
+
+// alternate versions of take_while1, used until ergonomic issues with COmpleteByteSlice are resolved
+#[macro_export]
+macro_rules! take_while1_complete (
+  ($input:expr, $submac:ident!( $($args:tt)* )) => ({
+    use nom::ErrorKind;
+    use nom::InputTakeAtPosition;
+
+    let input = $input;
+    match input.split_at_position1(|c| !$submac!(c, $($args)*), ErrorKind::TakeWhile1) {
+      Err(Err::Incomplete(_)) => Ok((&input[input.len()..], input)),
+      res => res,
+    }
+  });
+  ($input:expr, $f:expr) => (
+    take_while1_complete!($input, call!($f));
+  );
+);
 
 named!(fract_sec_tuple<&[u8], (u64, &str)>,
     do_parse!(
         secs: flat_map!(recognize!(take_until!(".")), parse_to!(u64)) >>
         tag!(".") >>
-        nanos_str: map_res!(take_while1!(is_digit), str::from_utf8) >>
+        nanos_str: map_res!(take_while1_complete!(is_digit), str::from_utf8) >>
         (secs, nanos_str)
     )
 );
