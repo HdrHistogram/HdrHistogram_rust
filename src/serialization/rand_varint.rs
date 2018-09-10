@@ -4,8 +4,8 @@
 extern crate rand;
 
 use self::rand::Rng;
-use self::rand::distributions::IndependentSample;
-use self::rand::distributions::range::Range;
+use self::rand::distributions::Distribution;
+use self::rand::distributions::uniform::Uniform;
 
 /// Smallest number in our varint encoding that takes the given number of bytes
 pub fn smallest_number_in_n_byte_varint(byte_length: usize) -> u64 {
@@ -51,8 +51,8 @@ fn largest_number_in_7_bit_chunk(chunk_index: usize) -> u64 {
 // real data. This should emit values whose varint lengths are uniformly distributed across the
 // whole length range (1 to 9).
 pub struct RandomVarintEncodedLengthIter<R: Rng> {
-    ranges: [Range<u64>; 9],
-    range_for_picking_range: Range<usize>,
+    ranges: [Uniform<u64>; 9],
+    range_for_picking_range: Uniform<usize>,
     rng: R,
 }
 
@@ -60,44 +60,44 @@ impl<R: Rng> RandomVarintEncodedLengthIter<R> {
     pub fn new(rng: R) -> RandomVarintEncodedLengthIter<R> {
         RandomVarintEncodedLengthIter {
             ranges: [
-                Range::new(
+                Uniform::new(
                     smallest_number_in_n_byte_varint(1),
                     largest_number_in_n_byte_varint(1) + 1,
                 ),
-                Range::new(
+                Uniform::new(
                     smallest_number_in_n_byte_varint(2),
                     largest_number_in_n_byte_varint(2) + 1,
                 ),
-                Range::new(
+                Uniform::new(
                     smallest_number_in_n_byte_varint(3),
                     largest_number_in_n_byte_varint(3) + 1,
                 ),
-                Range::new(
+                Uniform::new(
                     smallest_number_in_n_byte_varint(4),
                     largest_number_in_n_byte_varint(4) + 1,
                 ),
-                Range::new(
+                Uniform::new(
                     smallest_number_in_n_byte_varint(5),
                     largest_number_in_n_byte_varint(5) + 1,
                 ),
-                Range::new(
+                Uniform::new(
                     smallest_number_in_n_byte_varint(6),
                     largest_number_in_n_byte_varint(6) + 1,
                 ),
-                Range::new(
+                Uniform::new(
                     smallest_number_in_n_byte_varint(7),
                     largest_number_in_n_byte_varint(7) + 1,
                 ),
-                Range::new(
+                Uniform::new(
                     smallest_number_in_n_byte_varint(8),
                     largest_number_in_n_byte_varint(8) + 1,
                 ),
-                Range::new(
+                Uniform::new(
                     smallest_number_in_n_byte_varint(9),
                     largest_number_in_n_byte_varint(9),
                 ),
             ],
-            range_for_picking_range: Range::new(0, 9),
+            range_for_picking_range: Uniform::new(0, 9),
             rng,
         }
     }
@@ -108,9 +108,9 @@ impl<R: Rng> Iterator for RandomVarintEncodedLengthIter<R> {
 
     fn next(&mut self) -> Option<Self::Item> {
         // pick the range we'll use
-        let value_range = self.ranges[self.range_for_picking_range.ind_sample(&mut self.rng)];
+        let value_range = self.ranges[self.range_for_picking_range.sample(&mut self.rng)];
 
-        Some(value_range.ind_sample(&mut self.rng))
+        Some(value_range.sample(&mut self.rng))
     }
 }
 

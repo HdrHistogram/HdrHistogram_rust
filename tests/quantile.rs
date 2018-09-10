@@ -7,9 +7,9 @@ use hdrhistogram::{Counter, Histogram};
 
 use ieee754::Ieee754;
 use rand::Rng;
-use rand::distributions::IndependentSample;
+use rand::distributions::Distribution;
 use rand::distributions::range::Range;
-use rug::Rational;
+use rug::{Rational, Integer};
 
 #[test]
 fn value_at_quantile_internal_count_exceeds_bucket_type() {
@@ -308,10 +308,11 @@ fn value_at_quantile_matches_random_quantile_random_values() {
         assert_eq!(length as u64, h.len());
 
         for _ in 0..1_000 {
-            let quantile = quantile_range.ind_sample(&mut rng);
-            let index_at_quantile = (Rational::from_f64(quantile).unwrap()
-                * Rational::from(length as u64))
-                .to_integer()
+            let quantile = quantile_range.sample(&mut rng);
+            let index_at_quantile = Integer::from(
+                (Rational::from_f64(quantile).unwrap() * Rational::from(length as u64))
+                .trunc_ref()
+                )
                 .to_u64()
                 .unwrap() as usize;
             let calculated_value = h.value_at_quantile(quantile);
@@ -368,7 +369,7 @@ impl<'a, R: Rng + 'a> Iterator for RandomMaxIter<'a, R> {
 /// Calculate the count at a quantile with arbitrary precision arithmetic
 fn calculate_quantile_count(quantile: f64, count: u64) -> u64 {
     let product = Rational::from_f64(quantile).unwrap() * Rational::from(count);
-    product.ceil().to_u64().unwrap()
+    Integer::from(product.ceil().trunc_ref()).to_u64().unwrap()
 }
 
 fn next_value_nonzero_count<C: Counter>(h: &Histogram<C>, start_value: u64) -> u64 {

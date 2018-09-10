@@ -10,6 +10,7 @@ use hdrhistogram::serialization;
 use hdrhistogram::serialization::interval_log;
 use hdrhistogram::*;
 use test::Bencher;
+use rand::FromEntropy;
 
 use self::rand_varint::*;
 
@@ -20,7 +21,7 @@ mod rand_varint;
 fn write_interval_log_1k_hist_10k_value(b: &mut Bencher) {
     let mut log = Vec::new();
     let mut histograms = Vec::new();
-    let mut rng = rand::weak_rng();
+    let mut rng = rand::rngs::SmallRng::from_entropy();
 
     for _ in 0..1000 {
         let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
@@ -54,7 +55,7 @@ fn write_interval_log_1k_hist_10k_value(b: &mut Bencher) {
 fn parse_interval_log_1k_hist_10k_value(b: &mut Bencher) {
     let mut log = Vec::new();
     let mut histograms = Vec::new();
-    let mut rng = rand::weak_rng();
+    let mut rng = rand::rngs::SmallRng::from_entropy();
 
     for _ in 0..1000 {
         let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();

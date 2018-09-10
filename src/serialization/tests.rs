@@ -1,8 +1,8 @@
 extern crate rand;
 
-use self::rand::distributions::IndependentSample;
-use self::rand::distributions::range::{Range, SampleRange};
-use self::rand::{Rand, Rng};
+use self::rand::distributions::Distribution;
+use self::rand::distributions::uniform::{Uniform, SampleUniform};
+use self::rand::{FromEntropy, Rng};
 use super::super::tests::helpers::histo64;
 use super::super::{Counter, Histogram};
 use super::byteorder::{BigEndian, ReadBytesExt};
@@ -471,7 +471,7 @@ fn zig_zag_decode_u64_max_penultimate_to_i64_max() {
 
 #[test]
 fn zig_zag_roundtrip_random() {
-    let mut rng = rand::weak_rng();
+    let mut rng = rand::rngs::SmallRng::from_entropy();
 
     for _ in 0..1_000_000 {
         let r: i64 = rng.gen();
@@ -490,8 +490,8 @@ fn do_varint_write_read_roundtrip_rand(byte_length: usize) {
 
     let mut buf = [0; 9];
     // Bunch of random numbers, plus the start and end of the range
-    let range = Range::new(smallest_in_range, largest_in_range);
-    for i in RandomRangeIter::new(rand::weak_rng(), range)
+    let range = Uniform::new(smallest_in_range, largest_in_range);
+    for i in RandomRangeIter::new(range)
         .take(100_000)
         .chain(once(smallest_in_range))
         .chain(once(largest_in_range))
@@ -517,8 +517,8 @@ fn do_varint_write_read_slice_roundtrip_rand(byte_length: usize) {
     let mut buf = [0; 9];
 
     // Bunch of random numbers, plus the start and end of the range
-    let range = Range::new(smallest_in_range, largest_in_range);
-    for i in RandomRangeIter::new(rand::weak_rng(), range)
+    let range = Uniform::new(smallest_in_range, largest_in_range);
+    for i in RandomRangeIter::new(range)
         .take(100_000)
         .chain(once(smallest_in_range))
         .chain(once(largest_in_range))
@@ -541,19 +541,20 @@ fn do_varint_write_read_slice_roundtrip_rand(byte_length: usize) {
 fn do_serialize_roundtrip_random<S, T>(mut serializer: S, max_count: T)
 where
     S: Serializer,
-    T: Counter + Debug + Display + Rand + ToPrimitive + SampleRange,
+    T: Counter + Debug + Display + SampleUniform + ToPrimitive,
 {
     let mut d = Deserializer::new();
     let mut vec = Vec::new();
-    let mut count_rng = rand::weak_rng();
+    let mut count_rng = rand::rngs::SmallRng::from_entropy();
+    let mut varint_rng = rand::rngs::SmallRng::from_entropy();
 
-    let range = Range::<T>::new(T::one(), max_count);
+    let range = Uniform::<T>::new(T::one(), max_count);
     for _ in 0..100 {
         vec.clear();
         let mut h = Histogram::<T>::new_with_bounds(1, u64::max_value(), 3).unwrap();
 
-        for value in RandomVarintEncodedLengthIter::new(rand::weak_rng()).take(1000) {
-            let count = range.ind_sample(&mut count_rng);
+        for value in RandomVarintEncodedLengthIter::new(&mut varint_rng).take(1000) {
+            let count = range.sample(&mut count_rng);
             // don't let accumulated per-value count exceed max_count
             let existing_count = h.count_at(value);
             let sum = existing_count.saturating_add(count);
@@ -622,21 +623,21 @@ fn assert_deserialized_histogram_matches_orig<T: Counter + Debug>(
     );
 }
 
-struct RandomRangeIter<T: SampleRange, R: Rng> {
-    range: Range<T>,
-    rng: R,
+struct RandomRangeIter<T: SampleUniform> {
+    range: Uniform<T>,
+    rng: rand::rngs::SmallRng,
 }
 
-impl<T: SampleRange, R: Rng> RandomRangeIter<T, R> {
-    fn new(rng: R, range: Range<T>) -> RandomRangeIter<T, R> {
-        RandomRangeIter { rng, range }
+impl<T: SampleUniform> RandomRangeIter<T> {
+    fn new(range: Uniform<T>) -> RandomRangeIter<T> {
+        RandomRangeIter { rng: rand::rngs::SmallRng::from_entropy(), range }
     }
 }
 
-impl<T: SampleRange, R: Rng> Iterator for RandomRangeIter<T, R> {
+impl<T: SampleUniform> Iterator for RandomRangeIter<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        Some(self.range.ind_sample(&mut self.rng))
+        Some(self.range.sample(&mut self.rng))
     }
 }

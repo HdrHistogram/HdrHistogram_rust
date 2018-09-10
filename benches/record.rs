@@ -6,6 +6,7 @@ extern crate test;
 
 use self::test::Bencher;
 use hdrhistogram::*;
+use rand::FromEntropy;
 
 use self::rand_varint::*;
 
@@ -16,7 +17,7 @@ mod rand_varint;
 fn record_precalc_random_values_with_1_count_u64(b: &mut Bencher) {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
     let mut indices = Vec::<u64>::new();
-    let mut rng = rand::weak_rng();
+    let mut rng = rand::rngs::SmallRng::from_entropy();
 
     // same value approach as record_precalc_random_values_with_max_count_u64 so that they are
     // comparable
@@ -37,7 +38,7 @@ fn record_precalc_random_values_with_1_count_u64(b: &mut Bencher) {
 fn record_precalc_random_values_with_max_count_u64(b: &mut Bencher) {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
     let mut indices = Vec::<u64>::new();
-    let mut rng = rand::weak_rng();
+    let mut rng = rand::rngs::SmallRng::from_entropy();
 
     // store values in an array and re-use so we can be sure to hit the overflow case
 
@@ -58,7 +59,7 @@ fn record_precalc_random_values_with_max_count_u64(b: &mut Bencher) {
 fn record_correct_precalc_random_values_with_1_count_u64(b: &mut Bencher) {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
     let mut indices = Vec::<u64>::new();
-    let mut rng = rand::weak_rng();
+    let mut rng = rand::rngs::SmallRng::from_entropy();
 
     for v in RandomVarintEncodedLengthIter::new(&mut rng).take(10_000) {
         indices.push(v);
@@ -75,7 +76,7 @@ fn record_correct_precalc_random_values_with_1_count_u64(b: &mut Bencher) {
 #[bench]
 fn record_random_values_with_1_count_u64(b: &mut Bencher) {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
-    let mut rng = rand::weak_rng();
+    let mut rng = rand::rngs::SmallRng::from_entropy();
 
     // This should be *slower* than the benchmarks above where we pre-calculate the values
     // outside of the hot loop. If it isn't, then those measurements are likely spurious.
@@ -134,7 +135,7 @@ fn do_subtract_benchmark<F: Fn() -> Histogram<u64>>(
 ) {
     let mut accum = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
     let mut subtrahends = Vec::new();
-    let mut rng = rand::weak_rng();
+    let mut rng = rand::rngs::SmallRng::from_entropy();
 
     for _ in 0..1000 {
         let mut h = addend_factory();
@@ -163,7 +164,7 @@ fn do_add_benchmark<F: Fn() -> Histogram<u64>>(
 ) {
     let mut accum = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
     let mut addends = Vec::new();
-    let mut rng = rand::weak_rng();
+    let mut rng = rand::rngs::SmallRng::from_entropy();
 
     for _ in 0..1000 {
         let mut h = addend_factory();

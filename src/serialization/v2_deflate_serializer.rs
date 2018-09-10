@@ -91,7 +91,7 @@ impl Serializer for V2DeflateSerializer {
 
         {
             // TODO reuse deflate buf, or switch to lower-level flate2::Compress
-            let mut compressor = ZlibEncoder::new(&mut self.compressed_buf, Compression::Default);
+            let mut compressor = ZlibEncoder::new(&mut self.compressed_buf, Compression::default());
             compressor.write_all(&self.uncompressed_buf[0..uncompressed_len])?;
             let _ = compressor.finish()?;
         }

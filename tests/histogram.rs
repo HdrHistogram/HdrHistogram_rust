@@ -3,7 +3,7 @@
 extern crate hdrhistogram;
 extern crate rand;
 
-use self::rand::Rng;
+use rand::{FromEntropy, Rng};
 
 use hdrhistogram::{Counter, Histogram, SubtractionError};
 use std::borrow::Borrow;
@@ -345,7 +345,7 @@ fn scaled_set_to() {
 fn random_write_full_value_range_precision_5_no_panic() {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 5).unwrap();
 
-    let mut rng = rand::weak_rng();
+    let mut rng = rand::rngs::SmallRng::from_entropy();
 
     for _ in 0..1_000_000 {
         let mut r: u64 = rng.gen();
@@ -361,7 +361,7 @@ fn random_write_full_value_range_precision_5_no_panic() {
 fn random_write_full_value_range_precision_0_no_panic() {
     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 0).unwrap();
 
-    let mut rng = rand::weak_rng();
+    let mut rng = rand::rngs::SmallRng::from_entropy();
 
     for _ in 0..1_000_000 {
         let mut r: u64 = rng.gen();
@@ -379,7 +379,7 @@ fn random_write_middle_of_value_range_precision_3_no_panic() {
     let high = 1_000_000_000;
     let mut h = Histogram::<u64>::new_with_bounds(low, high, 3).unwrap();
 
-    let mut rng = rand::weak_rng();
+    let mut rng = rand::rngs::SmallRng::from_entropy();
 
     for _ in 0..1_000_000 {
         h.record(rng.gen_range(low, high + 1)).unwrap();
