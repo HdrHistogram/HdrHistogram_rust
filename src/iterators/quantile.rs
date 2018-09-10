@@ -1,6 +1,6 @@
-use Histogram;
 use core::counter::Counter;
 use iterators::{HistogramIterator, PickMetadata, PickyIterator};
+use Histogram;
 
 /// An iterator that will yield at quantile steps through the histogram's value range.
 pub struct Iter<'a, T: 'a + Counter> {
@@ -138,8 +138,7 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
                 1_u64
                     .checked_shl(num_halvings + 1)
                     .expect("too many halvings"),
-            )
-            .expect("too many total ticks");
+            ).expect("too many total ticks");
         let increment_size = 1.0_f64 / total_ticks as f64;
 
         let metadata = PickMetadata::new(Some(self.quantile_to_iterate_to), None);

@@ -175,7 +175,8 @@ fn get_stdev() {
     // direct avg. of raw results
     let expected_raw_mean: f64 = ((10000.0 * 1000.0) + (1.0 * 100000000.0)) / 10001.0;
     let expected_raw_std_dev = (((10000.0 * (1000_f64 - expected_raw_mean).powi(2))
-        + (100000000_f64 - expected_raw_mean).powi(2)) / 10001.0)
+        + (100000000_f64 - expected_raw_mean).powi(2))
+        / 10001.0)
         .sqrt();
 
     // avg. 1 msec for half the time, and 50 sec for other half

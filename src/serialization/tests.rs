@@ -1,16 +1,18 @@
 extern crate rand;
 
+use self::rand::distributions::uniform::{SampleUniform, Uniform};
 use self::rand::distributions::Distribution;
-use self::rand::distributions::uniform::{Uniform, SampleUniform};
 use self::rand::{FromEntropy, Rng};
 use super::super::tests::helpers::histo64;
 use super::super::{Counter, Histogram};
 use super::byteorder::{BigEndian, ReadBytesExt};
 use super::deserializer::{varint_read, varint_read_slice, zig_zag_decode, Deserializer};
-use super::v2_serializer::{counts_array_max_encoded_size, encode_counts, varint_write,
-                           zig_zag_encode};
-use super::{Serializer, V2DeflateSerializer, V2SerializeError, V2Serializer, V2_COOKIE,
-            V2_HEADER_SIZE};
+use super::v2_serializer::{
+    counts_array_max_encoded_size, encode_counts, varint_write, zig_zag_encode,
+};
+use super::{
+    Serializer, V2DeflateSerializer, V2SerializeError, V2Serializer, V2_COOKIE, V2_HEADER_SIZE,
+};
 use num::ToPrimitive;
 use std::fmt::{Debug, Display};
 use std::io::Cursor;
@@ -630,7 +632,10 @@ struct RandomRangeIter<T: SampleUniform> {
 
 impl<T: SampleUniform> RandomRangeIter<T> {
     fn new(range: Uniform<T>) -> RandomRangeIter<T> {
-        RandomRangeIter { rng: rand::rngs::SmallRng::from_entropy(), range }
+        RandomRangeIter {
+            rng: rand::rngs::SmallRng::from_entropy(),
+            range,
+        }
     }
 }
 

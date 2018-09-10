@@ -307,7 +307,8 @@ impl<T: Counter> DecodeLoopState<T> {
                 .to_usize()
                 .ok_or(DeserializeError::UsizeTypeTooSmall)?;
             // skip the zeros
-            self.dest_index = self.dest_index
+            self.dest_index = self
+                .dest_index
                 .checked_add(zero_count)
                 .ok_or(DeserializeError::UsizeTypeTooSmall)?;
         } else {
@@ -321,7 +322,8 @@ impl<T: Counter> DecodeLoopState<T> {
                 restat_state.on_nonzero_count(self.dest_index, count);
             }
 
-            self.dest_index = self.dest_index
+            self.dest_index = self
+                .dest_index
                 .checked_add(1)
                 .ok_or(DeserializeError::UsizeTypeTooSmall)?;
         }

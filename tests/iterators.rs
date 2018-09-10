@@ -89,7 +89,8 @@ fn iter_linear_visits_buckets_wider_than_step_size_multiple_times() {
     // 2nd bucket in size 4
     h.record(4100).unwrap();
 
-    let iter_values = h.iter_linear(1)
+    let iter_values = h
+        .iter_linear(1)
         .map(|iv| (iv.value_iterated_to(), iv.count_since_last_iteration()))
         .collect::<Vec<(u64, u64)>>();
 
@@ -137,7 +138,8 @@ fn iter_linear_visits_buckets_once_when_step_size_equals_bucket_size() {
     // 2nd bucket in size 4
     h.record(4100).unwrap();
 
-    let iter_values = h.iter_linear(4)
+    let iter_values = h
+        .iter_linear(4)
         .map(|iv| (iv.value_iterated_to(), iv.count_since_last_iteration()))
         .collect::<Vec<(u64, u64)>>();
 
@@ -170,7 +172,8 @@ fn iter_all_values_all_buckets() {
     // smallest value in last sub bucket of third
     h.record(8192 - 4).unwrap();
 
-    let iter_values: Vec<(u64, u64)> = h.iter_all()
+    let iter_values: Vec<(u64, u64)> = h
+        .iter_all()
         .map(|v| (v.value_iterated_to(), v.count_at_value()))
         .collect();
 
@@ -208,7 +211,8 @@ fn iter_all_values_all_buckets_unit_magnitude_2() {
     // smallest value in last sub bucket of second
     h.record(16384 - 8).unwrap();
 
-    let iter_values: Vec<(u64, u64)> = h.iter_all()
+    let iter_values: Vec<(u64, u64)> = h
+        .iter_all()
         .map(|v| (v.value_iterated_to(), v.count_at_value()))
         .collect();
 
@@ -242,7 +246,8 @@ fn iter_recorded_values_all_buckets() {
     // smallest value in last sub bucket of third
     h.record(8192 - 4).unwrap();
 
-    let iter_values: Vec<(u64, u64)> = h.iter_recorded()
+    let iter_values: Vec<(u64, u64)> = h
+        .iter_recorded()
         .map(|v| (v.value_iterated_to(), v.count_at_value()))
         .collect();
 
@@ -270,7 +275,8 @@ fn iter_recorded_values_all_buckets_unit_magnitude_2() {
     // smallest value in last sub bucket of second
     h.record(16384 - 8).unwrap();
 
-    let iter_values: Vec<(u64, u64)> = h.iter_recorded()
+    let iter_values: Vec<(u64, u64)> = h
+        .iter_recorded()
         .map(|v| (v.value_iterated_to(), v.count_at_value()))
         .collect();
 
@@ -283,15 +289,15 @@ fn iter_recorded_values_all_buckets_unit_magnitude_2() {
 fn iter_logarithmic_bucket_values_min_1_base_2_all_buckets() {
     let h = prepare_histo_for_logarithmic_iterator();
 
-    let iter_values: Vec<(u64, u64, u64)> = h.iter_log(1, 2.0)
+    let iter_values: Vec<(u64, u64, u64)> = h
+        .iter_log(1, 2.0)
         .map(|v| {
             (
                 v.value_iterated_to(),
                 v.count_since_last_iteration(),
                 v.count_at_value(),
             )
-        })
-        .collect();
+        }).collect();
 
     let expected = vec![
         (0, 0, 0),
@@ -316,15 +322,15 @@ fn iter_logarithmic_bucket_values_min_1_base_2_all_buckets() {
 fn iter_logarithmic_bucket_values_min_4_base_2_all_buckets() {
     let h = prepare_histo_for_logarithmic_iterator();
 
-    let iter_values: Vec<(u64, u64, u64)> = h.iter_log(4, 2.0)
+    let iter_values: Vec<(u64, u64, u64)> = h
+        .iter_log(4, 2.0)
         .map(|v| {
             (
                 v.value_iterated_to(),
                 v.count_since_last_iteration(),
                 v.count_at_value(),
             )
-        })
-        .collect();
+        }).collect();
 
     let expected = vec![
         (3, 2, 0),
@@ -364,15 +370,15 @@ fn iter_logarithmic_bucket_values_min_1_base_2_all_buckets_unit_magnitude_2() {
     // in last sub bucket of 2nd bucket
     h.record(16384 - 1).unwrap();
 
-    let iter_values: Vec<(u64, u64, u64)> = h.iter_log(1, 2.0)
+    let iter_values: Vec<(u64, u64, u64)> = h
+        .iter_log(1, 2.0)
         .map(|v| {
             (
                 v.value_iterated_to(),
                 v.count_since_last_iteration(),
                 v.count_at_value(),
             )
-        })
-        .collect();
+        }).collect();
 
     // first 3 iterations are just getting up to 3, which is still the '0' sub bucket.
     // All at the same index, so count_at_value stays at 1 for the first 3
@@ -401,15 +407,15 @@ fn iter_logarithmic_bucket_values_min_1_base_2_all_buckets_unit_magnitude_2() {
 fn iter_logarithmic_bucket_values_min_1_base_10_all_buckets() {
     let h = prepare_histo_for_logarithmic_iterator();
 
-    let iter_values: Vec<(u64, u64, u64)> = h.iter_log(1, 10.0)
+    let iter_values: Vec<(u64, u64, u64)> = h
+        .iter_log(1, 10.0)
         .map(|v| {
             (
                 v.value_iterated_to(),
                 v.count_since_last_iteration(),
                 v.count_at_value(),
             )
-        })
-        .collect();
+        }).collect();
 
     let expected = vec![(0, 0, 0), (9, 2, 0), (99, 3, 0), (999, 0, 0), (9999, 4, 1)];
 
@@ -437,15 +443,15 @@ fn iter_linear_bucket_values_size_8_all_buckets() {
     // in last sub bucket of 2nd bucket
     h.record(63).unwrap();
 
-    let iter_values: Vec<(u64, u64, u64)> = h.iter_linear(8)
+    let iter_values: Vec<(u64, u64, u64)> = h
+        .iter_linear(8)
         .map(|v| {
             (
                 v.value_iterated_to(),
                 v.count_since_last_iteration(),
                 v.count_at_value(),
             )
-        })
-        .collect();
+        }).collect();
 
     let expected = vec![
         (7, 3, 1),
@@ -470,7 +476,8 @@ fn iter_quantiles_smorgasboard() {
         h.record(i).unwrap();
     }
 
-    let iter_values: Vec<(u64, u64, u64, f64, f64)> = h.iter_quantiles(2)
+    let iter_values: Vec<(u64, u64, u64, f64, f64)> = h
+        .iter_quantiles(2)
         .map(|v| {
             (
                 v.value_iterated_to(),
@@ -479,8 +486,7 @@ fn iter_quantiles_smorgasboard() {
                 v.quantile(),
                 v.quantile_iterated_to(),
             )
-        })
-        .collect();
+        }).collect();
 
     // penultimate percentile is 100.0 because 99.96% of 4095 is 4093.36, so it falls into last
     // sub bucket, thus gets to 100.0% of count.
@@ -523,7 +529,8 @@ fn iter_quantiles_iterates_to_end_skips_intermediate_at_final_value() {
     h.record_n(1, 1).unwrap();
     h.record_n(1_000, 1_000_000).unwrap();
 
-    let iter_values: Vec<(u64, u64, u64, f64, f64)> = h.iter_quantiles(2)
+    let iter_values: Vec<(u64, u64, u64, f64, f64)> = h
+        .iter_quantiles(2)
         .map(|v| {
             (
                 v.value_iterated_to(),
@@ -532,8 +539,7 @@ fn iter_quantiles_iterates_to_end_skips_intermediate_at_final_value() {
                 v.quantile(),
                 v.quantile_iterated_to(),
             )
-        })
-        .collect();
+        }).collect();
 
     // almost every nonzero quantile is in the bucket whose value is at quantile 1.0, so we should
     // iterate into that bucket (at quantile iteration 0.25), then skip to quantile iteration 1.0
@@ -555,7 +561,8 @@ fn iter_quantiles_saturated_count_before_max_value() {
         h.record_n(i, u64::max_value() / 100).unwrap();
     }
 
-    let iter_values: Vec<(u64, u64, u64, f64, f64)> = h.iter_quantiles(2)
+    let iter_values: Vec<(u64, u64, u64, f64, f64)> = h
+        .iter_quantiles(2)
         .map(|v| {
             (
                 v.value_iterated_to(),
@@ -564,8 +571,7 @@ fn iter_quantiles_saturated_count_before_max_value() {
                 v.quantile(),
                 v.quantile_iterated_to(),
             )
-        })
-        .collect();
+        }).collect();
 
     // here we do NOT skip to 1.0 because we haven't detected that we're at the max value (because
     // we aren't!).
@@ -702,7 +708,8 @@ fn iter_quantiles_iterates_to_quantile_10_as_it_reaches_last_bucket() {
     // and now the leftovers to reach the total
     h.record_n(2, 2).unwrap();
 
-    let iter_values: Vec<(u64, u64, u64, f64, f64)> = h.iter_quantiles(2)
+    let iter_values: Vec<(u64, u64, u64, f64, f64)> = h
+        .iter_quantiles(2)
         .map(|v| {
             (
                 v.value_iterated_to(),
@@ -711,8 +718,7 @@ fn iter_quantiles_iterates_to_quantile_10_as_it_reaches_last_bucket() {
                 v.quantile(),
                 v.quantile_iterated_to(),
             )
-        })
-        .collect();
+        }).collect();
 
     let expected = vec![
         (1, first_bucket, first_bucket, quantile, 0.0),
@@ -833,7 +839,8 @@ fn iter_quantiles_one_value() {
 
     h.record_n(1, 1).unwrap();
 
-    let iter_values: Vec<(u64, u64, u64, f64, f64)> = h.iter_quantiles(2)
+    let iter_values: Vec<(u64, u64, u64, f64, f64)> = h
+        .iter_quantiles(2)
         .map(|v| {
             (
                 v.value_iterated_to(),
@@ -842,8 +849,7 @@ fn iter_quantiles_one_value() {
                 v.quantile(),
                 v.quantile_iterated_to(),
             )
-        })
-        .collect();
+        }).collect();
 
     // at first iteration, we're already in the last index, so we should jump to 1.0 and stop
     let expected = vec![(1, 1, 1, 1.0, 0.0), (1, 0, 1, 1.0, 1.0)];

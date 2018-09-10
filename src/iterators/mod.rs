@@ -1,5 +1,5 @@
-use Histogram;
 use core::counter::Counter;
+use Histogram;
 
 /// An iterator that iterates over histogram quantiles.
 pub mod quantile;
@@ -198,13 +198,16 @@ where
 
                 if self.fresh {
                     // at a new index, and not past the max, so there's nonzero counts to add
-                    self.count_at_index = self.hist
+                    self.count_at_index = self
+                        .hist
                         .count_at_index(self.current_index)
                         .expect("Already checked that current_index is < counts len");
 
-                    self.total_count_to_index = self.total_count_to_index
+                    self.total_count_to_index = self
+                        .total_count_to_index
                         .saturating_add(self.count_at_index.as_u64());
-                    self.count_since_last_iteration = self.count_since_last_iteration
+                    self.count_since_last_iteration = self
+                        .count_since_last_iteration
                         .saturating_add(self.count_at_index.as_u64());
 
                     // make sure we don't add this index again
@@ -226,7 +229,8 @@ where
                     }),
                     quantile,
                     quantile_iterated_to: metadata.quantile_iterated_to.unwrap_or(quantile),
-                    count_at_value: self.hist
+                    count_at_value: self
+                        .hist
                         .count_at_index(self.current_index)
                         .expect("current index cannot exceed counts length"),
                     count_since_last_iteration: self.count_since_last_iteration,

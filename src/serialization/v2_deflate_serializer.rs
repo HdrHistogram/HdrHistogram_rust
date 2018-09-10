@@ -1,7 +1,7 @@
 use super::super::Histogram;
 use super::byteorder::{BigEndian, WriteBytesExt};
-use super::flate2::Compression;
 use super::flate2::write::ZlibEncoder;
+use super::flate2::Compression;
 use super::v2_serializer::{V2SerializeError, V2Serializer};
 use super::{Serializer, V2_COMPRESSED_COOKIE};
 use core::counter::Counter;
@@ -67,7 +67,8 @@ impl Serializer for V2DeflateSerializer {
         self.uncompressed_buf.clear();
         self.compressed_buf.clear();
         // TODO serialize directly into uncompressed_buf without the buffering inside v2_serializer
-        let uncompressed_len = self.v2_serializer
+        let uncompressed_len = self
+            .v2_serializer
             .serialize(h, &mut self.uncompressed_buf)
             .map_err(V2DeflateSerializeError::InternalSerializationError)?;
 
@@ -100,7 +101,8 @@ impl Serializer for V2DeflateSerializer {
         // overflow u32 as the largest array is about 6 million entries, so about 54MiB encoded (if
         // counter is u64).
         let total_compressed_len = self.compressed_buf.len();
-        (&mut self.compressed_buf[4..8]).write_u32::<BigEndian>((total_compressed_len as u32) - 8)?;
+        (&mut self.compressed_buf[4..8])
+            .write_u32::<BigEndian>((total_compressed_len as u32) - 8)?;
 
         writer.write_all(&self.compressed_buf)?;
 

@@ -8,9 +8,10 @@ use std::io::{BufRead, Write};
 
 use clap::{App, Arg, SubCommand};
 
-use hdrhistogram::serialization::{DeserializeError, Deserializer, Serializer,
-                                  V2DeflateSerializeError, V2DeflateSerializer, V2SerializeError,
-                                  V2Serializer};
+use hdrhistogram::serialization::{
+    DeserializeError, Deserializer, Serializer, V2DeflateSerializeError, V2DeflateSerializer,
+    V2SerializeError, V2Serializer,
+};
 use hdrhistogram::{Histogram, RecordError};
 
 fn main() {
@@ -21,42 +22,36 @@ fn main() {
                 .about(
                     "Transform number-per-line input from stdin \
                      into a serialized histogram on stdout",
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("min")
                         .long("min")
                         .help("Minimum discernible value")
                         .takes_value(true)
                         .default_value("1"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("max")
                         .long("max")
                         .help("Maximum trackable value")
                         .takes_value(true)
                         .default_value(default_max.as_str()),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("sigfig")
                         .long("sigfig")
                         .help("Number of significant digits")
                         .takes_value(true)
                         .default_value("3"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("compression")
                         .short("c")
                         .long("compression")
                         .help("Enable compression"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("resize")
                         .short("r")
                         .long("resize")
                         .help("Enable auto resize"),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("iter-quantiles")
                 .about("Display quantiles to stdout from serialized histogram stdin")
                 .arg(
@@ -66,15 +61,13 @@ fn main() {
                         .takes_value(true)
                         .required(true)
                         .help("Ticks per half distance"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("quantile-precision")
                         .long("quantile-precision")
                         .takes_value(true)
                         .default_value("20"),
                 ),
-        )
-        .get_matches();
+        ).get_matches();
 
     let stdin = std::io::stdin();
     let stdin = stdin.lock();

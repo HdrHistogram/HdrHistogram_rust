@@ -3,9 +3,9 @@
 
 extern crate rand;
 
-use self::rand::Rng;
-use self::rand::distributions::Distribution;
 use self::rand::distributions::uniform::Uniform;
+use self::rand::distributions::Distribution;
+use self::rand::Rng;
 
 /// Smallest number in our varint encoding that takes the given number of bytes
 pub fn smallest_number_in_n_byte_varint(byte_length: usize) -> u64 {

@@ -150,8 +150,7 @@ fn write_interval_histo_no_tag() {
                 time::Duration::new(1, 234_567_890),
                 time::Duration::new(5, 670_000_000),
                 None,
-            )
-            .unwrap();
+            ).unwrap();
     }
 
     let expected =
@@ -180,8 +179,7 @@ fn write_interval_histo_with_tag() {
                 time::Duration::new(1, 234_000_000),
                 time::Duration::new(5, 678_000_000),
                 Tag::new("t"),
-            )
-            .unwrap();
+            ).unwrap();
     }
 
     assert_eq!(

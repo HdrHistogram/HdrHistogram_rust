@@ -9,8 +9,8 @@ use std::time;
 use hdrhistogram::serialization;
 use hdrhistogram::serialization::interval_log;
 use hdrhistogram::*;
-use test::Bencher;
 use rand::FromEntropy;
+use test::Bencher;
 
 use self::rand_varint::*;
 

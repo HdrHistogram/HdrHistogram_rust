@@ -1,6 +1,6 @@
-use Histogram;
 use core::counter::Counter;
 use iterators::{HistogramIterator, PickMetadata, PickyIterator};
+use Histogram;
 
 /// An iterator that will yield every bin.
 pub struct Iter {

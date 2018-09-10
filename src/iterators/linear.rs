@@ -1,6 +1,6 @@
-use Histogram;
 use core::counter::Counter;
 use iterators::{HistogramIterator, PickMetadata, PickyIterator};
+use Histogram;
 
 /// An iterator that will yield at fixed-size steps through the histogram's value range.
 pub struct Iter<'a, T: 'a + Counter> {
@@ -45,7 +45,8 @@ impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
             let metadata =
                 PickMetadata::new(None, Some(self.current_step_highest_value_reporting_level));
             self.current_step_highest_value_reporting_level += self.value_units_per_bucket;
-            self.current_step_lowest_value_reporting_level = self.hist
+            self.current_step_lowest_value_reporting_level = self
+                .hist
                 .lowest_equivalent(self.current_step_highest_value_reporting_level);
             Some(metadata)
         } else {

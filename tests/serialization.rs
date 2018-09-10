@@ -2,8 +2,8 @@
 mod tests {
     extern crate hdrhistogram;
 
-    use self::hdrhistogram::Histogram;
     use self::hdrhistogram::serialization::{Deserializer, Serializer, V2Serializer};
+    use self::hdrhistogram::Histogram;
 
     use std::fs::File;
     use std::io::{BufRead, BufReader, Read};

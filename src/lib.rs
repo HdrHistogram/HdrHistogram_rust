@@ -185,8 +185,15 @@
 //! and try to make sure you implement appropriate traits to make the use of the feature as
 //! ergonomic as possible.
 
-#![deny(missing_docs, trivial_casts, trivial_numeric_casts, unused_extern_crates,
-        unused_import_braces, unused_results, variant_size_differences)]
+#![deny(
+    missing_docs,
+    trivial_casts,
+    trivial_numeric_casts,
+    unused_extern_crates,
+    unused_import_braces,
+    unused_results,
+    variant_size_differences
+)]
 // Enable feature(test) is enabled so that we can have benchmarks of private code
 #![cfg_attr(all(test, feature = "bench_private"), feature(test))]
 
@@ -591,7 +598,8 @@ impl<T: Counter> Histogram<T> {
                         // pluggability so users could choose to error or saturate? Both seem
                         // useful. It's also sort of inconsistent with overflow, which now
                         // saturates.
-                        *c = (*c).checked_sub(&other_count)
+                        *c = (*c)
+                            .checked_sub(&other_count)
                             .ok_or(SubtractionError::SubtrahendCountExceedsMinuendCount)?;
                     } else {
                         panic!("Tried to subtract value outside of range: {}", other_value);
@@ -606,7 +614,8 @@ impl<T: Counter> Histogram<T> {
                 if !needs_restat {
                     // if we're not already going to recalculate everything, subtract from
                     // total_count
-                    self.total_count = self.total_count
+                    self.total_count = self
+                        .total_count
                         .checked_sub(other_count.as_u64())
                         .expect("total count underflow on subtraction");
                 }
@@ -867,7 +876,8 @@ impl<T: Counter> Histogram<T> {
                     self.lowest_discernible_value
                 };
 
-                let c = self.mut_at(value)
+                let c = self
+                    .mut_at(value)
                     .expect("unwrap must succeed since low and high are always representable");
                 *c = c.saturating_add(count);
             } else if !self.auto_resize {
@@ -882,7 +892,8 @@ impl<T: Counter> Histogram<T> {
                 {
                     let c = self.mut_at(value).expect("value should fit after resize");
                     // after resize, should be no possibility of overflow because this is a new slot
-                    *c = (*c).checked_add(&count)
+                    *c = (*c)
+                        .checked_add(&count)
                         .expect("count overflow after resize");
                 }
             }
@@ -1216,8 +1227,10 @@ impl<T: Counter> Histogram<T> {
     /// If the histogram has no recorded values, the value returned will be 0.
     pub fn min(&self) -> u64 {
         if self.total_count == 0
-            || self.count_at_index(0)
-                .expect("counts array must be non-empty") != T::zero()
+            || self
+                .count_at_index(0)
+                .expect("counts array must be non-empty")
+                != T::zero()
         {
             0
         } else {
@@ -1592,7 +1605,8 @@ impl<T: Counter> Histogram<T> {
 
         // establish counts array length:
         let buckets_needed = self.buckets_to_cover(high);
-        let len = self.num_bins(buckets_needed)
+        let len = self
+            .num_bins(buckets_needed)
             .to_usize()
             .ok_or(UsizeTypeTooSmall)?;
 

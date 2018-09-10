@@ -6,10 +6,10 @@ extern crate rug;
 use hdrhistogram::{Counter, Histogram};
 
 use ieee754::Ieee754;
-use rand::Rng;
-use rand::distributions::Distribution;
 use rand::distributions::range::Range;
-use rug::{Rational, Integer};
+use rand::distributions::Distribution;
+use rand::Rng;
+use rug::{Integer, Rational};
 
 #[test]
 fn value_at_quantile_internal_count_exceeds_bucket_type() {
@@ -116,7 +116,8 @@ fn value_at_quantile_matches_quantile_iter_sequence_values() {
             // artifacts, so this test will frequently fail if you expect the actual value to
             // match the calculated value. Instead, we allow it to be one bucket high or low.
 
-            if calculated_value != v && calculated_value != prev_value_nonzero_count(&h, v)
+            if calculated_value != v
+                && calculated_value != prev_value_nonzero_count(&h, v)
                 && calculated_value != next_value_nonzero_count(&h, v)
             {
                 let q_count_rational = calculate_quantile_count(iter_val.quantile(), length);
@@ -171,7 +172,8 @@ fn value_at_quantile_matches_quantile_iter_random_values() {
             // artifacts, so this test will frequently fail if you expect the actual value to
             // match the calculated value. Instead, we allow it to be one bucket high or low.
 
-            if calculated_value != v && calculated_value != prev_value_nonzero_count(&h, v)
+            if calculated_value != v
+                && calculated_value != prev_value_nonzero_count(&h, v)
                 && calculated_value != next_value_nonzero_count(&h, v)
             {
                 let q_count_rational = calculate_quantile_count(iter_val.quantile(), length as u64);
@@ -310,11 +312,9 @@ fn value_at_quantile_matches_random_quantile_random_values() {
         for _ in 0..1_000 {
             let quantile = quantile_range.sample(&mut rng);
             let index_at_quantile = Integer::from(
-                (Rational::from_f64(quantile).unwrap() * Rational::from(length as u64))
-                .trunc_ref()
-                )
-                .to_u64()
-                .unwrap() as usize;
+                (Rational::from_f64(quantile).unwrap() * Rational::from(length as u64)).trunc_ref(),
+            ).to_u64()
+            .unwrap() as usize;
             let calculated_value = h.value_at_quantile(quantile);
             let v = values[index_at_quantile];
             if !h.equivalent(v, calculated_value) {

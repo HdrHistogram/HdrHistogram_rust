@@ -61,7 +61,8 @@ impl Serializer for V2Serializer {
         self.buf.write_u32::<BigEndian>(0)?;
         self.buf
             .write_u32::<BigEndian>(u32::from(h.significant_value_digits))?;
-        self.buf.write_u64::<BigEndian>(h.lowest_discernible_value)?;
+        self.buf
+            .write_u64::<BigEndian>(h.lowest_discernible_value)?;
         self.buf.write_u64::<BigEndian>(h.highest_trackable_value)?;
         // int to double conversion
         self.buf.write_f64::<BigEndian>(1.0)?;
@@ -111,7 +112,8 @@ pub fn encode_counts<T: Counter>(
     h: &Histogram<T>,
     buf: &mut [u8],
 ) -> Result<usize, V2SerializeError> {
-    let index_limit = h.index_for(h.max())
+    let index_limit = h
+        .index_for(h.max())
         .expect("Index for max value must exist");
     let mut index = 0;
     let mut bytes_written = 0;

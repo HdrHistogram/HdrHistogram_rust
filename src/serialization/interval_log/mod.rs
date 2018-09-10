@@ -216,7 +216,7 @@ extern crate base64;
 use std::fmt::Write;
 use std::{fmt, io, ops, str, time};
 
-use nom::{double, is_digit, ErrorKind, IResult, Err};
+use nom::{double, is_digit, Err, ErrorKind, IResult};
 
 use super::super::{Counter, Histogram};
 use super::Serializer;
@@ -447,7 +447,8 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> InternalLogWriter<'a, 'b, W,
         )?;
 
         self.text_buf.clear();
-        let _len = self.serializer
+        let _len = self
+            .serializer
             .serialize(h, &mut self.serialize_buf)
             .map_err(|e| IntervalLogWriterError::SerializeError(e))?;
         base64::encode_config_buf(&self.serialize_buf, base64::STANDARD, &mut self.text_buf);
@@ -748,7 +749,7 @@ fn fract_sec_duration(input: &[u8]) -> IResult<&[u8], time::Duration> {
             // nanos were invalid utf8. We don't expose these errors, so don't bother defining a
             // custom error type.
             return Err(Err::Error(error_position!(input, ErrorKind::Custom(0))));
-        },
+        }
         Err(e) => return Err(e),
     }
 }
