@@ -1,6 +1,6 @@
 [package]
 name = "hdrsample"
-version = "6.0.3"
+version = "6.0.4"
 
 description = "A port of HdrHistogram to Rust"
 readme = "README.md"
@@ -17,6 +17,9 @@ keywords = ["sampling", "statistics", "analytics"]
 categories = ["data-structures", "development-tools::profiling"]
 
 license = "MIT/Apache-2.0"
+
+[badges]
+maintenance = { status = "deprecated" }
 
 [features]
 bench_private = [] # for enabling nightly-only feature(test) on the main crate to allow benchmarking private code
