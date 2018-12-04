@@ -6,8 +6,6 @@ extern crate rug;
 use hdrhistogram::{Counter, Histogram};
 
 use ieee754::Ieee754;
-use rand::distributions::range::Range;
-use rand::distributions::Distribution;
 use rand::Rng;
 use rug::{Integer, Rational};
 
@@ -292,7 +290,6 @@ fn value_at_quantile_matches_random_quantile_random_values() {
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000];
 
     let mut rng = rand::thread_rng();
-    let quantile_range = Range::new(0_f64, 1_f64.next());
 
     let mut errors: u64 = 0;
 
@@ -310,7 +307,7 @@ fn value_at_quantile_matches_random_quantile_random_values() {
         assert_eq!(length as u64, h.len());
 
         for _ in 0..1_000 {
-            let quantile = quantile_range.sample(&mut rng);
+            let quantile = rng.gen_range(0_f64, 1_f64.next());
             let index_at_quantile = Integer::from(
                 (Rational::from_f64(quantile).unwrap() * Rational::from(length as u64)).trunc_ref(),
             ).to_u64()

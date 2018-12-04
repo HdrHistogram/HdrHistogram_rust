@@ -1,6 +1,6 @@
 [package]
 name = "hdrhistogram"
-version = "6.1.0"
+version = "6.1.1"
 
 description = "A port of HdrHistogram to Rust"
 readme = "README.md"
@@ -21,6 +21,7 @@ license = "MIT/Apache-2.0"
 
 [badges]
 travis-ci = { repository = "HdrHistogram/HdrHistogram_rust" }
+maintenance = { status = "passively-maintained" }
 
 [features]
 bench_private = [] # for enabling nightly-only feature(test) on the main crate to allow benchmarking private code
@@ -32,10 +33,10 @@ num-traits = "0.2"
 byteorder = "1.0.0"
 flate2 = { version = "1.0", optional = true }
 nom = { version = "^4.0", optional = true }
-base64 = { version = "0.9", optional = true }
+base64 = { version = "0.10", optional = true }
 
 [dev-dependencies]
-rand = "0.5"
+rand = "0.6"
 rug = "1.2"
 ieee754 = "0.2.2"
 clap = "2.26.2"
