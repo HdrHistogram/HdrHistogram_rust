@@ -755,7 +755,6 @@ fn fract_sec_duration(input: &[u8]) -> IResult<&[u8], time::Duration> {
 }
 
 // alternate versions of take_while1, used until ergonomic issues with COmpleteByteSlice are resolved
-#[macro_export]
 macro_rules! take_while1_complete (
   ($input:expr, $submac:ident!( $($args:tt)* )) => ({
     use nom::ErrorKind;
