@@ -1,11 +1,9 @@
 //! This is used in tests (both unit tests and integration tests) to provide useful distributions
 //! of random numbers.
 
-extern crate rand;
-
-use self::rand::distributions::uniform::Uniform;
-use self::rand::distributions::Distribution;
-use self::rand::Rng;
+use rand::distributions::uniform::Uniform;
+use rand::distributions::Distribution;
+use rand::Rng;
 
 /// Smallest number in our varint encoding that takes the given number of bytes
 pub fn smallest_number_in_n_byte_varint(byte_length: usize) -> u64 {

@@ -1,18 +1,12 @@
 #[cfg(all(feature = "serialization", test))]
 mod tests {
-    extern crate base64;
-    extern crate hdrhistogram;
-    extern crate rand;
-
-    use self::rand::Rng;
-
-    use self::hdrhistogram::serialization::interval_log::{
+    use hdrhistogram::serialization::interval_log::{
         IntervalLogHistogram, IntervalLogIterator, IntervalLogWriterBuilder, LogEntry,
         LogIteratorError, Tag,
     };
-    use self::hdrhistogram::serialization::{Deserializer, Serializer, V2Serializer};
-    use self::hdrhistogram::Histogram;
-
+    use hdrhistogram::serialization::{Deserializer, Serializer, V2Serializer};
+    use hdrhistogram::Histogram;
+    use rand::Rng;
     use std::fs::File;
     use std::io::{BufRead, Read};
     use std::path::Path;
@@ -27,7 +21,8 @@ mod tests {
             .filter_map(|e| match e {
                 LogEntry::StartTime(t) => Some(t),
                 _ => None,
-            }).count();
+            })
+            .count();
         assert_eq!(1, start_count);
     }
 
@@ -40,7 +35,8 @@ mod tests {
             .filter_map(|e| match e {
                 LogEntry::Interval(ilh) => Some(ilh),
                 _ => None,
-            }).collect::<Vec<IntervalLogHistogram>>();
+            })
+            .collect::<Vec<IntervalLogHistogram>>();
 
         assert_eq!(42, intervals.len());
 
@@ -64,7 +60,8 @@ mod tests {
             .filter_map(|e| match e {
                 LogEntry::Interval(ilh) => Some(ilh),
                 _ => None,
-            }).collect::<Vec<IntervalLogHistogram>>();
+            })
+            .collect::<Vec<IntervalLogHistogram>>();
 
         let expected = vec![
             (0.127, 1.007, 2.769),
@@ -101,7 +98,8 @@ mod tests {
                     round(duration_as_fp_seconds(ilh.start_timestamp())),
                     round(duration_as_fp_seconds(ilh.duration())),
                     ilh.max(),
-                )).collect::<Vec<(f64, f64, f64)>>()
+                ))
+                .collect::<Vec<(f64, f64, f64)>>()
         );
 
         assert_eq!(
@@ -113,7 +111,8 @@ mod tests {
                     round(duration_as_fp_seconds(ilh.start_timestamp())),
                     round(duration_as_fp_seconds(ilh.duration())),
                     ilh.max(),
-                )).collect::<Vec<(f64, f64, f64)>>()
+                ))
+                .collect::<Vec<(f64, f64, f64)>>()
         );
 
         let mut deserializer = Deserializer::new();
@@ -183,7 +182,8 @@ mod tests {
                 .filter_map(|e| match e {
                     LogEntry::Interval(ilh) => Some(ilh),
                     _ => None,
-                }).for_each(|ilh| {
+                })
+                .for_each(|ilh| {
                     let serialized_histogram =
                         base64::decode_config(ilh.encoded_histogram(), base64::STANDARD).unwrap();
                     let decoded_hist: Histogram<u64> = deserializer
@@ -196,7 +196,8 @@ mod tests {
                             ilh.start_timestamp(),
                             ilh.duration(),
                             ilh.tag(),
-                        ).unwrap();
+                        )
+                        .unwrap();
                 });
         }
 
@@ -259,7 +260,8 @@ mod tests {
                         time::Duration::from_secs(i as u64),
                         time::Duration::new(10_000 + i as u64, 0),
                         tag,
-                    ).unwrap();
+                    )
+                    .unwrap();
 
                 writer.write_comment(&format!("line {}", i)).unwrap();
 
@@ -271,7 +273,8 @@ mod tests {
             .filter_map(|e| match e {
                 Ok(LogEntry::Interval(ilh)) => Some(ilh),
                 _ => None,
-            }).collect::<Vec<IntervalLogHistogram>>();
+            })
+            .collect::<Vec<IntervalLogHistogram>>();
 
         assert_eq!(histograms.len(), parsed.len());
 

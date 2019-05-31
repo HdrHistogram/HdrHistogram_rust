@@ -1,5 +1,5 @@
+use crate::tests::helpers::histo64;
 use std::cmp;
-use tests::helpers::histo64;
 
 #[test]
 fn equivalent_range_unit_magnitude_0() {

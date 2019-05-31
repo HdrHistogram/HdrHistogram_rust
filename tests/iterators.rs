@@ -1,5 +1,3 @@
-extern crate hdrhistogram;
-
 use hdrhistogram::Histogram;
 
 #[test]
@@ -297,7 +295,8 @@ fn iter_logarithmic_bucket_values_min_1_base_2_all_buckets() {
                 v.count_since_last_iteration(),
                 v.count_at_value(),
             )
-        }).collect();
+        })
+        .collect();
 
     let expected = vec![
         (0, 0, 0),
@@ -330,7 +329,8 @@ fn iter_logarithmic_bucket_values_min_4_base_2_all_buckets() {
                 v.count_since_last_iteration(),
                 v.count_at_value(),
             )
-        }).collect();
+        })
+        .collect();
 
     let expected = vec![
         (3, 2, 0),
@@ -378,7 +378,8 @@ fn iter_logarithmic_bucket_values_min_1_base_2_all_buckets_unit_magnitude_2() {
                 v.count_since_last_iteration(),
                 v.count_at_value(),
             )
-        }).collect();
+        })
+        .collect();
 
     // first 3 iterations are just getting up to 3, which is still the '0' sub bucket.
     // All at the same index, so count_at_value stays at 1 for the first 3
@@ -415,7 +416,8 @@ fn iter_logarithmic_bucket_values_min_1_base_10_all_buckets() {
                 v.count_since_last_iteration(),
                 v.count_at_value(),
             )
-        }).collect();
+        })
+        .collect();
 
     let expected = vec![(0, 0, 0), (9, 2, 0), (99, 3, 0), (999, 0, 0), (9999, 4, 1)];
 
@@ -451,7 +453,8 @@ fn iter_linear_bucket_values_size_8_all_buckets() {
                 v.count_since_last_iteration(),
                 v.count_at_value(),
             )
-        }).collect();
+        })
+        .collect();
 
     let expected = vec![
         (7, 3, 1),
@@ -486,7 +489,8 @@ fn iter_quantiles_smorgasboard() {
                 v.quantile(),
                 v.quantile_iterated_to(),
             )
-        }).collect();
+        })
+        .collect();
 
     // penultimate percentile is 100.0 because 99.96% of 4095 is 4093.36, so it falls into last
     // sub bucket, thus gets to 100.0% of count.
@@ -539,7 +543,8 @@ fn iter_quantiles_iterates_to_end_skips_intermediate_at_final_value() {
                 v.quantile(),
                 v.quantile_iterated_to(),
             )
-        }).collect();
+        })
+        .collect();
 
     // almost every nonzero quantile is in the bucket whose value is at quantile 1.0, so we should
     // iterate into that bucket (at quantile iteration 0.25), then skip to quantile iteration 1.0
@@ -571,7 +576,8 @@ fn iter_quantiles_saturated_count_before_max_value() {
                 v.quantile(),
                 v.quantile_iterated_to(),
             )
-        }).collect();
+        })
+        .collect();
 
     // here we do NOT skip to 1.0 because we haven't detected that we're at the max value (because
     // we aren't!).
@@ -718,7 +724,8 @@ fn iter_quantiles_iterates_to_quantile_10_as_it_reaches_last_bucket() {
                 v.quantile(),
                 v.quantile_iterated_to(),
             )
-        }).collect();
+        })
+        .collect();
 
     let expected = vec![
         (1, first_bucket, first_bucket, quantile, 0.0),
@@ -849,7 +856,8 @@ fn iter_quantiles_one_value() {
                 v.quantile(),
                 v.quantile_iterated_to(),
             )
-        }).collect();
+        })
+        .collect();
 
     // at first iteration, we're already in the last index, so we should jump to 1.0 and stop
     let expected = vec![(1, 1, 1, 1.0, 0.0), (1, 0, 1, 1.0, 1.0)];
@@ -896,5 +904,6 @@ fn histo64(
         lowest_discernible_value,
         highest_trackable_value,
         num_significant_digits,
-    ).unwrap()
+    )
+    .unwrap()
 }

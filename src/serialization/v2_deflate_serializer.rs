@@ -1,10 +1,10 @@
-use super::super::Histogram;
-use super::byteorder::{BigEndian, WriteBytesExt};
-use super::flate2::write::ZlibEncoder;
-use super::flate2::Compression;
 use super::v2_serializer::{V2SerializeError, V2Serializer};
 use super::{Serializer, V2_COMPRESSED_COOKIE};
-use core::counter::Counter;
+use crate::core::counter::Counter;
+use crate::Histogram;
+use byteorder::{BigEndian, WriteBytesExt};
+use flate2::write::ZlibEncoder;
+use flate2::Compression;
 use std;
 use std::io::{ErrorKind, Write};
 

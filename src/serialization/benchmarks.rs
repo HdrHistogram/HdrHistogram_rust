@@ -1,6 +1,3 @@
-extern crate rand;
-extern crate test;
-
 use self::rand::distributions::uniform::Uniform;
 use self::rand::distributions::Distribution;
 use self::rand::FromEntropy;

@@ -178,9 +178,6 @@
 //! ```
 //!
 
-extern crate byteorder;
-extern crate flate2;
-
 use std::{fmt, io};
 
 use super::{Counter, Histogram};

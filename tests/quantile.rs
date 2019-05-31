@@ -1,8 +1,3 @@
-extern crate hdrhistogram;
-extern crate ieee754;
-extern crate rand;
-extern crate rug;
-
 use hdrhistogram::{Counter, Histogram};
 
 use ieee754::Ieee754;
@@ -310,7 +305,8 @@ fn value_at_quantile_matches_random_quantile_random_values() {
             let quantile = rng.gen_range(0_f64, 1_f64.next());
             let index_at_quantile = Integer::from(
                 (Rational::from_f64(quantile).unwrap() * Rational::from(length as u64)).trunc_ref(),
-            ).to_u64()
+            )
+            .to_u64()
             .unwrap() as usize;
             let calculated_value = h.value_at_quantile(quantile);
             let v = values[index_at_quantile];

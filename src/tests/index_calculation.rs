@@ -1,5 +1,5 @@
 use super::super::{CreationError, Histogram};
-use tests::helpers::histo64;
+use crate::tests::helpers::histo64;
 
 #[test]
 fn unit_magnitude_0_index_calculations() {

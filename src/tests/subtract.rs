@@ -1,8 +1,7 @@
-use super::super::{Counter, Histogram, SubtractionError};
+use crate::{Counter, Histogram, SubtractionError};
+use num_traits::Saturating;
 use std::borrow::Borrow;
 use std::cmp;
-
-use num::Saturating;
 
 const TEST_VALUE_LEVEL: u64 = 4;
 

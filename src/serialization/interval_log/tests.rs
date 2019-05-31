@@ -1,6 +1,4 @@
-extern crate rand;
-
-use self::rand::Rng;
+use rand::Rng;
 
 use std::ops::Add;
 use std::{iter, time};
@@ -150,7 +148,8 @@ fn write_interval_histo_no_tag() {
                 time::Duration::new(1, 234_567_890),
                 time::Duration::new(5, 670_000_000),
                 None,
-            ).unwrap();
+            )
+            .unwrap();
     }
 
     let expected =
@@ -179,7 +178,8 @@ fn write_interval_histo_with_tag() {
                 time::Duration::new(1, 234_000_000),
                 time::Duration::new(5, 678_000_000),
                 Tag::new("t"),
-            ).unwrap();
+            )
+            .unwrap();
     }
 
     assert_eq!(
@@ -286,7 +286,8 @@ fn duration_fp_roundtrip_accuracy() {
 fn parse_start_time_with_human_date() {
     let (rest, e) = start_time(
         b"#[StartTime: 1441812279.474 (seconds since epoch), Wed Sep 09 08:24:39 PDT 2015]\nfoo",
-    ).unwrap();
+    )
+    .unwrap();
 
     let expected = LogEntry::StartTime(time::Duration::new(1441812279, 474_000_000));
 

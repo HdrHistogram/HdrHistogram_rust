@@ -1,6 +1,6 @@
-use super::super::{Counter, Histogram};
-use super::byteorder::{BigEndian, WriteBytesExt};
 use super::{Serializer, V2_COOKIE, V2_HEADER_SIZE};
+use crate::{Counter, Histogram};
+use byteorder::{BigEndian, WriteBytesExt};
 use std;
 use std::io::{ErrorKind, Write};
 

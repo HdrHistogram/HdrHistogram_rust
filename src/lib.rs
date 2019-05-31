@@ -197,13 +197,11 @@
 // Enable feature(test) is enabled so that we can have benchmarks of private code
 #![cfg_attr(all(test, feature = "bench_private"), feature(test))]
 
-extern crate num_traits as num;
-
 #[cfg(feature = "serialization")]
 #[macro_use]
 extern crate nom;
 
-use num::ToPrimitive;
+use num_traits::ToPrimitive;
 use std::borrow::Borrow;
 use std::cmp;
 use std::ops::{AddAssign, SubAssign};
@@ -805,7 +803,8 @@ impl<T: Counter> Histogram<T> {
             source.lowest_discernible_value,
             source.highest_trackable_value,
             source.significant_value_digits,
-        ).expect("Using another histogram's parameters failed");
+        )
+        .expect("Using another histogram's parameters failed");
 
         // h.start_time = source.start_time;
         // h.end_time = source.end_time;
@@ -1815,10 +1814,11 @@ where
         }
 
         (0..self.counts.len()).all(|i| {
-            self.counts[i] == match other.count_at_index(i) {
-                Some(c) => c,
-                None => return false,
-            }
+            self.counts[i]
+                == match other.count_at_index(i) {
+                    Some(c) => c,
+                    None => return false,
+                }
         })
     }
 }
@@ -1843,5 +1843,5 @@ mod core;
 pub mod errors;
 #[cfg(feature = "serialization")]
 pub mod serialization;
-pub use core::counter::*;
+pub use self::core::counter::*;
 pub use errors::*;

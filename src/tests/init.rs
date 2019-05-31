@@ -1,4 +1,4 @@
-use tests::helpers::histo64;
+use crate::tests::helpers::histo64;
 
 #[test]
 fn init_fields_smallest_possible_array() {

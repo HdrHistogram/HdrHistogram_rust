@@ -1,7 +1,5 @@
 //! Tests from HistogramAutosizingTest.java
 
-extern crate hdrhistogram;
-
 use hdrhistogram::Histogram;
 
 #[test]

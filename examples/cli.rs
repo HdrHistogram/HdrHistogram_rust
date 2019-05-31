@@ -1,7 +1,4 @@
-extern crate clap;
 /// Reads numbers from stdin, one per line, and writes them to a serialized histogram on stdout.
-extern crate hdrhistogram;
-
 use std::fmt::Display;
 use std::io;
 use std::io::{BufRead, Write};
@@ -22,36 +19,42 @@ fn main() {
                 .about(
                     "Transform number-per-line input from stdin \
                      into a serialized histogram on stdout",
-                ).arg(
+                )
+                .arg(
                     Arg::with_name("min")
                         .long("min")
                         .help("Minimum discernible value")
                         .takes_value(true)
                         .default_value("1"),
-                ).arg(
+                )
+                .arg(
                     Arg::with_name("max")
                         .long("max")
                         .help("Maximum trackable value")
                         .takes_value(true)
                         .default_value(default_max.as_str()),
-                ).arg(
+                )
+                .arg(
                     Arg::with_name("sigfig")
                         .long("sigfig")
                         .help("Number of significant digits")
                         .takes_value(true)
                         .default_value("3"),
-                ).arg(
+                )
+                .arg(
                     Arg::with_name("compression")
                         .short("c")
                         .long("compression")
                         .help("Enable compression"),
-                ).arg(
+                )
+                .arg(
                     Arg::with_name("resize")
                         .short("r")
                         .long("resize")
                         .help("Enable auto resize"),
                 ),
-        ).subcommand(
+        )
+        .subcommand(
             SubCommand::with_name("iter-quantiles")
                 .about("Display quantiles to stdout from serialized histogram stdin")
                 .arg(
@@ -61,13 +64,15 @@ fn main() {
                         .takes_value(true)
                         .required(true)
                         .help("Ticks per half distance"),
-                ).arg(
+                )
+                .arg(
                     Arg::with_name("quantile-precision")
                         .long("quantile-precision")
                         .takes_value(true)
                         .default_value("20"),
                 ),
-        ).get_matches();
+        )
+        .get_matches();
 
     let stdin = std::io::stdin();
     let stdin = stdin.lock();
@@ -101,7 +106,8 @@ fn main() {
             quantiles(stdin, stdout, quantile_precision, ticks_per_half)
         }
         _ => unreachable!(),
-    }.expect("Subcommand failed")
+    }
+    .expect("Subcommand failed")
 }
 
 /// Read numbers, one from each line, from stdin and output the resulting serialized histogram.
@@ -147,7 +153,8 @@ fn quantiles<R: BufRead, W: Write>(
             "TotalCount",
             "1/(1-Quantile)",
             quantile_precision = quantile_precision + 2 // + 2 from leading "0." for numbers
-        ).as_ref(),
+        )
+        .as_ref(),
     )?;
     let mut sum = 0;
     for v in hist.iter_quantiles(ticks_per_half) {
@@ -163,7 +170,8 @@ fn quantiles<R: BufRead, W: Write>(
                     v.quantile_iterated_to(),
                     sum,
                     1_f64 / (1_f64 - v.quantile_iterated_to())
-                ).as_ref(),
+                )
+                .as_ref(),
             )?;
         } else {
             writer.write_all(
@@ -176,7 +184,8 @@ fn quantiles<R: BufRead, W: Write>(
                     v.quantile_iterated_to(),
                     sum,
                     "∞"
-                ).as_ref(),
+                )
+                .as_ref(),
             )?;
         }
     }
@@ -192,7 +201,8 @@ fn quantiles<R: BufRead, W: Write>(
             format!(
                 "#[{:10} = {:12.2}, {:14} = {:12.2}]\n",
                 label1, data1, label2, data2
-            ).as_ref(),
+            )
+            .as_ref(),
         )
     }
 

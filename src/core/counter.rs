@@ -1,4 +1,4 @@
-use num;
+use num_traits as num;
 use std::fmt;
 
 /// This trait represents the operations a histogram must be able to perform on the underlying

@@ -1,8 +1,8 @@
-use super::super::num::ToPrimitive;
-use super::super::{Counter, Histogram, RestatState};
-use super::byteorder::{BigEndian, ReadBytesExt};
-use super::flate2::read::ZlibDecoder;
 use super::{V2_COMPRESSED_COOKIE, V2_COOKIE};
+use crate::{Counter, Histogram, RestatState};
+use byteorder::{BigEndian, ReadBytesExt};
+use flate2::read::ZlibDecoder;
+use num_traits::ToPrimitive;
 use std;
 use std::io::{self, Cursor, ErrorKind, Read};
 use std::marker::PhantomData;

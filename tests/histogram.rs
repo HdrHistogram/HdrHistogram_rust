@@ -1,8 +1,5 @@
 //! Tests from HistogramTest.java
 
-extern crate hdrhistogram;
-extern crate rand;
-
 use rand::{FromEntropy, Rng};
 
 use hdrhistogram::{Counter, Histogram, SubtractionError};

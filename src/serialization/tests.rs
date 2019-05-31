@@ -1,11 +1,3 @@
-extern crate rand;
-
-use self::rand::distributions::uniform::{SampleUniform, Uniform};
-use self::rand::distributions::Distribution;
-use self::rand::{FromEntropy, Rng};
-use super::super::tests::helpers::histo64;
-use super::super::{Counter, Histogram};
-use super::byteorder::{BigEndian, ReadBytesExt};
 use super::deserializer::{varint_read, varint_read_slice, zig_zag_decode, Deserializer};
 use super::v2_serializer::{
     counts_array_max_encoded_size, encode_counts, varint_write, zig_zag_encode,
@@ -13,7 +5,13 @@ use super::v2_serializer::{
 use super::{
     Serializer, V2DeflateSerializer, V2SerializeError, V2Serializer, V2_COOKIE, V2_HEADER_SIZE,
 };
-use num::ToPrimitive;
+use crate::tests::helpers::histo64;
+use crate::{Counter, Histogram};
+use byteorder::{BigEndian, ReadBytesExt};
+use num_traits::ToPrimitive;
+use rand::distributions::uniform::{SampleUniform, Uniform};
+use rand::distributions::Distribution;
+use rand::{FromEntropy, Rng};
 use std::fmt::{Debug, Display};
 use std::io::Cursor;
 use std::iter::once;

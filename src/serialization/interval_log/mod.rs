@@ -211,8 +211,6 @@
 //! assert_eq!("#Comments are great\n", &str::from_utf8(&buf).unwrap()[0..20]);
 //! ```
 
-extern crate base64;
-
 use std::fmt::Write;
 use std::{fmt, io, ops, str, time};
 

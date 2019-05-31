@@ -1,6 +1,6 @@
-use core::counter::Counter;
-use iterators::{HistogramIterator, PickMetadata, PickyIterator};
-use Histogram;
+use crate::core::counter::Counter;
+use crate::iterators::{HistogramIterator, PickMetadata, PickyIterator};
+use crate::Histogram;
 
 /// An iterator that will yield at fixed-size steps through the histogram's value range.
 pub struct Iter<'a, T: 'a + Counter> {
