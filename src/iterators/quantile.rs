@@ -34,7 +34,7 @@ impl<'a, T: 'a + Counter> Iter<'a, T> {
 }
 
 impl<'a, T: 'a + Counter> PickyIterator<T> for Iter<'a, T> {
-    #[cfg_attr(feature = "cargo-clippy", allow(float_cmp))]
+    #[allow(clippy::float_cmp)]
     fn pick(&mut self, _: usize, running_total: u64, count_at_index: T) -> Option<PickMetadata> {
         if count_at_index == T::zero() {
             return None;

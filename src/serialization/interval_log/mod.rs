@@ -230,6 +230,12 @@ pub struct IntervalLogWriterBuilder {
     max_value_divisor: f64,
 }
 
+impl Default for IntervalLogWriterBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IntervalLogWriterBuilder {
     /// Create a new log writer that writes to `writer` and serializes histograms with `serializer`.
     pub fn new() -> IntervalLogWriterBuilder {
@@ -284,6 +290,7 @@ impl IntervalLogWriterBuilder {
     }
 
     /// Build a LogWriter and apply any configured headers.
+    #[allow(clippy::float_cmp)]
     pub fn begin_log_with<'a, 'b, W: 'a + io::Write, S: 'b + Serializer>(
         &self,
         writer: &'a mut W,
@@ -415,7 +422,7 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> InternalLogWriter<'a, 'b, W,
 
     fn write_comment(&mut self, s: &str) -> io::Result<()> {
         for l in s.split('\n') {
-            write!(self.writer, "#{}\n", l)?;
+            writeln!(self.writer, "#{}", l)?;
         }
 
         Ok(())
@@ -448,7 +455,7 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> InternalLogWriter<'a, 'b, W,
         let _len = self
             .serializer
             .serialize(h, &mut self.serialize_buf)
-            .map_err(|e| IntervalLogWriterError::SerializeError(e))?;
+            .map_err(IntervalLogWriterError::SerializeError)?;
         base64::encode_config_buf(&self.serialize_buf, base64::STANDARD, &mut self.text_buf);
 
         self.writer.write_all(self.text_buf.as_bytes())?;
@@ -655,7 +662,7 @@ impl<'a> Iterator for IntervalLogIterator<'a> {
 }
 
 fn duration_as_fp_seconds(d: time::Duration) -> f64 {
-    d.as_secs() as f64 + d.subsec_nanos() as f64 / 1_000_000_000_f64
+    d.as_secs() as f64 + f64::from(d.subsec_nanos()) / 1_000_000_000_f64
 }
 
 fn system_time_as_fp_seconds(time: time::SystemTime) -> f64 {
@@ -746,9 +753,9 @@ fn fract_sec_duration(input: &[u8]) -> IResult<&[u8], time::Duration> {
 
             // nanos were invalid utf8. We don't expose these errors, so don't bother defining a
             // custom error type.
-            return Err(Err::Error(error_position!(input, ErrorKind::Custom(0))));
+            Err(Err::Error(error_position!(input, ErrorKind::Custom(0))))
         }
-        Err(e) => return Err(e),
+        Err(e) => Err(e),
     }
 }
 
