@@ -26,8 +26,8 @@ jobs:
     - stage: test
       rust: stable
       os: osx
-    - rust: stable
-      os: windows
+    # Windows is not tested for now b/c of gmp-mpfr-sys:
+    # https://docs.rs/gmp-mpfr-sys/1.1.13/gmp_mpfr_sys/#building-on-windows
     - stage: lint # we lint on beta to future-proof
       name: "Rust: beta, rustfmt"
       rust: beta
