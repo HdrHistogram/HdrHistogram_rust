@@ -10,5 +10,6 @@ pub fn histo64(
         lowest_discernible_value,
         highest_trackable_value,
         num_significant_digits,
-    ).unwrap()
+    )
+    .unwrap()
 }
