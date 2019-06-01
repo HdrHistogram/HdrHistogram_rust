@@ -21,7 +21,7 @@ jobs:
     - rust: nightly
   include:
     - stage: check # do a pre-screen to make sure this is even worth testing
-      script: cargo check --all-targets
+      script: cargo check
       rust: stable
     - stage: test
       rust: stable
