@@ -16,10 +16,10 @@ Add this to your `Cargo.toml`:
 hdrhistogram = "6.0"
 ```
 
-and this to your crate root:
+and then just import the main `Histogram` type use:
 
 ```rust
-extern crate hdrhistogram;
+use hdrhistogram::Histogram;
 ```
 
 ## License

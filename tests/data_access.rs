@@ -1,9 +1,5 @@
 //! Tests from HistogramDataAccessTest.java
 
-extern crate hdrhistogram;
-extern crate ieee754;
-extern crate rug;
-
 use hdrhistogram::Histogram;
 
 macro_rules! assert_near {
