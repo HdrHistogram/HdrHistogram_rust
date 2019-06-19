@@ -16,13 +16,13 @@ use std::time;
 /// available to the [`SyncHistogram`] once the phase shift completes.
 ///
 /// An idle `Recorder` will hold up a phase shift indefinitely, or until it times out (is using
-/// [`SyncHistogram::phase_timeout`]. If a `Recorder` will remain idle for extended periods of
+/// [`SyncHistogram::refresh_timeout`]. If a `Recorder` will remain idle for extended periods of
 /// time, it should call [`Recorder::idle`], which will tell the reader not to wait for this
 /// particular writer.
 ///
-/// If a `Recorder` is dropped, any samples not seen by the latest call to [`SyncHistogram::phase`]
-/// are lost. If you wish to ensure that _all_ samples are communicated to the reader, use
-/// [`Recorder::synchronize`].
+/// If a `Recorder` is dropped, any samples not seen by the latest call to
+/// [`SyncHistogram::refresh`] are lost. If you wish to ensure that _all_ samples are communicated
+/// to the reader, use [`Recorder::synchronize`].
 #[derive(Debug)]
 pub struct Recorder<C: Counter> {
     local: Histogram<C>,
@@ -301,7 +301,7 @@ impl<C: Counter> Recorder<C> {
 ///
 /// Each writer thread should have a [`Recorder`], which allows it to record new samples without
 /// synchronization. New recorded samples are made available through this histogram by calling
-/// [`phase`], which blocks until it has synchronized with every recorder.
+/// [`SyncHistogram::refresh`], which blocks until it has synchronized with every recorder.
 pub struct SyncHistogram<C: Counter> {
     /// Will be None during a phase shift.
     merged: Option<Histogram<C>>,
@@ -309,7 +309,7 @@ pub struct SyncHistogram<C: Counter> {
 }
 
 impl<C: Counter> SyncHistogram<C> {
-    fn phase_inner(&mut self, timeout: Option<time::Duration>) {
+    fn refresh_inner(&mut self, timeout: Option<time::Duration>) {
         let end = timeout.map(|dur| time::Instant::now() + dur);
 
         // time to start a phase change
@@ -357,20 +357,20 @@ impl<C: Counter> SyncHistogram<C> {
 
     /// Block until writes from all [`Recorder`] instances for this histogram have been
     /// incorporated.
-    pub fn phase(&mut self) {
-        self.phase_inner(None)
+    pub fn refresh(&mut self) {
+        self.refresh_inner(None)
     }
 
     /// Block until writes from all [`Recorder`] instances for this histogram have been
     /// incorporated, or until the given amount of time has passed.
-    pub fn phase_timeout(&mut self, timeout: time::Duration) {
-        self.phase_inner(Some(timeout))
+    pub fn refresh_timeout(&mut self, timeout: time::Duration) {
+        self.refresh_inner(Some(timeout))
     }
 
     /// Obtain another multi-threaded writer for this histogram.
     ///
     /// Note that writes made to the `Recorder` will not be visible until the next call to
-    /// [`phase`].
+    /// [`SyncHistogram::refresh`].
     pub fn recorder(&self) -> Recorder<C> {
         // we will have to wait for one more recorder
         {

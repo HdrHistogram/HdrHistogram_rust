@@ -28,7 +28,7 @@ fn recorder_drop() {
     let jh = thread::spawn(move || {
         r += TEST_VALUE_LEVEL;
     });
-    h.phase();
+    h.refresh();
     assert_eq!(h.count_at(TEST_VALUE_LEVEL), 1);
     assert_eq!(h.len(), 1);
     jh.join().unwrap();
@@ -46,7 +46,7 @@ fn record_nodrop() {
         r += TEST_VALUE_LEVEL;
         b.wait();
     });
-    h.phase();
+    h.refresh();
     assert_eq!(h.count_at(TEST_VALUE_LEVEL), 1);
     assert_eq!(h.len(), 1);
     barrier.wait();
@@ -61,7 +61,7 @@ fn phase_timeout() {
     h.record(TEST_VALUE_LEVEL).unwrap();
     let mut r = h.recorder();
     r += TEST_VALUE_LEVEL;
-    h.phase_timeout(time::Duration::from_millis(100));
+    h.refresh_timeout(time::Duration::from_millis(100));
 
     // second TEST_VALUE_LEVEL should not be visible
     // since no record happened after phase()
@@ -93,12 +93,12 @@ fn recorder_synchronize() {
         r.synchronize();
         n + 1
     });
-    h.phase(); // this should be unblocked by one of the writes
+    h.refresh(); // this should be unblocked by one of the writes
     barrier.wait();
     barrier.wait();
-    h.phase(); // this will be unblocked by, and will unblock, the synchronize
+    h.refresh(); // this will be unblocked by, and will unblock, the synchronize
     let n = jh.join().unwrap();
-    h.phase(); // no recorders, so we should be fine
+    h.refresh(); // no recorders, so we should be fine
 
     assert_eq!(h.count_at(TEST_VALUE_LEVEL), n);
     assert_eq!(h.len(), n);
@@ -113,7 +113,7 @@ fn phase_no_wait_after_drop() {
     {
         let _ = h.recorder();
     }
-    h.phase(); // this shouldn't block since the recorder went away
+    h.refresh(); // this shouldn't block since the recorder went away
 
     assert_eq!(h.len(), 0);
 }
@@ -143,7 +143,7 @@ fn mt_record_static() {
         .collect();
 
     barrier.wait();
-    h.phase();
+    h.refresh();
 
     assert_eq!(h.len(), jhs.into_iter().map(|r| r.join().unwrap()).sum());
 }
@@ -180,7 +180,7 @@ fn mt_record_dynamic() {
         .collect();
 
     barrier.wait();
-    h.phase();
+    h.refresh();
 
     assert_eq!(h.len(), jhs.into_iter().map(|r| r.join().unwrap()).sum());
 }
@@ -193,7 +193,7 @@ fn concurrent_writes() {
     h.record(TEST_VALUE_LEVEL).unwrap();
     let mut r = h.recorder();
     r += TEST_VALUE_LEVEL;
-    h.phase_timeout(time::Duration::from_millis(100));
+    h.refresh_timeout(time::Duration::from_millis(100));
 
     // second TEST_VALUE_LEVEL should not be visible
     // since no record happened after phase()
