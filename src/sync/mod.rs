@@ -3,7 +3,9 @@
 use crate::errors::*;
 use crate::{Counter, Histogram};
 use std::borrow::Borrow;
+use std::ops::{AddAssign, Deref, DerefMut};
 use std::sync::{atomic, Arc, Condvar, Mutex};
+use std::time;
 
 /// A write-only handle to a [`SyncHistogram`].
 ///
@@ -13,14 +15,26 @@ use std::sync::{atomic, Arc, Condvar, Mutex};
 /// associated `Recorder` merges its results into a shared [`Histogram`] that is then made
 /// available to the [`SyncHistogram`] once the phase shift completes.
 ///
-/// An idle `Recorder` will hold up a phase shift indefinitely. If a `Recorder` will remain idle
-/// for extended periods of time, it should call [`Recorder::idle`], which will tell the reader not
-/// to wait for this particular writer.
+/// An idle `Recorder` will hold up a phase shift indefinitely, or until it times out (is using
+/// [`SyncHistogram::phase_timeout`]. If a `Recorder` will remain idle for extended periods of
+/// time, it should call [`Recorder::idle`], which will tell the reader not to wait for this
+/// particular writer.
+///
+/// If a `Recorder` is dropped, any samples not seen by the latest call to [`SyncHistogram::phase`]
+/// are lost. If you wish to ensure that _all_ samples are communicated to the reader, use
+/// [`Recorder::synchronize`].
 #[derive(Debug)]
 pub struct Recorder<C: Counter> {
     local: Histogram<C>,
     shared: Arc<Shared<C>>,
     last_phase: usize,
+}
+
+// make it more ergonomic to record samples
+impl<C: Counter> AddAssign<u64> for Recorder<C> {
+    fn add_assign(&mut self, value: u64) {
+        self.record(value).unwrap();
+    }
 }
 
 impl<C: Counter> Clone for Recorder<C> {
@@ -82,6 +96,7 @@ struct Critical<C: Counter> {
 struct Shared<C: Counter> {
     truth: Mutex<Critical<C>>,
     all_phased: Condvar,
+    phase_change: Condvar,
     phase: atomic::AtomicUsize,
 }
 
@@ -133,11 +148,10 @@ impl<C: Counter> Recorder<C> {
             {
                 let mut crit = self.shared.truth.lock().unwrap();
                 if !self.local.is_empty() {
-                    crit.merged
-                        .as_mut()
-                        .expect("no histogram to merge into during phase shift")
-                        .add(&self.local)
-                        .expect("TODO: failed to merge histogram");
+                    // it could be that the reader timed out, in which case we'll have to wait
+                    if let Some(ref mut m) = crit.merged {
+                        m.add(&self.local).expect("TODO: failed to merge histogram");
+                    }
                 }
                 crit.phased += 1;
                 if crit.phased == crit.recorders {
@@ -162,11 +176,9 @@ impl<C: Counter> Recorder<C> {
             if phase != self.last_phase {
                 // if we happen to be in a phase shift, sync our outstanding changes
                 if !self.local.is_empty() {
-                    crit.merged
-                        .as_mut()
-                        .expect("no histogram to merge into during phase shift")
-                        .add(&self.local)
-                        .expect("TODO: failed to merge histogram");
+                    if let Some(ref mut m) = crit.merged {
+                        m.add(&self.local).expect("TODO: failed to merge histogram");
+                    }
                 }
             // NOTE; we do _not_ increment .phased, since we're about to decrement .recorders
             } else if crit.phased != 0 {
@@ -191,6 +203,37 @@ impl<C: Counter> Recorder<C> {
         }
 
         IdleRecorderGuard(self)
+    }
+
+    /// This blocking call will return only once any locally-held samples have been made visible to
+    /// the reader (the associated [`SyncHistogram`]).
+    ///
+    /// You may wish to call this before a `Recorder` goes out of scope to ensure that none of its
+    /// samples are lost.
+    pub fn synchronize(&mut self) {
+        if self.local.is_empty() {
+            return;
+        }
+
+        {
+            let mut crit = self.shared.truth.lock().unwrap();
+            loop {
+                if let Some(ref mut m) = crit.merged {
+                    m.add(&self.local).expect("TODO: failed to merge histogram");
+
+                    // NOTE: we _may_ still be in a phase we've already synchronized;
+                    // we should only bump .phased if we haven't already!
+                    let phase = self.shared.phase.load(atomic::Ordering::Acquire);
+                    if phase != self.last_phase {
+                        crit.phased += 1;
+                        self.last_phase = phase;
+                    }
+                    break;
+                }
+                crit = self.shared.phase_change.wait(crit).unwrap();
+            }
+        }
+        self.local.clear();
     }
 
     /// See [`Histogram::add`].
@@ -263,9 +306,10 @@ pub struct SyncHistogram<C: Counter> {
 }
 
 impl<C: Counter> SyncHistogram<C> {
-    /// Block until writes from all [`Recorder`] instances for this histogram have been
-    /// incorporated.
-    pub fn phase(&mut self) {
+    fn phase_inner(&mut self, timeout: Option<time::Duration>) {
+        let end = timeout.map(|dur| time::Instant::now() + dur);
+
+        // time to start a phase change
         let mut truth = self.shared.truth.lock().unwrap();
 
         // provide histogram for writers to merge into
@@ -276,9 +320,26 @@ impl<C: Counter> SyncHistogram<C> {
         let _ = self.shared.phase.fetch_add(1, atomic::Ordering::AcqRel);
 
         // wait for writers to all have phased
-        // TODO: what if writers are inactive?
         while truth.phased != truth.recorders {
-            truth = self.shared.all_phased.wait(truth).unwrap();
+            if let Some(end) = end {
+                let now = time::Instant::now();
+                if now > end {
+                    truth = self.shared.truth.lock().unwrap();
+                    break;
+                }
+
+                let (t, wtr) = self
+                    .shared
+                    .all_phased
+                    .wait_timeout(truth, end - now)
+                    .unwrap();
+                truth = t;
+                if wtr.timed_out() {
+                    break;
+                }
+            } else {
+                truth = self.shared.all_phased.wait(truth).unwrap();
+            }
         }
 
         // take the merged histogram back out
@@ -286,6 +347,20 @@ impl<C: Counter> SyncHistogram<C> {
 
         // reset for next phase
         truth.phased = 0;
+
+        self.shared.phase_change.notify_all();
+    }
+
+    /// Block until writes from all [`Recorder`] instances for this histogram have been
+    /// incorporated.
+    pub fn phase(&mut self) {
+        self.phase_inner(None)
+    }
+
+    /// Block until writes from all [`Recorder`] instances for this histogram have been
+    /// incorporated, or until the given amount of time has passed.
+    pub fn phase_timeout(&mut self, timeout: time::Duration) {
+        self.phase_inner(Some(timeout))
     }
 
     /// Obtain another multi-threaded writer for this histogram.
@@ -327,13 +402,13 @@ impl<C: Counter> From<Histogram<C>> for SyncHistogram<C> {
                     phased: 0,
                 }),
                 all_phased: Condvar::new(),
+                phase_change: Condvar::new(),
                 phase: atomic::AtomicUsize::new(0),
             }),
         }
     }
 }
 
-use std::ops::{Deref, DerefMut};
 impl<C: Counter> Deref for SyncHistogram<C> {
     type Target = Histogram<C>;
     fn deref(&self) -> &Self::Target {
