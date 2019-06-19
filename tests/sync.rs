@@ -119,6 +119,73 @@ fn phase_no_wait_after_drop() {
 }
 
 #[test]
+fn mt_record_static() {
+    let mut h: SyncHistogram<_> = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG)
+        .unwrap()
+        .into();
+
+    let n = 16;
+    let barrier = Arc::new(std::sync::Barrier::new(n + 1));
+    let jhs: Vec<_> = (0..n)
+        .map(|_| {
+            let mut r = h.recorder();
+            let barrier = Arc::clone(&barrier);
+            thread::spawn(move || {
+                let n = 100_000;
+                for _ in 0..n {
+                    r += TEST_VALUE_LEVEL;
+                }
+                barrier.wait();
+                r.synchronize();
+                n
+            })
+        })
+        .collect();
+
+    barrier.wait();
+    h.phase();
+
+    assert_eq!(h.len(), jhs.into_iter().map(|r| r.join().unwrap()).sum());
+}
+
+#[test]
+fn mt_record_dynamic() {
+    let mut h: SyncHistogram<_> = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG)
+        .unwrap()
+        .into();
+
+    let n = 16;
+    let barrier = Arc::new(std::sync::Barrier::new(n + 1));
+    let jhs: Vec<_> = (0..n)
+        .map(|_| {
+            let mut r = h.recorder();
+            let barrier = Arc::clone(&barrier);
+            thread::spawn(move || {
+                let n = 300_000;
+                for _ in 0..n {
+                    if n % 317 == 0 {
+                        let r2 = r.clone();
+                        let mut r2 = std::mem::replace(&mut r, r2);
+                        thread::spawn(move || {
+                            r2.synchronize();
+                        });
+                    }
+                    r += TEST_VALUE_LEVEL;
+                }
+                barrier.wait();
+                r.synchronize();
+                n as u64
+            })
+        })
+        .collect();
+
+    barrier.wait();
+    h.phase();
+
+    assert_eq!(h.len(), jhs.into_iter().map(|r| r.join().unwrap()).sum());
+}
+
+#[test]
 fn concurrent_writes() {
     let mut h: SyncHistogram<_> = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG)
         .unwrap()
