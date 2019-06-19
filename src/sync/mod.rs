@@ -227,6 +227,9 @@ impl<C: Counter> Recorder<C> {
                     if phase != self.last_phase {
                         crit.phased += 1;
                         self.last_phase = phase;
+                        if crit.phased == crit.recorders {
+                            self.shared.all_phased.notify_one();
+                        }
                     }
                     break;
                 }
@@ -338,6 +341,7 @@ impl<C: Counter> SyncHistogram<C> {
                     break;
                 }
             } else {
+                self.shared.phase_change.notify_all();
                 truth = self.shared.all_phased.wait(truth).unwrap();
             }
         }
