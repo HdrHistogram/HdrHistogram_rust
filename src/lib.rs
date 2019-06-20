@@ -1845,4 +1845,5 @@ pub mod errors;
 pub mod serialization;
 pub use self::core::counter::*;
 pub use errors::*;
+#[cfg(feature = "sync")]
 pub mod sync;

@@ -27,7 +27,8 @@ maintenance = { status = "passively-maintained" }
 [features]
 bench_private = [] # for enabling nightly-only feature(test) on the main crate to allow benchmarking private code
 serialization = [ "flate2", "nom", "base64" ]
-default = [ "serialization" ]
+sync = []
+default = [ "serialization", "sync" ]
 
 [dependencies]
 num-traits = "0.2"
