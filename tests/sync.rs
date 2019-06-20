@@ -149,6 +149,25 @@ fn mt_record_static() {
 }
 
 #[test]
+fn no_block_empty_sync() {
+    let h: SyncHistogram<_> = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG)
+        .unwrap()
+        .into();
+
+    h.recorder().synchronize();
+}
+
+#[test]
+fn refresh_times_out() {
+    let mut h: SyncHistogram<_> = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG)
+        .unwrap()
+        .into();
+
+    let _r = h.recorder();
+    h.refresh_timeout(time::Duration::from_millis(100));
+}
+
+#[test]
 fn mt_record_dynamic() {
     let mut h: SyncHistogram<_> = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG)
         .unwrap()
@@ -161,9 +180,9 @@ fn mt_record_dynamic() {
             let mut r = h.recorder();
             let barrier = Arc::clone(&barrier);
             thread::spawn(move || {
-                let n = 300_000;
-                for _ in 0..n {
-                    if n % 317 == 0 {
+                let n = 30_000;
+                for i in 0..n {
+                    if i % 1_000 == 0 {
                         let r2 = r.clone();
                         let mut r2 = std::mem::replace(&mut r, r2);
                         thread::spawn(move || {
@@ -186,6 +205,32 @@ fn mt_record_dynamic() {
 }
 
 #[test]
+fn idle_recorder() {
+    let mut h: SyncHistogram<_> = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG)
+        .unwrap()
+        .into();
+
+    let barrier = Arc::new(std::sync::Barrier::new(2));
+    let mut r = h.recorder();
+    let i = r.idle();
+    h.refresh(); // this should not block
+    h.refresh(); // nor should this
+    drop(i);
+    let b = Arc::clone(&barrier);
+    let jh = thread::spawn(move || {
+        r += TEST_VALUE_LEVEL;
+        b.wait();
+        r.synchronize();
+    });
+    barrier.wait();
+    h.refresh(); // this will block!
+
+    assert_eq!(h.count_at(TEST_VALUE_LEVEL), 1);
+    assert_eq!(h.len(), 1);
+    jh.join().unwrap();
+}
+
+#[test]
 fn mt_record_dynamic_nosync() {
     let mut h: SyncHistogram<_> = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG)
         .unwrap()
@@ -198,9 +243,9 @@ fn mt_record_dynamic_nosync() {
             let mut r = h.recorder();
             let barrier = Arc::clone(&barrier);
             thread::spawn(move || {
-                let n = 300_000;
-                for _ in 0..n {
-                    if n % 317 == 0 {
+                let n = 30_000;
+                for i in 0..n {
+                    if i % 1_000 == 0 {
                         r = r.clone();
                     }
                     r += TEST_VALUE_LEVEL;
