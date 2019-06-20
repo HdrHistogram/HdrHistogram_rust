@@ -186,6 +186,38 @@ fn mt_record_dynamic() {
 }
 
 #[test]
+fn mt_record_dynamic_nosync() {
+    let mut h: SyncHistogram<_> = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG)
+        .unwrap()
+        .into();
+
+    let n = 16;
+    let barrier = Arc::new(std::sync::Barrier::new(n + 1));
+    let jhs: Vec<_> = (0..n)
+        .map(|_| {
+            let mut r = h.recorder();
+            let barrier = Arc::clone(&barrier);
+            thread::spawn(move || {
+                let n = 300_000;
+                for _ in 0..n {
+                    if n % 317 == 0 {
+                        r = r.clone();
+                    }
+                    r += TEST_VALUE_LEVEL;
+                }
+                barrier.wait();
+                n as u64
+            })
+        })
+        .collect();
+
+    barrier.wait();
+    h.refresh();
+
+    assert_eq!(h.len(), jhs.into_iter().map(|r| r.join().unwrap()).sum());
+}
+
+#[test]
 fn concurrent_writes() {
     let mut h: SyncHistogram<_> = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG)
         .unwrap()

@@ -20,9 +20,9 @@ use std::time;
 /// time, it should call [`Recorder::idle`], which will tell the reader not to wait for this
 /// particular writer.
 ///
-/// If a `Recorder` is dropped, any samples not seen by the latest call to
-/// [`SyncHistogram::refresh`] are lost. If you wish to ensure that _all_ samples are communicated
-/// to the reader, use [`Recorder::synchronize`].
+/// When a `Recorder` is dropped, all samples are made visible to the next
+/// [`SyncHistogram::refresh`]. If you wish to ensure that all currently recorded samples are
+/// communicated to the reader at a particular point in time, use [`Recorder::synchronize`].
 #[derive(Debug)]
 pub struct Recorder<C: Counter> {
     local: Histogram<C>,
@@ -76,6 +76,12 @@ impl<C: Counter> Drop for Recorder<C> {
                 }
             }
 
+            if let Some(ref mut m) = truth.merged {
+                m.add(&self.local).expect("TODO: failed to merge histogram");
+            } else {
+                truth.dropped.push(self.local.clone());
+            }
+
             // by decrementing, we _may_ also finish the phase
             if truth.recorders == truth.phased {
                 self.shared.all_phased.notify_one();
@@ -88,6 +94,7 @@ impl<C: Counter> Drop for Recorder<C> {
 struct Critical<C: Counter> {
     /// Will be Some whenever the Histogram is in the process of being phased.
     merged: Option<Histogram<C>>,
+    dropped: Vec<Histogram<C>>,
     recorders: usize,
     phased: usize,
 }
@@ -348,6 +355,18 @@ impl<C: Counter> SyncHistogram<C> {
 
         // take the merged histogram back out
         self.merged = truth.merged.take();
+        assert!(self.merged.is_some());
+
+        // also absorb samples from any dropped recorders
+        if !truth.dropped.is_empty() {
+            for h in std::mem::replace(&mut truth.dropped, Vec::new()) {
+                self.merged
+                    .as_mut()
+                    .unwrap()
+                    .add(h)
+                    .expect("TODO: failed to merge histogram")
+            }
+        }
 
         // reset for next phase
         truth.phased = 0;
@@ -402,6 +421,7 @@ impl<C: Counter> From<Histogram<C>> for SyncHistogram<C> {
             shared: Arc::new(Shared {
                 truth: Mutex::new(Critical {
                     merged: None,
+                    dropped: Vec::new(),
                     recorders: 0,
                     phased: 0,
                 }),
