@@ -70,7 +70,7 @@ mod sync {
     }
 
     #[test]
-    fn recorder_synchronize() {
+    fn recorder_drop_staged() {
         let mut h: SyncHistogram<_> = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG)
             .unwrap()
             .into();
@@ -85,18 +85,18 @@ mod sync {
             }
             // one of the writes above will unblock the reader's first phase
             // the 1st barrier below ensures that the reader's second phase isn't passed by a write too
-            // the 2nd barrier below ensures that there is at least one write to synchronize,
+            // the 2nd barrier below ensures that there is at least one write to send on drop,
             // and that that write doesn't wake up the 2nd phase
             b.wait();
             r += TEST_VALUE_LEVEL;
             b.wait();
-            r.synchronize();
+            drop(r);
             n + 1
         });
         h.refresh(); // this should be unblocked by one of the writes
         barrier.wait();
         barrier.wait();
-        h.refresh(); // this will be unblocked by, and will unblock, the synchronize
+        h.refresh(); // this will be unblocked by the recorder drop
         let n = jh.join().unwrap();
         h.refresh(); // no recorders, so we should be fine
 
@@ -136,7 +136,6 @@ mod sync {
                         r += TEST_VALUE_LEVEL;
                     }
                     barrier.wait();
-                    r.synchronize();
                     n
                 })
             })
@@ -146,15 +145,6 @@ mod sync {
         h.refresh();
 
         assert_eq!(h.len(), jhs.into_iter().map(|r| r.join().unwrap()).sum());
-    }
-
-    #[test]
-    fn no_block_empty_sync() {
-        let h: SyncHistogram<_> = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG)
-            .unwrap()
-            .into();
-
-        h.recorder().synchronize();
     }
 
     #[test]
@@ -183,16 +173,11 @@ mod sync {
                     let n = 30_000;
                     for i in 0..n {
                         if i % 1_000 == 0 {
-                            let r2 = r.clone();
-                            let mut r2 = std::mem::replace(&mut r, r2);
-                            thread::spawn(move || {
-                                r2.synchronize();
-                            });
+                            r = r.clone();
                         }
                         r += TEST_VALUE_LEVEL;
                     }
                     barrier.wait();
-                    r.synchronize();
                     n as u64
                 })
             })
@@ -220,7 +205,6 @@ mod sync {
         let jh = thread::spawn(move || {
             r += TEST_VALUE_LEVEL;
             b.wait();
-            r.synchronize();
         });
         barrier.wait();
         h.refresh(); // this will block!
@@ -228,38 +212,6 @@ mod sync {
         assert_eq!(h.count_at(TEST_VALUE_LEVEL), 1);
         assert_eq!(h.len(), 1);
         jh.join().unwrap();
-    }
-
-    #[test]
-    fn mt_record_dynamic_nosync() {
-        let mut h: SyncHistogram<_> = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG)
-            .unwrap()
-            .into();
-
-        let n = 16;
-        let barrier = Arc::new(std::sync::Barrier::new(n + 1));
-        let jhs: Vec<_> = (0..n)
-            .map(|_| {
-                let mut r = h.recorder();
-                let barrier = Arc::clone(&barrier);
-                thread::spawn(move || {
-                    let n = 30_000;
-                    for i in 0..n {
-                        if i % 1_000 == 0 {
-                            r = r.clone();
-                        }
-                        r += TEST_VALUE_LEVEL;
-                    }
-                    barrier.wait();
-                    n as u64
-                })
-            })
-            .collect();
-
-        barrier.wait();
-        h.refresh();
-
-        assert_eq!(h.len(), jhs.into_iter().map(|r| r.join().unwrap()).sum());
     }
 
     #[test]
