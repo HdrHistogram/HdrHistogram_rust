@@ -13,7 +13,9 @@ use std::time;
 /// concurrently. Writes to a `Recorder` are wait-free and scalable except for when the
 /// [`SyncHistogram`] initiates a _phase shift_. During a phase shift, the next write on each
 /// associated `Recorder` merges its results into a shared [`Histogram`] that is then made
-/// available to the [`SyncHistogram`] once the phase shift completes.
+/// available to the [`SyncHistogram`] once the phase shift completes. Phase shifts should also be
+/// relatively cheap for writers, as they mainly need to perform a channel send on an unbounded,
+/// lock-free channel.
 ///
 /// An idle `Recorder` will hold up a phase shift indefinitely, or until it times out (is using
 /// [`SyncHistogram::refresh_timeout`]. If a `Recorder` will remain idle for extended periods of
@@ -21,8 +23,7 @@ use std::time;
 /// particular writer.
 ///
 /// When a `Recorder` is dropped, all samples are made visible to the next
-/// [`SyncHistogram::refresh`]. If you wish to ensure that all currently recorded samples are
-/// communicated to the reader at a particular point in time, use [`Recorder::synchronize`].
+/// [`SyncHistogram::refresh`].
 #[derive(Debug)]
 pub struct Recorder<C: Counter> {
     local: Histogram<C>,
