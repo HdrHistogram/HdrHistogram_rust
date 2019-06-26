@@ -3,6 +3,8 @@
 use crate::errors::*;
 use crate::{Counter, Histogram};
 use std::borrow::Borrow;
+use std::borrow::BorrowMut;
+use std::marker::PhantomData;
 use std::ops::{AddAssign, Deref, DerefMut};
 use std::sync::{atomic, Arc, Mutex};
 use std::time;
@@ -88,15 +90,36 @@ struct Shared<C: Counter> {
     phase: atomic::AtomicUsize,
 }
 
+/// See [`IdleRecorder`]. This guard borrows the idle [`Recorder`].
+pub type IdleRecorderGuard<'a, C> = IdleRecorder<&'a mut Recorder<C>, C>;
+
 /// This guard denotes that a [`Recorder`] is currently idle, and should not be waited on by a
 /// [`SyncHistogram`] phase-shift.
-pub struct IdleRecorderGuard<'a, C: Counter>(&'a mut Recorder<C>);
+pub struct IdleRecorder<T, C: Counter>
+where
+    T: BorrowMut<Recorder<C>>,
+{
+    recorder: Option<T>,
+    c: PhantomData<C>,
+}
 
-impl<'a, C: Counter> Drop for IdleRecorderGuard<'a, C> {
-    fn drop(&mut self) {
+impl<T, C: Counter> IdleRecorder<T, C>
+where
+    T: BorrowMut<Recorder<C>>,
+{
+    fn reactivate(&mut self) {
+        let recorder = if let Some(ref mut r) = self.recorder {
+            r
+        } else {
+            // already reactivated
+            return;
+        };
+
+        let recorder = recorder.borrow_mut();
+
         // the Recorder is no longer idle, so the reader has to wait for us again
         // this basically means re-incrementing .recorders
-        let mut crit = self.0.shared.truth.lock().unwrap();
+        let mut crit = recorder.shared.truth.lock().unwrap();
         crit.recorders += 1;
 
         // we need to figure out what phase we're joining
@@ -107,10 +130,32 @@ impl<'a, C: Counter> Drop for IdleRecorderGuard<'a, C> {
         // to send), and bump the phase, all before we read it, which would lead us to believe that
         // we were already synchronized when in reality we were not, which would stall the reader
         // even if we issued more writes.
-        self.0.last_phase = self.0.shared.phase.load(atomic::Ordering::Acquire);
+        recorder.last_phase = recorder.shared.phase.load(atomic::Ordering::Acquire);
 
         // explicitly drop guard to ensure we don't accidentally drop it above
         drop(crit);
+    }
+}
+
+impl<C: Counter> IdleRecorder<Recorder<C>, C> {
+    /// Mark the wrapped [`Recorder`] as active again and return it.
+    pub fn activate(mut self) -> Recorder<C> {
+        self.reactivate();
+        self.recorder.take().unwrap()
+    }
+
+    /// Clone the wrapped [`Recorder`].
+    pub fn recorder(&self) -> Recorder<C> {
+        self.recorder.as_ref().unwrap().clone()
+    }
+}
+
+impl<T, C: Counter> Drop for IdleRecorder<T, C>
+where
+    T: BorrowMut<Recorder<C>>,
+{
+    fn drop(&mut self) {
+        self.reactivate()
     }
 }
 
@@ -139,11 +184,7 @@ impl<C: Counter> Recorder<C> {
         let _ = self.shared.sender.send(h).is_ok(); // if this is err, the reader went away
     }
 
-    /// Call this method if the Recorder will be idle for a while.
-    ///
-    /// Until the returned guard is dropped, the associated [`SyncHistogram`] will not wait for
-    /// this recorder on a phase shift.
-    pub fn idle(&mut self) -> IdleRecorderGuard<C> {
+    fn deactivate(&mut self) {
         let phase;
         {
             // we're leaving rotation, so we need to decrement .recorders
@@ -160,8 +201,31 @@ impl<C: Counter> Recorder<C> {
             }
         }
         self.last_phase = phase;
+    }
 
-        IdleRecorderGuard(self)
+    /// Call this method if the Recorder will be idle for a while.
+    ///
+    /// Until the returned guard is dropped, the associated [`SyncHistogram`] will not wait for
+    /// this recorder on a phase shift.
+    pub fn idle(&mut self) -> IdleRecorderGuard<C> {
+        self.deactivate();
+        IdleRecorder {
+            recorder: Some(self),
+            c: PhantomData,
+        }
+    }
+
+    /// Mark this `Recorder` as inactive.
+    ///
+    /// Until the returned guard is consumed, either by calling [`IdleRecorder::activate`] or by
+    /// dropping it, the associated [`SyncHistogram`] will not wait for this recorder on a phase
+    /// shift.
+    pub fn into_idle(mut self) -> IdleRecorder<Self, C> {
+        self.deactivate();
+        IdleRecorder {
+            recorder: Some(self),
+            c: PhantomData,
+        }
     }
 
     /// See [`Histogram::add`].
