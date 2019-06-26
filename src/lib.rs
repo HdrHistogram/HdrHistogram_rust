@@ -1467,6 +1467,12 @@ impl<T: Counter> Histogram<T> {
         1_u64 << (self.unit_magnitude + bucket_index)
     }
 
+    /// Turn this histogram into a [`SyncHistogram`].
+    #[cfg(feature = "sync")]
+    pub fn into_sync(self) -> SyncHistogram<T> {
+        SyncHistogram::from(self)
+    }
+
     // ********************************************************************************************
     // Internal helpers
     // ********************************************************************************************
@@ -1847,3 +1853,5 @@ pub use self::core::counter::*;
 pub use errors::*;
 #[cfg(feature = "sync")]
 pub mod sync;
+#[cfg(feature = "sync")]
+pub use sync::SyncHistogram;
