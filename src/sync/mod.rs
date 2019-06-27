@@ -95,6 +95,7 @@ pub type IdleRecorderGuard<'a, C> = IdleRecorder<&'a mut Recorder<C>, C>;
 
 /// This guard denotes that a [`Recorder`] is currently idle, and should not be waited on by a
 /// [`SyncHistogram`] phase-shift.
+#[derive(Debug)]
 pub struct IdleRecorder<T, C: Counter>
 where
     T: BorrowMut<Recorder<C>>,
@@ -291,6 +292,7 @@ impl<C: Counter> Recorder<C> {
 /// Each writer thread should have a [`Recorder`], which allows it to record new samples without
 /// synchronization. New recorded samples are made available through this histogram by calling
 /// [`SyncHistogram::refresh`], which blocks until it has synchronized with every recorder.
+#[derive(Debug)]
 pub struct SyncHistogram<C: Counter> {
     merged: Histogram<C>,
     shared: Arc<Shared<C>>,
