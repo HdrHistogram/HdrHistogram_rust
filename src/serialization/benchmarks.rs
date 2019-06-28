@@ -1,6 +1,6 @@
 use self::rand::distributions::uniform::Uniform;
 use self::rand::distributions::Distribution;
-use self::rand::FromEntropy;
+use self::rand::SeedableRng;
 use self::test::Bencher;
 use super::deserializer::{varint_read, varint_read_slice};
 use super::v2_serializer::varint_write;

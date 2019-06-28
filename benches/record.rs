@@ -2,7 +2,7 @@
 
 use self::test::Bencher;
 use hdrhistogram::*;
-use rand::FromEntropy;
+use rand::SeedableRng;
 
 use self::rand_varint::*;
 

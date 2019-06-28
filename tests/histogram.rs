@@ -1,6 +1,6 @@
 //! Tests from HistogramTest.java
 
-use rand::{FromEntropy, Rng};
+use rand::{Rng, SeedableRng};
 
 use hdrhistogram::{Counter, Histogram, SubtractionError};
 use std::borrow::Borrow;

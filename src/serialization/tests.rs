@@ -11,7 +11,7 @@ use byteorder::{BigEndian, ReadBytesExt};
 use num_traits::ToPrimitive;
 use rand::distributions::uniform::{SampleUniform, Uniform};
 use rand::distributions::Distribution;
-use rand::{FromEntropy, Rng};
+use rand::{Rng, SeedableRng};
 use std::fmt::{Debug, Display};
 use std::io::Cursor;
 use std::iter::once;

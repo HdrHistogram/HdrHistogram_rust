@@ -1,9 +1,9 @@
 #![feature(test)]
 
-use self::rand::FromEntropy;
 use self::test::Bencher;
 use hdrhistogram::serialization::*;
 use hdrhistogram::*;
+use rand::SeedableRng;
 use std::io::Cursor;
 
 use self::rand_varint::*;

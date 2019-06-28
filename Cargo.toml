@@ -1,6 +1,6 @@
 [package]
 name = "hdrhistogram"
-version = "6.3.3"
+version = "6.3.4"
 edition = "2018"
 
 description = "A port of HdrHistogram to Rust"
@@ -39,7 +39,7 @@ base64 = { version = "0.10", optional = true }
 crossbeam-channel = { version = "0.3", optional = true }
 
 [dev-dependencies]
-rand = "0.6"
+rand = { version = "0.7", features = ["small_rng"] }
 rug = "1.2"
 ieee754 = "0.2.2"
 clap = "2.26.2"

@@ -5,7 +5,7 @@ use std::time;
 use hdrhistogram::serialization;
 use hdrhistogram::serialization::interval_log;
 use hdrhistogram::*;
-use rand::FromEntropy;
+use rand::SeedableRng;
 use test::Bencher;
 
 use self::rand_varint::*;
