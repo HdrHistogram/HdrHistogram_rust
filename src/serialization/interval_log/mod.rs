@@ -683,81 +683,75 @@ fn system_time_as_fp_seconds(time: time::SystemTime) -> f64 {
     }
 }
 
-fn start_time(input: &[u8]) -> IResult<&[u8], LogEntry, (&[u8], nom::error::ErrorKind)> {
-    map(
-        tuple((
-            tag("#[StartTime: "),
-            fract_sec_duration,
-            char(' '),
-            take_until("\n"),
-            take(1_usize),
-        )),
-        |x| LogEntry::StartTime(x.1),
-    )(input)
+fn start_time(input: &[u8]) -> IResult<&[u8], LogEntry, (&[u8], ErrorKind)> {
+    let (input, _) = tag("#[StartTime: ")(input)?;
+    let (input, duration) = fract_sec_duration(input)?;
+    let (input, _) = char(' ')(input)?;
+    let (input, _) = take_until("\n")(input)?;
+    let (input, _) = take(1_usize)(input)?;
+    Ok((input, LogEntry::StartTime(duration)))
 }
 
-fn base_time(input: &[u8]) -> IResult<&[u8], LogEntry, (&[u8], nom::error::ErrorKind)> {
-    map(
-        tuple((
-            tag("#[BaseTime: "),
-            fract_sec_duration,
-            char(' '),
-            take_until("\n"),
-            take(1_usize),
-        )),
-        |x| LogEntry::BaseTime(x.1),
-    )(input)
+fn base_time(input: &[u8]) -> IResult<&[u8], LogEntry, (&[u8], ErrorKind)> {
+    let (input, _) = tag("#[BaseTime: ")(input)?;
+    let (input, duration) = fract_sec_duration(input)?;
+    let (input, _) = char(' ')(input)?;
+    let (input, _) = take_until("\n")(input)?;
+    let (input, _) = take(1_usize)(input)?;
+    Ok((input, LogEntry::BaseTime(duration)))
 }
 
-fn interval_hist(input: &[u8]) -> IResult<&[u8], LogEntry, (&[u8], nom::error::ErrorKind)> {
-    map(
-        tuple((
-            opt(map(
-                map_res(
-                    map(tuple((tag("Tag="), take_until(","), take(1_usize))), |p| {
-                        p.1
-                    }),
-                    str::from_utf8,
-                ),
-                |s| Tag(s),
-            )),
-            fract_sec_duration,
-            char(','),
-            fract_sec_duration,
-            char(','),
-            double,
-            char(','),
-            map_res(take_until("\n"), str::from_utf8),
-            take(1_usize),
-        )),
-        |(tag, start_timestamp, _, duration, _, max, _, encoded_histogram, _)| {
-            LogEntry::Interval(IntervalLogHistogram {
-                tag,
-                start_timestamp,
-                duration,
-                max,
-                encoded_histogram,
-            })
-        },
-    )(input)
+fn interval_hist(input: &[u8]) -> IResult<&[u8], LogEntry, (&[u8], ErrorKind)> {
+    let (input, tag) = opt(map(
+        map_res(
+            map(tuple((tag("Tag="), take_until(","), take(1_usize))), |p| {
+                p.1
+            }),
+            str::from_utf8,
+        ),
+        Tag,
+    ))(input)?;
+
+    let (input, start_timestamp) = fract_sec_duration(input)?;
+    let (input, _) = char(',')(input)?;
+    let (input, duration) = fract_sec_duration(input)?;
+    let (input, _) = char(',')(input)?;
+    let (input, max) = double(input)?;
+    let (input, _) = char(',')(input)?;
+    let (input, encoded_histogram) = map_res(take_until("\n"), str::from_utf8)(input)?;
+    let (input, _) = take(1_usize)(input)?;
+
+    Ok((
+        input,
+        LogEntry::Interval(IntervalLogHistogram {
+            tag,
+            start_timestamp,
+            duration,
+            max,
+            encoded_histogram,
+        }),
+    ))
 }
 
-fn log_entry(input: &[u8]) -> IResult<&[u8], LogEntry<'_>, (&[u8], nom::error::ErrorKind)> {
+fn log_entry(input: &[u8]) -> IResult<&[u8], LogEntry<'_>, (&[u8], ErrorKind)> {
     complete(alt((start_time, base_time, interval_hist)))(input)
 }
 
-fn comment_line(input: &[u8]) -> IResult<&[u8], (), (&[u8], nom::error::ErrorKind)> {
-    map(tuple((tag("#"), take_until("\n"), take(1_usize))), |_| ())(input)
+fn comment_line(input: &[u8]) -> IResult<&[u8], (), (&[u8], ErrorKind)> {
+    let (input, _) = tag("#")(input)?;
+    let (input, _) = take_until("\n")(input)?;
+    let (input, _) = take(1_usize)(input)?;
+    Ok((input, ()))
 }
 
-fn legend(input: &[u8]) -> IResult<&[u8], (), (&[u8], nom::error::ErrorKind)> {
-    map(
-        tuple((tag("\"StartTimestamp\""), take_until("\n"), take(1_usize))),
-        |_| (),
-    )(input)
+fn legend(input: &[u8]) -> IResult<&[u8], (), (&[u8], ErrorKind)> {
+    let (input, _) = tag("\"StartTimestamp\"")(input)?;
+    let (input, _) = take_until("\n")(input)?;
+    let (input, _) = take(1_usize)(input)?;
+    Ok((input, ()))
 }
 
-fn ignored_line(input: &[u8]) -> IResult<&[u8], (), (&[u8], nom::error::ErrorKind)> {
+fn ignored_line(input: &[u8]) -> IResult<&[u8], (), (&[u8], ErrorKind)> {
     alt((comment_line, legend))(input)
 }
 
@@ -790,19 +784,16 @@ fn fract_sec_duration(input: &[u8]) -> IResult<&[u8], time::Duration> {
     }
 }
 
-fn fract_sec_tuple(input: &[u8]) -> IResult<&[u8], (u64, &str), (&[u8], nom::error::ErrorKind)> {
-    map(
-        tuple((
-            map_res(
-                map_res(recognize(take_until(".")), str::from_utf8),
-                u64::from_str,
-            ),
-            recognize(take_until(".")),
-            tag("."),
-            map_res(complete(take_while1(is_digit)), str::from_utf8),
-        )),
-        |(secs, _, _, nanos_str)| (secs, nanos_str),
-    )(input)
+type FResult<'a> = IResult<&'a [u8], (u64, &'a str), (&'a [u8], ErrorKind)>;
+
+fn fract_sec_tuple(input: &[u8]) -> FResult {
+    let (input, secs) = map_res(
+        map_res(recognize(take_until(".")), str::from_utf8),
+        u64::from_str,
+    )(input)?;
+    let (input, _) = tag(".")(input)?;
+    let (input, nanos_str) = map_res(complete(take_while1(is_digit)), str::from_utf8)(input)?;
+    Ok((input, (secs, nanos_str)))
 }
 
 #[cfg(test)]
