@@ -214,7 +214,10 @@
 use std::fmt::Write;
 use std::{fmt, io, ops, str, time};
 
-use nom::{double, is_digit, Err, ErrorKind, IResult};
+use nom::character::is_digit;
+use nom::error::ErrorKind;
+use nom::number::complete::double;
+use nom::{Err, IResult};
 
 use super::super::{Counter, Histogram};
 use super::Serializer;
@@ -679,7 +682,8 @@ named!(start_time<&[u8], LogEntry>,
         tag!("#[StartTime: ") >>
         dur: fract_sec_duration >>
         char!(' ') >>
-        take_until_and_consume!("\n") >>
+        take_until!("\n") >>
+        take!(1) >>
         (LogEntry::StartTime(dur))
 ));
 
@@ -688,7 +692,8 @@ named!(base_time<&[u8], LogEntry>,
         tag!("#[BaseTime: ") >>
         dur: fract_sec_duration >>
         char!(' ') >>
-        take_until_and_consume!("\n") >>
+        take_until!("\n") >>
+        take!(1) >>
         (LogEntry::BaseTime(dur))
 ));
 
@@ -697,7 +702,7 @@ named!(interval_hist<&[u8], LogEntry>,
         tag: opt!(
             map!(
                 map_res!(
-                    map!(pair!(tag!("Tag="), take_until_and_consume!(",")), |p| p.1),
+                    map!(tuple!(tag!("Tag="), take_until!(","), take!(1)), |p| p.1),
                     str::from_utf8),
                 |s| Tag(s))) >>
         start_timestamp: fract_sec_duration >>
@@ -706,7 +711,8 @@ named!(interval_hist<&[u8], LogEntry>,
         char!(',') >>
         max: double >>
         char!(',') >>
-        encoded_histogram: map_res!(take_until_and_consume!("\n"), str::from_utf8) >>
+        encoded_histogram: map_res!(take_until!("\n"), str::from_utf8) >>
+        take!(1) >>
         (LogEntry::Interval(IntervalLogHistogram {
             tag,
             start_timestamp,
@@ -718,14 +724,14 @@ named!(interval_hist<&[u8], LogEntry>,
 );
 
 named!(log_entry<&[u8], LogEntry>,
-    alt_complete!(start_time | base_time | interval_hist));
+    complete!(alt!(start_time | base_time | interval_hist)));
 
 named!(comment_line<&[u8], ()>,
-    do_parse!(tag!("#") >> take_until_and_consume!("\n") >> (()))
+    do_parse!(tag!("#") >> take_until!("\n") >> take!(1) >> (()))
 );
 
 named!(legend<&[u8], ()>,
-    do_parse!(tag!("\"StartTimestamp\"") >> take_until_and_consume!("\n") >> (()))
+    do_parse!(tag!("\"StartTimestamp\"") >> take_until!("\n") >> take!(1) >> (()))
 );
 
 named!(ignored_line<&[u8], ()>, alt!(comment_line | legend));
@@ -753,7 +759,7 @@ fn fract_sec_duration(input: &[u8]) -> IResult<&[u8], time::Duration> {
 
             // nanos were invalid utf8. We don't expose these errors, so don't bother defining a
             // custom error type.
-            Err(Err::Error(error_position!(input, ErrorKind::Custom(0))))
+            Err(Err::Error(error_position!(input, ErrorKind::Alpha)))
         }
         Err(e) => Err(e),
     }
@@ -762,12 +768,12 @@ fn fract_sec_duration(input: &[u8]) -> IResult<&[u8], time::Duration> {
 // alternate versions of take_while1, used until ergonomic issues with COmpleteByteSlice are resolved
 macro_rules! take_while1_complete (
   ($input:expr, $submac:ident!( $($args:tt)* )) => ({
-    use nom::ErrorKind;
+    use nom::error::ErrorKind;
     use nom::InputTakeAtPosition;
 
     let input = $input;
     match input.split_at_position1(|c| !$submac!(c, $($args)*), ErrorKind::TakeWhile1) {
-      Err(Err::Incomplete(_)) => Ok((&input[input.len()..], input)),
+      Err(nom::Err::Incomplete(_)) => Ok((&input[input.len()..], input)),
       res => res,
     }
   });
