@@ -212,11 +212,17 @@
 //! ```
 
 use std::fmt::Write;
+use std::str::FromStr;
 use std::{fmt, io, ops, str, time};
 
+use nom::branch::alt;
+use nom::bytes::complete::{tag, take, take_until, take_while1};
+use nom::character::complete::char;
 use nom::character::is_digit;
+use nom::combinator::{complete, map, map_res, opt, recognize};
 use nom::error::ErrorKind;
 use nom::number::complete::double;
+use nom::sequence::tuple;
 use nom::{Err, IResult};
 
 use super::super::{Counter, Histogram};
@@ -677,64 +683,83 @@ fn system_time_as_fp_seconds(time: time::SystemTime) -> f64 {
     }
 }
 
-named!(start_time<&[u8], LogEntry>,
-    do_parse!(
-        tag!("#[StartTime: ") >>
-        dur: fract_sec_duration >>
-        char!(' ') >>
-        take_until!("\n") >>
-        take!(1) >>
-        (LogEntry::StartTime(dur))
-));
+fn start_time(input: &[u8]) -> IResult<&[u8], LogEntry, (&[u8], nom::error::ErrorKind)> {
+    map(
+        tuple((
+            tag("#[StartTime: "),
+            fract_sec_duration,
+            char(' '),
+            take_until("\n"),
+            take(1_usize),
+        )),
+        |x| LogEntry::StartTime(x.1),
+    )(input)
+}
 
-named!(base_time<&[u8], LogEntry>,
-    do_parse!(
-        tag!("#[BaseTime: ") >>
-        dur: fract_sec_duration >>
-        char!(' ') >>
-        take_until!("\n") >>
-        take!(1) >>
-        (LogEntry::BaseTime(dur))
-));
+fn base_time(input: &[u8]) -> IResult<&[u8], LogEntry, (&[u8], nom::error::ErrorKind)> {
+    map(
+        tuple((
+            tag("#[BaseTime: "),
+            fract_sec_duration,
+            char(' '),
+            take_until("\n"),
+            take(1_usize),
+        )),
+        |x| LogEntry::BaseTime(x.1),
+    )(input)
+}
 
-named!(interval_hist<&[u8], LogEntry>,
-    do_parse!(
-        tag: opt!(
-            map!(
-                map_res!(
-                    map!(tuple!(tag!("Tag="), take_until!(","), take!(1)), |p| p.1),
-                    str::from_utf8),
-                |s| Tag(s))) >>
-        start_timestamp: fract_sec_duration >>
-        char!(',') >>
-        duration: fract_sec_duration >>
-        char!(',') >>
-        max: double >>
-        char!(',') >>
-        encoded_histogram: map_res!(take_until!("\n"), str::from_utf8) >>
-        take!(1) >>
-        (LogEntry::Interval(IntervalLogHistogram {
-            tag,
-            start_timestamp,
-            duration,
-            max,
-            encoded_histogram
-        }))
-    )
-);
+fn interval_hist(input: &[u8]) -> IResult<&[u8], LogEntry, (&[u8], nom::error::ErrorKind)> {
+    map(
+        tuple((
+            opt(map(
+                map_res(
+                    map(tuple((tag("Tag="), take_until(","), take(1_usize))), |p| {
+                        p.1
+                    }),
+                    str::from_utf8,
+                ),
+                |s| Tag(s),
+            )),
+            fract_sec_duration,
+            char(','),
+            fract_sec_duration,
+            char(','),
+            double,
+            char(','),
+            map_res(take_until("\n"), str::from_utf8),
+            take(1_usize),
+        )),
+        |(tag, start_timestamp, _, duration, _, max, _, encoded_histogram, _)| {
+            LogEntry::Interval(IntervalLogHistogram {
+                tag,
+                start_timestamp,
+                duration,
+                max,
+                encoded_histogram,
+            })
+        },
+    )(input)
+}
 
-named!(log_entry<&[u8], LogEntry>,
-    complete!(alt!(start_time | base_time | interval_hist)));
+fn log_entry(input: &[u8]) -> IResult<&[u8], LogEntry<'_>, (&[u8], nom::error::ErrorKind)> {
+    complete(alt((start_time, base_time, interval_hist)))(input)
+}
 
-named!(comment_line<&[u8], ()>,
-    do_parse!(tag!("#") >> take_until!("\n") >> take!(1) >> (()))
-);
+fn comment_line(input: &[u8]) -> IResult<&[u8], (), (&[u8], nom::error::ErrorKind)> {
+    map(tuple((tag("#"), take_until("\n"), take(1_usize))), |_| ())(input)
+}
 
-named!(legend<&[u8], ()>,
-    do_parse!(tag!("\"StartTimestamp\"") >> take_until!("\n") >> take!(1) >> (()))
-);
+fn legend(input: &[u8]) -> IResult<&[u8], (), (&[u8], nom::error::ErrorKind)> {
+    map(
+        tuple((tag("\"StartTimestamp\""), take_until("\n"), take(1_usize))),
+        |_| (),
+    )(input)
+}
 
-named!(ignored_line<&[u8], ()>, alt!(comment_line | legend));
+fn ignored_line(input: &[u8]) -> IResult<&[u8], (), (&[u8], nom::error::ErrorKind)> {
+    alt((comment_line, legend))(input)
+}
 
 fn fract_sec_duration(input: &[u8]) -> IResult<&[u8], time::Duration> {
     match fract_sec_tuple(input) {
@@ -765,31 +790,20 @@ fn fract_sec_duration(input: &[u8]) -> IResult<&[u8], time::Duration> {
     }
 }
 
-// alternate versions of take_while1, used until ergonomic issues with COmpleteByteSlice are resolved
-macro_rules! take_while1_complete (
-  ($input:expr, $submac:ident!( $($args:tt)* )) => ({
-    use nom::error::ErrorKind;
-    use nom::InputTakeAtPosition;
-
-    let input = $input;
-    match input.split_at_position1(|c| !$submac!(c, $($args)*), ErrorKind::TakeWhile1) {
-      Err(nom::Err::Incomplete(_)) => Ok((&input[input.len()..], input)),
-      res => res,
-    }
-  });
-  ($input:expr, $f:expr) => (
-    take_while1_complete!($input, call!($f));
-  );
-);
-
-named!(fract_sec_tuple<&[u8], (u64, &str)>,
-    do_parse!(
-        secs: flat_map!(recognize!(take_until!(".")), parse_to!(u64)) >>
-        tag!(".") >>
-        nanos_str: map_res!(take_while1_complete!(is_digit), str::from_utf8) >>
-        (secs, nanos_str)
-    )
-);
+fn fract_sec_tuple(input: &[u8]) -> IResult<&[u8], (u64, &str), (&[u8], nom::error::ErrorKind)> {
+    map(
+        tuple((
+            map_res(
+                map_res(recognize(take_until(".")), str::from_utf8),
+                u64::from_str,
+            ),
+            recognize(take_until(".")),
+            tag("."),
+            map_res(complete(take_while1(is_digit)), str::from_utf8),
+        )),
+        |(secs, _, _, nanos_str)| (secs, nanos_str),
+    )(input)
+}
 
 #[cfg(test)]
 mod tests;
