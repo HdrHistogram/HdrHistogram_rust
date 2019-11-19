@@ -211,6 +211,7 @@
 //! assert_eq!("#Comments are great\n", &str::from_utf8(&buf).unwrap()[0..20]);
 //! ```
 
+use std::cmp::Ordering;
 use std::fmt::Write;
 use std::str::FromStr;
 use std::{fmt, io, ops, str, time};
@@ -761,15 +762,13 @@ fn fract_sec_duration(input: &[u8]) -> IResult<&[u8], time::Duration> {
             let (secs, nanos_str) = data;
 
             // only read up to 9 digits since we can only support nanos, not smaller precision
-            let nanos_parse_res = if nanos_str.len() > 9 {
-                nanos_str[0..9].parse::<u32>()
-            } else if nanos_str.len() == 9 {
-                nanos_str.parse::<u32>()
-            } else {
-                nanos_str
+            let nanos_parse_res = match nanos_str.len().cmp(&9) {
+                Ordering::Greater => nanos_str[0..9].parse::<u32>(),
+                Ordering::Equal => nanos_str.parse::<u32>(),
+                Ordering::Less => nanos_str
                     .parse::<u32>()
                     // subtraction will not overflow because len is < 9
-                    .map(|n| n * 10_u32.pow(9 - nanos_str.len() as u32))
+                    .map(|n| n * 10_u32.pow(9 - nanos_str.len() as u32)),
             };
 
             if let Ok(nanos) = nanos_parse_res {
