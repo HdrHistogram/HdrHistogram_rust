@@ -220,10 +220,9 @@ use nom::branch::alt;
 use nom::bytes::complete::{tag, take, take_until, take_while1};
 use nom::character::complete::char;
 use nom::character::is_digit;
-use nom::combinator::{complete, map, map_res, opt, recognize};
+use nom::combinator::{complete, map_res, opt, recognize};
 use nom::error::ErrorKind;
 use nom::number::complete::double;
-use nom::sequence::tuple;
 use nom::{Err, IResult};
 
 use super::super::{Counter, Histogram};
@@ -702,17 +701,20 @@ fn base_time(input: &[u8]) -> IResult<&[u8], LogEntry, (&[u8], ErrorKind)> {
     Ok((input, LogEntry::BaseTime(duration)))
 }
 
-fn interval_hist(input: &[u8]) -> IResult<&[u8], LogEntry, (&[u8], ErrorKind)> {
-    let (input, tag) = opt(map(
-        map_res(
-            map(tuple((tag("Tag="), take_until(","), take(1_usize))), |p| {
-                p.1
-            }),
-            str::from_utf8,
-        ),
-        Tag,
-    ))(input)?;
+fn tag_bytes(input: &[u8]) -> IResult<&[u8], &[u8], (&[u8], ErrorKind)> {
+    let (input, _) = tag("Tag=")(input)?;
+    let (input, tag) = take_until(",")(input)?;
+    let (input, _) = take(1_usize)(input)?;
+    Ok((input, tag))
+}
 
+fn tag_parser(input: &[u8]) -> IResult<&[u8], Tag, (&[u8], ErrorKind)> {
+    let (input, tag) = map_res(tag_bytes, str::from_utf8)(input)?;
+    Ok((input, Tag(tag)))
+}
+
+fn interval_hist(input: &[u8]) -> IResult<&[u8], LogEntry, (&[u8], ErrorKind)> {
+    let (input, tag) = opt(tag_parser)(input)?;
     let (input, start_timestamp) = fract_sec_duration(input)?;
     let (input, _) = char(',')(input)?;
     let (input, duration) = fract_sec_duration(input)?;
