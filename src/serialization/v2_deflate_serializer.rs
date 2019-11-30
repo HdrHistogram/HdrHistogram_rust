@@ -5,8 +5,8 @@ use crate::Histogram;
 use byteorder::{BigEndian, WriteBytesExt};
 use flate2::write::ZlibEncoder;
 use flate2::Compression;
-use std;
 use std::io::{ErrorKind, Write};
+use std::{self, error, fmt};
 
 /// Errors that occur during serialization.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -22,6 +22,21 @@ impl std::convert::From<std::io::Error> for V2DeflateSerializeError {
         V2DeflateSerializeError::IoError(e.kind())
     }
 }
+
+impl fmt::Display for V2DeflateSerializeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            V2DeflateSerializeError::InternalSerializationError(e) => {
+                write!(f, "The underlying serialization failed: {}", e)
+            }
+            V2DeflateSerializeError::IoError(e) => {
+                write!(f, "The underlying serialization failed: {:?}", e)
+            }
+        }
+    }
+}
+
+impl error::Error for V2DeflateSerializeError {}
 
 /// Serializer for the V2 + DEFLATE binary format.
 ///

@@ -212,6 +212,7 @@
 //! ```
 
 use std::cmp::Ordering;
+use std::error::Error;
 use std::fmt::Write;
 use std::str::FromStr;
 use std::{fmt, io, ops, str, time};
@@ -414,6 +415,19 @@ impl<E> From<io::Error> for IntervalLogWriterError<E> {
         IntervalLogWriterError::IoError(e.kind())
     }
 }
+
+impl<E: fmt::Display + fmt::Debug> fmt::Display for IntervalLogWriterError<E> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            IntervalLogWriterError::SerializeError(e) => {
+                write!(f, "Histogram serialization failed: {}", e)
+            }
+            IntervalLogWriterError::IoError(e) => write!(f, "An i/o error occurred: {:?}", e),
+        }
+    }
+}
+
+impl<E: fmt::Display + fmt::Debug> Error for IntervalLogWriterError<E> {}
 
 /// Write interval logs.
 struct InternalLogWriter<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> {

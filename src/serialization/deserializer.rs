@@ -3,9 +3,9 @@ use crate::{Counter, Histogram, RestatState};
 use byteorder::{BigEndian, ReadBytesExt};
 use flate2::read::ZlibDecoder;
 use num_traits::ToPrimitive;
-use std;
 use std::io::{self, Cursor, ErrorKind, Read};
 use std::marker::PhantomData;
+use std::{self, error, fmt};
 
 /// Errors that can happen during deserialization.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -33,6 +33,40 @@ impl std::convert::From<std::io::Error> for DeserializeError {
         DeserializeError::IoError(e.kind())
     }
 }
+
+impl fmt::Display for DeserializeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DeserializeError::IoError(e) => write!(f, "An i/o operation failed: {:?}", e),
+            DeserializeError::InvalidCookie => write!(
+                f,
+                "The cookie (first 4 bytes) did not match that for any supported format"
+            ),
+            DeserializeError::UnsupportedFeature => write!(
+                f,
+                "The histogram uses features that this implementation doesn't support"
+            ),
+            DeserializeError::UnsuitableCounterType => write!(
+                f,
+                "A count exceeded what can be represented in the chosen counter type"
+            ),
+            DeserializeError::InvalidParameters => write!(
+                f,
+                "The serialized parameters were invalid(e.g. lowest value, highest value, etc)"
+            ),
+            DeserializeError::UsizeTypeTooSmall => write!(
+                f,
+                "The current system's pointer width cannot represent the encoded histogram"
+            ),
+            DeserializeError::EncodedArrayTooLong => write!(
+                f,
+                "The encoded array is longer than it should be for the histogram's value range"
+            ),
+        }
+    }
+}
+
+impl error::Error for DeserializeError {}
 
 /// Deserializer for all supported formats.
 ///

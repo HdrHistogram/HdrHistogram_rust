@@ -1,8 +1,8 @@
 use super::{Serializer, V2_COOKIE, V2_HEADER_SIZE};
 use crate::{Counter, Histogram};
 use byteorder::{BigEndian, WriteBytesExt};
-use std;
 use std::io::{ErrorKind, Write};
+use std::{error, fmt};
 
 /// Errors that occur during serialization.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -22,6 +22,23 @@ impl std::convert::From<std::io::Error> for V2SerializeError {
         V2SerializeError::IoError(e.kind())
     }
 }
+
+impl fmt::Display for V2SerializeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            V2SerializeError::CountNotSerializable => write!(
+                f,
+                "A count above i64::max_value() cannot be zig-zag encoded"
+            ),
+            V2SerializeError::UsizeTypeTooSmall => {
+                write!(f, "Internal calculations cannot be represented in `usize`")
+            }
+            V2SerializeError::IoError(e) => write!(f, "An i/o operation failed: {:?}", e),
+        }
+    }
+}
+
+impl error::Error for V2SerializeError {}
 
 /// Serializer for the V2 binary format.
 pub struct V2Serializer {
