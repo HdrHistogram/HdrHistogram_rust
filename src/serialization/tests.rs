@@ -279,8 +279,8 @@ fn encode_counts_count_too_big() {
     // first position
     h.record_n(0, i64::max_value() as u64 + 1).unwrap();
     assert_eq!(
-        V2SerializeError::CountNotSerializable,
-        encode_counts(&h, &mut vec[..]).unwrap_err()
+        V2SerializeError::CountNotSerializable.to_string(),
+        encode_counts(&h, &mut vec[..]).unwrap_err().to_string()
     );
 }
 

@@ -3,15 +3,15 @@ use crate::{Counter, Histogram, RestatState};
 use byteorder::{BigEndian, ReadBytesExt};
 use flate2::read::ZlibDecoder;
 use num_traits::ToPrimitive;
-use std::io::{self, Cursor, ErrorKind, Read};
+use std::io::{self, Cursor, Read};
 use std::marker::PhantomData;
 use std::{self, error, fmt};
 
 /// Errors that can happen during deserialization.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug)]
 pub enum DeserializeError {
     /// An i/o operation failed.
-    IoError(ErrorKind),
+    IoError(io::Error),
     /// The cookie (first 4 bytes) did not match that for any supported format.
     InvalidCookie,
     /// The histogram uses features that this implementation doesn't support (yet), so it cannot
@@ -30,14 +30,14 @@ pub enum DeserializeError {
 
 impl std::convert::From<std::io::Error> for DeserializeError {
     fn from(e: std::io::Error) -> Self {
-        DeserializeError::IoError(e.kind())
+        DeserializeError::IoError(e)
     }
 }
 
 impl fmt::Display for DeserializeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            DeserializeError::IoError(e) => write!(f, "An i/o operation failed: {:?}", e),
+            DeserializeError::IoError(e) => write!(f, "An i/o operation failed: {}", e),
             DeserializeError::InvalidCookie => write!(
                 f,
                 "The cookie (first 4 bytes) did not match that for any supported format"
@@ -66,7 +66,14 @@ impl fmt::Display for DeserializeError {
     }
 }
 
-impl error::Error for DeserializeError {}
+impl error::Error for DeserializeError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match self {
+            DeserializeError::IoError(e) => Some(e),
+            _ => None,
+        }
+    }
+}
 
 /// Deserializer for all supported formats.
 ///
