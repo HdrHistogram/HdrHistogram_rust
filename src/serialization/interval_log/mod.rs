@@ -212,6 +212,7 @@
 //! ```
 
 use std::cmp::Ordering;
+use std::error::Error;
 use std::fmt::Write;
 use std::str::FromStr;
 use std::{fmt, io, ops, str, time};
@@ -406,12 +407,32 @@ pub enum IntervalLogWriterError<E> {
     /// Histogram serialization failed.
     SerializeError(E),
     /// An i/o error occurred.
-    IoError(io::ErrorKind),
+    IoError(io::Error),
 }
 
 impl<E> From<io::Error> for IntervalLogWriterError<E> {
     fn from(e: io::Error) -> Self {
-        IntervalLogWriterError::IoError(e.kind())
+        IntervalLogWriterError::IoError(e)
+    }
+}
+
+impl<E: fmt::Display + fmt::Debug> fmt::Display for IntervalLogWriterError<E> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            IntervalLogWriterError::SerializeError(e) => {
+                write!(f, "Histogram serialization failed: {}", e)
+            }
+            IntervalLogWriterError::IoError(e) => write!(f, "An i/o error occurred: {}", e),
+        }
+    }
+}
+
+impl<E: Error + 'static> Error for IntervalLogWriterError<E> {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            IntervalLogWriterError::SerializeError(e) => Some(e),
+            IntervalLogWriterError::IoError(e) => Some(e),
+        }
     }
 }
 

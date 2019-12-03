@@ -1,11 +1,11 @@
 use super::{Serializer, V2_COOKIE, V2_HEADER_SIZE};
 use crate::{Counter, Histogram};
 use byteorder::{BigEndian, WriteBytesExt};
-use std;
-use std::io::{ErrorKind, Write};
+use std::io::{self, Write};
+use std::{error, fmt};
 
 /// Errors that occur during serialization.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug)]
 pub enum V2SerializeError {
     /// A count above i64::max_value() cannot be zig-zag encoded, and therefore cannot be
     /// serialized.
@@ -14,12 +14,36 @@ pub enum V2SerializeError {
     /// hardware.
     UsizeTypeTooSmall,
     /// An i/o operation failed.
-    IoError(ErrorKind),
+    IoError(io::Error),
 }
 
 impl std::convert::From<std::io::Error> for V2SerializeError {
     fn from(e: std::io::Error) -> Self {
-        V2SerializeError::IoError(e.kind())
+        V2SerializeError::IoError(e)
+    }
+}
+
+impl fmt::Display for V2SerializeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            V2SerializeError::CountNotSerializable => write!(
+                f,
+                "A count above i64::max_value() cannot be zig-zag encoded"
+            ),
+            V2SerializeError::UsizeTypeTooSmall => {
+                write!(f, "Internal calculations cannot be represented in `usize`")
+            }
+            V2SerializeError::IoError(e) => write!(f, "An i/o operation failed: {}", e),
+        }
+    }
+}
+
+impl error::Error for V2SerializeError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match self {
+            V2SerializeError::IoError(e) => Some(e),
+            _ => None,
+        }
     }
 }
 
@@ -86,7 +110,7 @@ impl Serializer for V2Serializer {
         writer
             .write_all(&self.buf[0..(total_len)])
             .map(|_| total_len)
-            .map_err(|e| V2SerializeError::IoError(e.kind()))
+            .map_err(V2SerializeError::IoError)
     }
 }
 

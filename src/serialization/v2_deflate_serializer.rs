@@ -5,21 +5,43 @@ use crate::Histogram;
 use byteorder::{BigEndian, WriteBytesExt};
 use flate2::write::ZlibEncoder;
 use flate2::Compression;
-use std;
-use std::io::{ErrorKind, Write};
+use std::io::{self, Write};
+use std::{self, error, fmt};
 
 /// Errors that occur during serialization.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug)]
 pub enum V2DeflateSerializeError {
     /// The underlying serialization failed
     InternalSerializationError(V2SerializeError),
     /// An i/o operation failed.
-    IoError(ErrorKind),
+    IoError(io::Error),
 }
 
 impl std::convert::From<std::io::Error> for V2DeflateSerializeError {
     fn from(e: std::io::Error) -> Self {
-        V2DeflateSerializeError::IoError(e.kind())
+        V2DeflateSerializeError::IoError(e)
+    }
+}
+
+impl fmt::Display for V2DeflateSerializeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            V2DeflateSerializeError::InternalSerializationError(e) => {
+                write!(f, "The underlying serialization failed: {}", e)
+            }
+            V2DeflateSerializeError::IoError(e) => {
+                write!(f, "The underlying serialization failed: {}", e)
+            }
+        }
+    }
+}
+
+impl error::Error for V2DeflateSerializeError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match self {
+            V2DeflateSerializeError::InternalSerializationError(e) => Some(e),
+            V2DeflateSerializeError::IoError(e) => Some(e),
+        }
     }
 }
 
