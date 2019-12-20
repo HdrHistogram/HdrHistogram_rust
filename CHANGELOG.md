@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 ### Added
+
+### Changed
+
+### Removed
+
+## [7.0.0] - 2019-12-20
+### Added
 - `std::error:Error` implementation for internal Error types: `CreationError`, `AdditionError`, `SubtractionError`, `RecordError`, `UsizeTypeTooSmall`, `DeserializeError`, `IntervalLogWriterError`, `V2DeflateSerializeError`, `V2SerializeError`
 - Changelog
 
