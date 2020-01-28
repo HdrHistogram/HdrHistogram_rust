@@ -152,8 +152,7 @@ fn write_interval_histo_no_tag() {
             .unwrap();
     }
 
-    let expected =
-        "\
+    let expected = "\
          #[MaxValueDivisor: 10.000]\n\
          1.235,5.670,100.000,HISTEwAAAAMAAAAAAAAAAwAAAAAAAAAB//////////8/8AAAAAAAAM8PAg==\n";
 
