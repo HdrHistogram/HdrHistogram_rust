@@ -287,6 +287,14 @@ pub struct Histogram<T: Counter> {
     counts: Vec<T>,
 }
 
+#[allow(missing_docs)]
+pub struct HistogramSnapshot<T: Counter> {
+    pub lowest_trackable_value: u64,
+    pub highest_trackable_value: u64,
+    pub significant_figures: u8,
+    pub counts: Vec<T>,
+}
+
 /// Module containing the implementations of all `Histogram` iterators.
 pub mod iterators;
 
@@ -811,6 +819,22 @@ impl<T: Counter> Histogram<T> {
         h.auto_resize = source.auto_resize;
         h.counts.resize(source.distinct_values(), T::zero());
         h
+    }
+
+    /// Construct a `Histogram` from a snapshot.
+    pub fn new_from_snapshot(source: &HistogramSnapshot<T>) -> Result<Histogram<T>, CreationError> {
+        let mut h = Self::new_with_bounds(
+            source.lowest_trackable_value,
+            source.highest_trackable_value,
+            source.significant_figures,
+        )?;
+
+        h.counts.truncate(0);
+        for count in &source.counts {
+            h.counts.push(*count)
+        }
+        h.restat(h.counts.len());
+        Ok(h)
     }
 
     // ********************************************************************************************
