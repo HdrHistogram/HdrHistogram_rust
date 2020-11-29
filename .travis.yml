@@ -1,7 +1,7 @@
 language: rust
 cache: cargo
 rust:
-  - 1.37.0 # uniform paths
+  - 1.44.0 # nom 6
   - stable
   - beta
   - nightly
