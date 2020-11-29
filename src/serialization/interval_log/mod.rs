@@ -704,7 +704,7 @@ fn system_time_as_fp_seconds(time: time::SystemTime) -> f64 {
     }
 }
 
-fn start_time(input: &[u8]) -> IResult<&[u8], LogEntry, (&[u8], ErrorKind)> {
+fn start_time(input: &[u8]) -> IResult<&[u8], LogEntry> {
     let (input, _) = tag("#[StartTime: ")(input)?;
     let (input, duration) = fract_sec_duration(input)?;
     let (input, _) = char(' ')(input)?;
@@ -713,7 +713,7 @@ fn start_time(input: &[u8]) -> IResult<&[u8], LogEntry, (&[u8], ErrorKind)> {
     Ok((input, LogEntry::StartTime(duration)))
 }
 
-fn base_time(input: &[u8]) -> IResult<&[u8], LogEntry, (&[u8], ErrorKind)> {
+fn base_time(input: &[u8]) -> IResult<&[u8], LogEntry> {
     let (input, _) = tag("#[BaseTime: ")(input)?;
     let (input, duration) = fract_sec_duration(input)?;
     let (input, _) = char(' ')(input)?;
@@ -722,19 +722,19 @@ fn base_time(input: &[u8]) -> IResult<&[u8], LogEntry, (&[u8], ErrorKind)> {
     Ok((input, LogEntry::BaseTime(duration)))
 }
 
-fn tag_bytes(input: &[u8]) -> IResult<&[u8], &[u8], (&[u8], ErrorKind)> {
+fn tag_bytes(input: &[u8]) -> IResult<&[u8], &[u8]> {
     let (input, _) = tag("Tag=")(input)?;
     let (input, tag) = take_until(",")(input)?;
     let (input, _) = take(1_usize)(input)?;
     Ok((input, tag))
 }
 
-fn tag_parser(input: &[u8]) -> IResult<&[u8], Tag, (&[u8], ErrorKind)> {
+fn tag_parser(input: &[u8]) -> IResult<&[u8], Tag> {
     let (input, tag) = map_res(tag_bytes, str::from_utf8)(input)?;
     Ok((input, Tag(tag)))
 }
 
-fn interval_hist(input: &[u8]) -> IResult<&[u8], LogEntry, (&[u8], ErrorKind)> {
+fn interval_hist(input: &[u8]) -> IResult<&[u8], LogEntry> {
     let (input, tag) = opt(tag_parser)(input)?;
     let (input, start_timestamp) = fract_sec_duration(input)?;
     let (input, _) = char(',')(input)?;
@@ -757,56 +757,52 @@ fn interval_hist(input: &[u8]) -> IResult<&[u8], LogEntry, (&[u8], ErrorKind)> {
     ))
 }
 
-fn log_entry(input: &[u8]) -> IResult<&[u8], LogEntry<'_>, (&[u8], ErrorKind)> {
+fn log_entry(input: &[u8]) -> IResult<&[u8], LogEntry<'_>> {
     complete(alt((start_time, base_time, interval_hist)))(input)
 }
 
-fn comment_line(input: &[u8]) -> IResult<&[u8], (), (&[u8], ErrorKind)> {
+fn comment_line(input: &[u8]) -> IResult<&[u8], ()> {
     let (input, _) = tag("#")(input)?;
     let (input, _) = take_until("\n")(input)?;
     let (input, _) = take(1_usize)(input)?;
     Ok((input, ()))
 }
 
-fn legend(input: &[u8]) -> IResult<&[u8], (), (&[u8], ErrorKind)> {
+fn legend(input: &[u8]) -> IResult<&[u8], ()> {
     let (input, _) = tag("\"StartTimestamp\"")(input)?;
     let (input, _) = take_until("\n")(input)?;
     let (input, _) = take(1_usize)(input)?;
     Ok((input, ()))
 }
 
-fn ignored_line(input: &[u8]) -> IResult<&[u8], (), (&[u8], ErrorKind)> {
+fn ignored_line(input: &[u8]) -> IResult<&[u8], ()> {
     alt((comment_line, legend))(input)
 }
 
 fn fract_sec_duration(input: &[u8]) -> IResult<&[u8], time::Duration> {
-    match fract_sec_tuple(input) {
-        Ok((rest, data)) => {
-            let (secs, nanos_str) = data;
+    let (rest, data) = fract_sec_tuple(input)?;
+    let (secs, nanos_str) = data;
 
-            // only read up to 9 digits since we can only support nanos, not smaller precision
-            let nanos_parse_res = match nanos_str.len().cmp(&9) {
-                Ordering::Greater => nanos_str[0..9].parse::<u32>(),
-                Ordering::Equal => nanos_str.parse::<u32>(),
-                Ordering::Less => nanos_str
-                    .parse::<u32>()
-                    // subtraction will not overflow because len is < 9
-                    .map(|n| n * 10_u32.pow(9 - nanos_str.len() as u32)),
-            };
+    // only read up to 9 digits since we can only support nanos, not smaller precision
+    let nanos_parse_res = match nanos_str.len().cmp(&9) {
+        Ordering::Greater => nanos_str[0..9].parse::<u32>(),
+        Ordering::Equal => nanos_str.parse::<u32>(),
+        Ordering::Less => nanos_str
+            .parse::<u32>()
+            // subtraction will not overflow because len is < 9
+            .map(|n| n * 10_u32.pow(9 - nanos_str.len() as u32)),
+    };
 
-            if let Ok(nanos) = nanos_parse_res {
-                return Ok((rest, time::Duration::new(secs, nanos)));
-            }
-
-            // nanos were invalid utf8. We don't expose these errors, so don't bother defining a
-            // custom error type.
-            Err(Err::Error(error_position!(input, ErrorKind::Alpha)))
-        }
-        Err(e) => Err(e),
+    if let Ok(nanos) = nanos_parse_res {
+        return Ok((rest, time::Duration::new(secs, nanos)));
     }
+
+    // nanos were invalid utf8. We don't expose these errors, so don't bother defining a
+    // custom error type.
+    Err(Err::Error(error_position!(input, ErrorKind::Alpha)))
 }
 
-type FResult<'a> = IResult<&'a [u8], (u64, &'a str), (&'a [u8], ErrorKind)>;
+type FResult<'a> = IResult<&'a [u8], (u64, &'a str)>;
 
 fn fract_sec_tuple(input: &[u8]) -> FResult {
     let (input, secs) = map_res(
