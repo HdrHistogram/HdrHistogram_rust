@@ -204,7 +204,7 @@ extern crate nom;
 use num_traits::ToPrimitive;
 use std::borrow::Borrow;
 use std::cmp;
-use std::ops::{AddAssign, SubAssign};
+use std::ops::{Add, AddAssign, Sub, SubAssign};
 
 use iterators::HistogramIterator;
 
@@ -1761,6 +1761,22 @@ impl<T: Counter> AddAssign<Histogram<T>> for Histogram<T> {
     }
 }
 
+impl<T: Counter> Add<Histogram<T>> for Histogram<T> {
+    type Output = Histogram<T>;
+    fn add(mut self, rhs: Histogram<T>) -> Self::Output {
+        self += rhs;
+        self
+    }
+}
+
+impl<'a, T: Counter> Add<&'a Histogram<T>> for Histogram<T> {
+    type Output = Histogram<T>;
+    fn add(mut self, rhs: &'a Histogram<T>) -> Self::Output {
+        self += rhs;
+        self
+    }
+}
+
 use std::iter;
 impl<T: Counter> iter::Sum for Histogram<T> {
     fn sum<I>(mut iter: I) -> Self
@@ -1788,6 +1804,22 @@ impl<'a, T: Counter> SubAssign<&'a Histogram<T>> for Histogram<T> {
 impl<T: Counter> SubAssign<Histogram<T>> for Histogram<T> {
     fn sub_assign(&mut self, source: Histogram<T>) {
         self.subtract(&source).unwrap();
+    }
+}
+
+impl<T: Counter> Sub<Histogram<T>> for Histogram<T> {
+    type Output = Histogram<T>;
+    fn sub(mut self, rhs: Histogram<T>) -> Self::Output {
+        self -= rhs;
+        self
+    }
+}
+
+impl<'a, T: Counter> Sub<&'a Histogram<T>> for Histogram<T> {
+    type Output = Histogram<T>;
+    fn sub(mut self, rhs: &'a Histogram<T>) -> Self::Output {
+        self -= rhs;
+        self
     }
 }
 
