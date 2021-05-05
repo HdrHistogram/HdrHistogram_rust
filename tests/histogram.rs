@@ -380,7 +380,7 @@ fn random_write_middle_of_value_range_precision_3_no_panic() {
     let mut rng = rand::rngs::SmallRng::from_entropy();
 
     for _ in 0..1_000_000 {
-        h.record(rng.gen_range(low, high + 1)).unwrap();
+        h.record(rng.gen_range(low..=high)).unwrap();
     }
 }
 

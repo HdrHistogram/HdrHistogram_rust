@@ -256,9 +256,9 @@ fn duration_fp_roundtrip_accuracy() {
         buf.clear();
 
         // pick seconds
-        let secs = rng.gen_range(0, 2_000_000_000);
+        let secs = rng.gen_range(0..2_000_000_000);
         // pick nsecs that only has ms accuracy
-        let nsecs = rng.gen_range(0, 1000) * 1000_000;
+        let nsecs = rng.gen_range(0..1000) * 1000_000;
 
         let dur = time::Duration::new(secs, nsecs);
         let fp_secs = duration_as_fp_seconds(dur);

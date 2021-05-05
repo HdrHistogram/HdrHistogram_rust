@@ -302,7 +302,7 @@ fn value_at_quantile_matches_random_quantile_random_values() {
         assert_eq!(length as u64, h.len());
 
         for _ in 0..1_000 {
-            let quantile = rng.gen_range(0_f64, 1_f64.next());
+            let quantile = rng.gen_range(0_f64..=1_f64);
             let index_at_quantile = Integer::from(
                 (Rational::from_f64(quantile).unwrap() * Rational::from(length as u64)).trunc_ref(),
             )
@@ -349,12 +349,12 @@ impl<'a, R: Rng + 'a> Iterator for RandomMaxIter<'a, R> {
     type Item = u64;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let bit_length = self.rng.gen_range(0, 65);
+        let bit_length = self.rng.gen_range(0..=64);
 
         return Some(match bit_length {
             0 => 0,
             64 => u64::max_value(),
-            x => self.rng.gen_range(0, 1 << x),
+            x => self.rng.gen_range(0..1 << x),
         });
     }
 }
