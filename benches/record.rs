@@ -1,8 +1,10 @@
 #![feature(test)]
 
-use self::test::Bencher;
+extern crate test;
+
 use hdrhistogram::*;
 use rand::SeedableRng;
+use test::Bencher;
 
 use self::rand_varint::*;
 

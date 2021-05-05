@@ -1,10 +1,10 @@
-use self::rand::distributions::uniform::Uniform;
-use self::rand::distributions::Distribution;
-use self::rand::SeedableRng;
-use self::test::Bencher;
 use super::deserializer::{varint_read, varint_read_slice};
 use super::v2_serializer::varint_write;
+use rand::distributions::uniform::Uniform;
+use rand::distributions::Distribution;
+use rand::SeedableRng;
 use std::io::Cursor;
+use test::Bencher;
 
 #[bench]
 fn varint_write_rand(b: &mut Bencher) {

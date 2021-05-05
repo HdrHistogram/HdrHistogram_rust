@@ -1,5 +1,7 @@
 #![feature(test)]
 
+extern crate test;
+
 use std::time;
 
 use hdrhistogram::serialization;

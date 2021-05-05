@@ -197,6 +197,9 @@
 // Enable feature(test) is enabled so that we can have benchmarks of private code
 #![cfg_attr(all(test, feature = "bench_private"), feature(test))]
 
+#[cfg(all(test, feature = "bench_private"))]
+extern crate test;
+
 #[cfg(feature = "serialization")]
 #[macro_use]
 extern crate nom;

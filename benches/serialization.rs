@@ -1,10 +1,12 @@
 #![feature(test)]
 
-use self::test::Bencher;
+extern crate test;
+
 use hdrhistogram::serialization::*;
 use hdrhistogram::*;
 use rand::SeedableRng;
 use std::io::Cursor;
+use test::Bencher;
 
 use self::rand_varint::*;
 
