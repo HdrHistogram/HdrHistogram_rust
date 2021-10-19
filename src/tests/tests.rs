@@ -1,4 +1,5 @@
 use super::{CreationError, Histogram};
+use serde_json::*;
 
 #[path = "helpers.rs"]
 pub mod helpers;
@@ -21,4 +22,13 @@ fn new_err_high_not_double_low() {
 fn correct_original_min() {
     // until we get const fns, make sure workaround is correct
     assert_eq!(u64::max_value(), super::ORIGINAL_MIN);
+}
+
+#[test]
+fn test_serde() {
+    let mut h1 = Histogram::<u64>::new(3).unwrap();
+    (0..10000).for_each(|i| h1.record(i).unwrap());
+    let serialized = serde_json::to_string(&h1).unwrap();
+    let h2: Histogram<u64> = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(h1, h2);
 }

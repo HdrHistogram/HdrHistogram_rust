@@ -205,6 +205,7 @@ extern crate test;
 extern crate nom;
 
 use num_traits::ToPrimitive;
+use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::cmp;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
@@ -251,7 +252,7 @@ const ORIGINAL_MAX: u64 = 0;
 /// = 2048 * 2^(k-1)`, which is the k-1'th bucket's end. So, we would use the previous bucket
 /// for those lower values as it has better precision.
 ///
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Histogram<T: Counter> {
     auto_resize: bool,
 
