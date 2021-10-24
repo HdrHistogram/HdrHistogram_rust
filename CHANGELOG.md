@@ -10,6 +10,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Removed
 
+## [7.4.0] - 2021-10-24
+
+### Changed
+- Minimum supported Rust version bumped to 1.48 (due to `nom 7`)
+- `nom` dependency was bumped to 7.0.0 ([#102])
+
+[#102]: https://github.com/HdrHistogram/HdrHistogram_rust/pull/102
+
 ## [7.3.0] - 2021-05-04
 ### Added
  - Implementations of `Add` and `Sub` for `Histogram<T>`.
@@ -38,7 +46,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - `DeserializeError` and `V2DeflateSerializeError` lost derived traits: `PartialEq`, `Eq`, `Clone`, `Copy`
 - Inner error type from `std::io::ErrorKind` to `std::io::Error` in types: `DeserializeError`, `V2DeflateSerializeError`, `V2SerializeError`, `IntervalLogWriterError` to support `Display`.
 
-[Unreleased]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.3.0...HEAD
+[Unreleased]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.4.0...HEAD
+[7.4.0]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.3.0...v7.4.0
 [7.3.0]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.2.0...v7.3.0
 [7.2.0]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.1.0...v7.2.0
 [7.1.0]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.0.0...v7.1.0
