@@ -198,7 +198,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-hdrhistogram = "6.0"
+hdrhistogram = "7.4"
 ```
 
 and this to your crate root:
