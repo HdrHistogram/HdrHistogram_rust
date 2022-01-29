@@ -1,0 +1,18 @@
+on: [push]
+jobs:
+  features:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+      - uses: actions/checkout@v2
+      - name: Install cargo-hack
+        uses: actions-rs/cargo@v1
+        with:
+          command: install cargo-hack
+      - name: cargo hack
+        uses: actions-rs/cargo@v1
+        with:
+          command: hack --feature-powerset check --all-targets
