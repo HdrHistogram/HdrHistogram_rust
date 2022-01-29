@@ -11,8 +11,10 @@ jobs:
       - name: Install cargo-hack
         uses: actions-rs/cargo@v1
         with:
-          command: install cargo-hack
+          command: install
+          args: cargo-hack
       - name: cargo hack
         uses: actions-rs/cargo@v1
         with:
-          command: hack --feature-powerset check --all-targets
+          command: hack
+          args: --feature-powerset check --all-targets

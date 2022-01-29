@@ -13,7 +13,8 @@ jobs:
       - name: cargo fmt --check
         uses: actions-rs/cargo@v1
         with:
-          command: fmt --check
+          command: fmt
+          args: --check
       - name: cargo clippy
         uses: actions-rs/cargo@v1
         with:
@@ -30,7 +31,8 @@ jobs:
       - name: cargo +beta fmt --check
         uses: actions-rs/cargo@v1
         with:
-          command: fmt --check
+          command: fmt
+          args: --check
       - name: cargo +beta clippy
         uses: actions-rs/cargo@v1
         with:
