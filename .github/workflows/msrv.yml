@@ -1,6 +1,7 @@
 on: [push]
+name: Minimum Supported Rust Version
 jobs:
-  msrv:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions-rs/toolchain@v1

@@ -1,4 +1,5 @@
 on: [push]
+name: cargo hack
 jobs:
   features:
     runs-on: ubuntu-latest
