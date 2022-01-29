@@ -17,4 +17,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: hack
-          args: --feature-powerset check --all-targets
+          args: --feature-powerset check
