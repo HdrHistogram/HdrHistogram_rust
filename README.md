@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/hdrhistogram.svg)](https://crates.io/crates/hdrhistogram)
 [![Documentation](https://docs.rs/hdrhistogram/badge.svg)](https://docs.rs/hdrhistogram/)
-[![Build Status](https://travis-ci.org/HdrHistogram/HdrHistogram_rust.svg?branch=master)](https://travis-ci.org/HdrHistogram/HdrHistogram_rust)
+[![cargo test](https://github.com/HdrHistogram/HdrHistogram_rust/actions/workflows/test.yml/badge.svg)](https://github.com/HdrHistogram/HdrHistogram_rust/actions/workflows/test.yml)
 [![Codecov](https://codecov.io/github/HdrHistogram/HdrHistogram_rust/coverage.svg?branch=master)](https://codecov.io/gh/HdrHistogram/HdrHistogram_rust)
 
 HdrSample is a port of Gil Tene's HdrHistogram to native Rust. It provides recording and

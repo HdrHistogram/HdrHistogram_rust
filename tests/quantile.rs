@@ -1,3 +1,6 @@
+// rug doesn't support Windows
+#![cfg(unix)]
+
 use hdrhistogram::{Counter, Histogram};
 
 use ieee754::Ieee754;
