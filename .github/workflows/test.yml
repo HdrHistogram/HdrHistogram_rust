@@ -1,7 +1,7 @@
 on: [push]
 name: cargo test
 jobs:
-  all:
+  test:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

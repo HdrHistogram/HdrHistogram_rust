@@ -1,7 +1,7 @@
 on: [push]
-name: style
+name: lint
 jobs:
-  stable:
+  style:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
