@@ -10,10 +10,11 @@ jobs:
           toolchain: stable
       - uses: actions/checkout@v2
       - name: Install cargo-hack
-        uses: actions-rs/cargo@v1
+        uses: actions-rs/install@v0.1
         with:
-          command: install
-          args: cargo-hack
+          crate: cargo-hack
+          version: latest
+          use-tool-cache: true
       - name: cargo hack
         uses: actions-rs/cargo@v1
         with:
