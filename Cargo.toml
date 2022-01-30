@@ -40,9 +40,11 @@ crossbeam-channel = { version = "0.5", optional = true }
 
 [dev-dependencies]
 rand = { version = "0.8", features = ["small_rng"] }
-rug = "1.2"
 ieee754 = "0.2.2"
 clap = "2.26.2"
+
+[target.'cfg(unix)'.dev-dependencies]
+rug = "1.2"
 
 [lib]
 path = "src/lib.rs"
