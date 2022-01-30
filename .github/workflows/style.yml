@@ -3,11 +3,14 @@ name: style
 jobs:
   stable:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain: [stable, beta]
     steps:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: ${{ matrix.toolchain }}
           components: rustfmt, clippy
       - uses: actions/checkout@v2
       - name: cargo fmt --check
@@ -15,25 +18,14 @@ jobs:
         with:
           command: fmt
           args: --check
+      - name: cargo doc
+        uses: actions-rs/cargo@v1
+        if: always()
+        with:
+          command: doc
+          args: --no-deps --all-features
       - name: cargo clippy
         uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-  beta:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          components: rustfmt, clippy
-      - uses: actions/checkout@v2
-      - name: cargo +beta fmt --check
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --check
-      - name: cargo +beta clippy
-        uses: actions-rs/cargo@v1
+        if: always()
         with:
           command: clippy
