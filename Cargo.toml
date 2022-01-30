@@ -20,10 +20,6 @@ categories = ["data-structures", "development-tools::profiling"]
 
 license = "MIT/Apache-2.0"
 
-[badges]
-travis-ci = { repository = "HdrHistogram/HdrHistogram_rust" }
-maintenance = { status = "passively-maintained" }
-
 [features]
 bench_private = [] # for enabling nightly-only feature(test) on the main crate to allow benchmarking private code
 serialization = [ "flate2", "nom", "base64" ]
