@@ -3,6 +3,7 @@ name: cargo test
 jobs:
   test:
     runs-on: ${{ matrix.os }}
+    name: ${{ matrix.os }} / ${{ matrix.toolchain }}
     strategy:
       fail-fast: false
       matrix:

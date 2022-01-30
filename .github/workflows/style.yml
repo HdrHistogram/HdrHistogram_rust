@@ -3,6 +3,7 @@ name: lint
 jobs:
   style:
     runs-on: ubuntu-latest
+    name: ${{ matrix.toolchain }}
     strategy:
       fail-fast: false
       matrix:
