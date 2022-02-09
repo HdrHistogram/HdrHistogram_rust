@@ -344,6 +344,11 @@ impl<T: Counter> Histogram<T> {
         self.bucket_count
     }
 
+    /// Returns true if this histogram is currently able to auto-resize as new samples are recorded.
+    pub fn is_auto_resize(&self) -> bool {
+        self.auto_resize
+    }
+
     // ********************************************************************************************
     // Methods for looking up the count for a given value/index
     // ********************************************************************************************
