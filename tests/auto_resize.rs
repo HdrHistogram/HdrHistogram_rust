@@ -48,3 +48,12 @@ fn autosizing_across_continuous_range() {
         histogram += i;
     }
 }
+
+#[test]
+fn can_acess_autoresize_setting() {
+    let mut histogram = Histogram::<u64>::new(2).unwrap();
+    assert!(histogram.is_auto_resize());
+
+    histogram.auto(false);
+    assert!(!histogram.is_auto_resize());
+}
