@@ -10,6 +10,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Removed
 
+## [7.5.0] - 2022-02-12
+
+### Added
+- `Histogram::is_auto_resize` ([#102])
+
+[#106]: https://github.com/HdrHistogram/HdrHistogram_rust/pull/106
+
 ## [7.4.0] - 2021-10-24
 
 ### Changed
@@ -46,7 +53,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - `DeserializeError` and `V2DeflateSerializeError` lost derived traits: `PartialEq`, `Eq`, `Clone`, `Copy`
 - Inner error type from `std::io::ErrorKind` to `std::io::Error` in types: `DeserializeError`, `V2DeflateSerializeError`, `V2SerializeError`, `IntervalLogWriterError` to support `Display`.
 
-[Unreleased]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.4.0...HEAD
+[Unreleased]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.5.0...HEAD
+[7.5.0]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.4.0...v7.5.0
 [7.4.0]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.3.0...v7.4.0
 [7.3.0]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.2.0...v7.3.0
 [7.2.0]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.1.0...v7.2.0
