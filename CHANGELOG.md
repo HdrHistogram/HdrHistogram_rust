@@ -13,7 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ## [7.5.0] - 2022-02-12
 
 ### Added
-- `Histogram::is_auto_resize` ([#102])
+- `Histogram::is_auto_resize` ([#106])
 
 [#106]: https://github.com/HdrHistogram/HdrHistogram_rust/pull/106
 
