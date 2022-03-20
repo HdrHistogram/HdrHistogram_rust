@@ -743,6 +743,8 @@ fn interval_hist(input: &[u8]) -> IResult<&[u8], LogEntry> {
     let (input, max) = double(input)?;
     let (input, _) = char(',')(input)?;
     let (input, encoded_histogram) = map_res(take_until("\n"), str::from_utf8)(input)?;
+    // Be nice to Windows users:
+    let encoded_histogram = encoded_histogram.trim_end_matches('\r');
     let (input, _) = take(1_usize)(input)?;
 
     Ok((
