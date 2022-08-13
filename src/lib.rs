@@ -1378,9 +1378,27 @@ impl<T: Counter> Histogram<T> {
 
         let target_index = self.index_for_or_last(value);
         // TODO use RangeInclusive when it's stable to avoid checked_add
-        let total_to_current_index = (0..target_index.checked_add(1).expect("usize overflow"))
-            .map(|i| self.count_at_index(i).expect("index is <= last_index()"))
-            .fold(0_u64, |t, v| t.saturating_add(v.as_u64()));
+        let end = target_index.checked_add(1).expect("usize overflow");
+        // count the smaller half
+        let (slice, lower) = if target_index < self.counts.len() / 2 {
+            (&self.counts[0..end], true)
+        } else {
+            (&self.counts[end..], false)
+        };
+        let iter = slice.iter().map(Counter::as_u64);
+
+        let total_to_current_index = if self.total_count < u64::MAX {
+            // if the total didn't saturate then any partial count shouldn't either.
+            // iter::sum optimizes better than the saturating_add fallback below
+            iter.sum::<u64>()
+        } else {
+            iter.fold(0u64, u64::saturating_add)
+        };
+        let total_to_current_index = if lower {
+            total_to_current_index
+        } else {
+            self.total_count - total_to_current_index
+        };
         total_to_current_index.as_f64() / self.total_count as f64
     }
 
