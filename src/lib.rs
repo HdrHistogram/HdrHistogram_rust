@@ -473,10 +473,17 @@ impl<T: Counter> Histogram<T> {
                 .map_err(|_| AdditionError::ResizeFailedUsizeTypeTooSmall)?;
         }
 
-        if self.bucket_count == source.bucket_count
+        let matching_buckets = self.bucket_count == source.bucket_count
             && self.sub_bucket_count == source.sub_bucket_count
-            && self.unit_magnitude == source.unit_magnitude
-        {
+            && self.unit_magnitude == source.unit_magnitude;
+        if matching_buckets && self.is_empty() {
+            // Counts arrays are of the same length and meaning.
+            // If self is empty (all counters are zeroes) we can copy the source histogram with a memory copy.
+            self.counts[..].copy_from_slice(&source.counts[..]);
+            self.total_count = source.total_count;
+            self.min_non_zero_value = source.min_non_zero_value;
+            self.max_value = source.max_value;
+        } else if matching_buckets {
             // Counts arrays are of the same length and meaning,
             // so we can just iterate and add directly:
             let mut observed_other_total_count: u64 = 0;

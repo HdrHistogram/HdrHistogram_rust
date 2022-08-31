@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Changed
 - Optimize `Histogram::clone` ([#113])
+- Optimize `Histogram::add` when the histogram parameters are equivalent and the target histogram is empty ([#113])
 
 ### Removed
 
