@@ -251,7 +251,7 @@ const ORIGINAL_MAX: u64 = 0;
 /// = 2048 * 2^(k-1)`, which is the k-1'th bucket's end. So, we would use the previous bucket
 /// for those lower values as it has better precision.
 ///
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Histogram<T: Counter> {
     auto_resize: bool,
 
@@ -1765,14 +1765,6 @@ impl<T: Counter> RestatState<T> {
 // ********************************************************************************************
 // Trait implementations
 // ********************************************************************************************
-
-impl<T: Counter> Clone for Histogram<T> {
-    fn clone(&self) -> Self {
-        let mut h = Histogram::new_from(self);
-        h += self;
-        h
-    }
-}
 
 // make it more ergonomic to add and subtract histograms
 impl<'a, T: Counter> AddAssign<&'a Histogram<T>> for Histogram<T> {
