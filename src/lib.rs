@@ -251,7 +251,7 @@ const ORIGINAL_MAX: u64 = 0;
 /// = 2048 * 2^(k-1)`, which is the k-1'th bucket's end. So, we would use the previous bucket
 /// for those lower values as it has better precision.
 ///
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Histogram<T: Counter> {
     auto_resize: bool,
 
@@ -462,6 +462,11 @@ impl<T: Counter> Histogram<T> {
     pub fn add<B: Borrow<Histogram<T>>>(&mut self, source: B) -> Result<(), AdditionError> {
         let source = source.borrow();
 
+        // If source is empty there's nothing to add
+        if source.is_empty() {
+            return Ok(());
+        }
+
         // make sure we can take the values in source
         let top = self.highest_equivalent(self.value_for(self.last_index()));
         if top < source.max() {
@@ -473,10 +478,17 @@ impl<T: Counter> Histogram<T> {
                 .map_err(|_| AdditionError::ResizeFailedUsizeTypeTooSmall)?;
         }
 
-        if self.bucket_count == source.bucket_count
+        let matching_buckets = self.bucket_count == source.bucket_count
             && self.sub_bucket_count == source.sub_bucket_count
-            && self.unit_magnitude == source.unit_magnitude
-        {
+            && self.unit_magnitude == source.unit_magnitude;
+        if matching_buckets && self.is_empty() {
+            // Counts arrays are of the same length and meaning.
+            // If self is empty (all counters are zeroes) we can copy the source histogram with a memory copy.
+            self.counts[..].copy_from_slice(&source.counts[..]);
+            self.total_count = source.total_count;
+            self.min_non_zero_value = source.min_non_zero_value;
+            self.max_value = source.max_value;
+        } else if matching_buckets {
             // Counts arrays are of the same length and meaning,
             // so we can just iterate and add directly:
             let mut observed_other_total_count: u64 = 0;
@@ -577,6 +589,11 @@ impl<T: Counter> Histogram<T> {
         subtrahend: B,
     ) -> Result<(), SubtractionError> {
         let subtrahend = subtrahend.borrow();
+
+        // If the source is empty there's nothing to subtract
+        if subtrahend.is_empty() {
+            return Ok(());
+        }
 
         // make sure we can take the values in source
         let top = self.highest_equivalent(self.value_for(self.last_index()));
@@ -1765,14 +1782,6 @@ impl<T: Counter> RestatState<T> {
 // ********************************************************************************************
 // Trait implementations
 // ********************************************************************************************
-
-impl<T: Counter> Clone for Histogram<T> {
-    fn clone(&self) -> Self {
-        let mut h = Histogram::new_from(self);
-        h += self;
-        h
-    }
-}
 
 // make it more ergonomic to add and subtract histograms
 impl<'a, T: Counter> AddAssign<&'a Histogram<T>> for Histogram<T> {
