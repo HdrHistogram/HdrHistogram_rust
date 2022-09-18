@@ -7,10 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ### Added
 
 ### Changed
-- Optimize `Histogram::clone` ([#113])
-- Optimize `Histogram::add` when the histogram parameters are equivalent and the target histogram is empty ([#113])
 
 ### Removed
+
+## [7.5.2] - 2022-09-18
+### Changed
+- Optimize `Histogram::clone` ([#113])
+- Optimize `Histogram::add` when the histogram parameters are equivalent and the target histogram is empty ([#113])
 
 ## [7.5.1] - 2022-08-13
 ### Changed
@@ -61,7 +64,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - `DeserializeError` and `V2DeflateSerializeError` lost derived traits: `PartialEq`, `Eq`, `Clone`, `Copy`
 - Inner error type from `std::io::ErrorKind` to `std::io::Error` in types: `DeserializeError`, `V2DeflateSerializeError`, `V2SerializeError`, `IntervalLogWriterError` to support `Display`.
 
-[Unreleased]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.5.1...HEAD
+[Unreleased]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.5.2...HEAD
+[7.5.2]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.5.1...v7.5.2
 [7.5.1]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.5.0...v7.5.1
 [7.5.0]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.4.0...v7.5.0
 [7.4.0]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.3.0...v7.4.0
