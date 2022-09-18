@@ -462,6 +462,11 @@ impl<T: Counter> Histogram<T> {
     pub fn add<B: Borrow<Histogram<T>>>(&mut self, source: B) -> Result<(), AdditionError> {
         let source = source.borrow();
 
+        // If source is empty there's nothing to add
+        if source.is_empty() {
+            return Ok(());
+        }
+
         // make sure we can take the values in source
         let top = self.highest_equivalent(self.value_for(self.last_index()));
         if top < source.max() {
@@ -584,6 +589,11 @@ impl<T: Counter> Histogram<T> {
         subtrahend: B,
     ) -> Result<(), SubtractionError> {
         let subtrahend = subtrahend.borrow();
+
+        // If the source is empty there's nothing to subtract
+        if subtrahend.is_empty() {
+            return Ok(());
+        }
 
         // make sure we can take the values in source
         let top = self.highest_equivalent(self.value_for(self.last_index()));
