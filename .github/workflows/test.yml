@@ -30,7 +30,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --locked --all-features --all-targets
+          args: --locked
   minimal:
     runs-on: ubuntu-latest
     name: ubuntu / stable / minimal-versions
@@ -58,7 +58,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --locked --all-features --all-targets
+          args: --locked
   os-check:
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.os }} / stable
@@ -84,7 +84,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --locked --all-features --all-targets
+          args: --locked
   coverage:
     runs-on: ubuntu-latest
     name: ubuntu / stable / coverage
@@ -106,7 +106,7 @@ jobs:
         with:
           command: generate-lockfile
       - name: cargo llvm-cov
-        run: cargo llvm-cov --locked --all-features --lcov --output-path lcov.info
+        run: cargo llvm-cov --locked --lcov --output-path lcov.info
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v2
         with:

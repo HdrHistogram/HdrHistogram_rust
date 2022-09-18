@@ -82,14 +82,14 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: hack
-          args: --feature-powerset check --all-targets
+          args: --feature-powerset --exclude-features bench_private check
   msrv:
     runs-on: ubuntu-latest
     # we use a matrix here just because env can't be used in job names
     # https://docs.github.com/en/actions/learn-github-actions/contexts#context-availability
     strategy:
       matrix:
-        msrv: [1.56.1] # 2021 edition requires 1.56
+        msrv: [1.48.0] # nom 7
     name: ubuntu / ${{ matrix.msrv }}
     steps:
       - uses: actions/checkout@v3
