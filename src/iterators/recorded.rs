@@ -24,6 +24,13 @@ impl<T: Counter> PickyIterator<T> for Iter {
     }
 
     fn more(&mut self, _: usize) -> bool {
+        // more() is really more_with_zero_counts(), but here as this is the
+        // record-picker, we never visit empty bins, and thus there will never
+        // be `more()`
+        //
+        // If we yield a record, by definition the current bin cannot be empty,
+        // and as we iterate over record, once the last one is yielded, there
+        // can't any more bins to yield.
         false
     }
 }
