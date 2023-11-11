@@ -37,7 +37,7 @@ crossbeam-channel = { version = "0.5", optional = true }
 [dev-dependencies]
 rand = { version = "0.8", features = ["small_rng"] }
 ieee754 = "0.2.2"
-clap = "3"
+clap = "4"
 
 [target.'cfg(unix)'.dev-dependencies]
 rug = "1.2"
