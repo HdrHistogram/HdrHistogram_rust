@@ -487,7 +487,8 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> InternalLogWriter<'a, 'b, W,
             .serializer
             .serialize(h, &mut self.serialize_buf)
             .map_err(IntervalLogWriterError::SerializeError)?;
-        base64::engine::general_purpose::STANDARD.encode_string(&self.serialize_buf, &mut self.text_buf);
+        base64::engine::general_purpose::STANDARD
+            .encode_string(&self.serialize_buf, &mut self.text_buf);
 
         self.writer.write_all(self.text_buf.as_bytes())?;
         self.writer.write_all(b"\n")?;
