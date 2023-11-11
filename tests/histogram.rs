@@ -560,3 +560,10 @@ fn subtract_underflow_guarded_by_per_value_count_check() {
         h.subtract(h2).unwrap_err()
     );
 }
+
+#[test]
+fn recorded_only_zeros() {
+    let mut h = Histogram::<u64>::new(1).unwrap();
+    h += 0;
+    assert_eq!(h.iter_recorded().count(), 1);
+}

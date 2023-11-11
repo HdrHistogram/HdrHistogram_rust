@@ -74,7 +74,7 @@ pub struct HistogramIterator<'a, T: 'a + Counter, P: PickyIterator<T>> {
     count_since_last_iteration: u64,
     count_at_index: T,
     current_index: usize,
-    last_picked_index: usize,
+    last_picked_index: Option<usize>,
     max_value_index: usize,
     fresh: bool,
     ended: bool,
@@ -152,7 +152,7 @@ impl<'a, T: Counter, P: PickyIterator<T>> HistogramIterator<'a, T, P> {
             count_since_last_iteration: 0,
             count_at_index: T::zero(),
             current_index: 0,
-            last_picked_index: 0,
+            last_picked_index: None,
             max_value_index: h.index_for(h.max()).expect("Either 0 or an existing index"),
             picker,
             fresh: true,
@@ -186,7 +186,7 @@ where
             }
 
             // Have we already picked the index with the last non-zero count in the histogram?
-            if self.last_picked_index >= self.max_value_index {
+            if self.last_picked_index >= Some(self.max_value_index) {
                 // is the picker done?
                 if !self.picker.more(self.current_index) {
                     self.ended = true;
@@ -243,7 +243,7 @@ where
                 // step multiple times without advancing the index.
 
                 self.count_since_last_iteration = 0;
-                self.last_picked_index = self.current_index;
+                self.last_picked_index = Some(self.current_index);
                 return Some(val);
             }
 
