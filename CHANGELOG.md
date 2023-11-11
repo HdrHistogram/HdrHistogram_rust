@@ -10,6 +10,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Removed
 
+## [7.5.3] - 2023-11-11
+### Changed
+
+- Fix record iteration when recording only zeros (#125)
+
 ## [7.5.2] - 2022-09-18
 ### Changed
 - Optimize `Histogram::clone` ([#113])

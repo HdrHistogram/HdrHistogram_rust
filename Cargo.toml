@@ -1,6 +1,6 @@
 [package]
 name = "hdrhistogram"
-version = "7.5.2"
+version = "7.5.3"
 edition = "2018"
 
 description = "A port of HdrHistogram to Rust"
