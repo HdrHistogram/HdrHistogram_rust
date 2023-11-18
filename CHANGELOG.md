@@ -7,9 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ### Added
 
 ### Changed
-- `base64` dependency was bumped to 0.21
 
 ### Removed
+
+## [7.5.4] - 2023-11-18
+### Changed
+- `base64` dependency was bumped to 0.21
+- `clap` dependency was bumped to major version 4
+- MSRV was bumped to 1.64.0 (due to clap)
 
 ## [7.5.3] - 2023-11-11
 ### Changed

@@ -197,7 +197,7 @@ dependencies = [
 
 [[package]]
 name = "hdrhistogram"
-version = "7.5.3"
+version = "7.5.4"
 dependencies = [
  "base64",
  "byteorder",
