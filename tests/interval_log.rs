@@ -1,5 +1,7 @@
 #[cfg(all(feature = "serialization", test))]
 mod tests {
+    use base64::engine::general_purpose::STANDARD as B64STANDARD;
+    use base64::Engine as _;
     use hdrhistogram::serialization::interval_log::{
         IntervalLogHistogram, IntervalLogIterator, IntervalLogWriterBuilder, LogEntry,
         LogIteratorError, Tag,
@@ -117,8 +119,7 @@ mod tests {
 
         let mut deserializer = Deserializer::new();
         for ilh in intervals {
-            let serialized_histogram =
-                base64::decode_config(ilh.encoded_histogram(), base64::STANDARD).unwrap();
+            let serialized_histogram = B64STANDARD.decode(ilh.encoded_histogram()).unwrap();
             let decoded_hist: Histogram<u64> = deserializer
                 .deserialize(&mut io::Cursor::new(&serialized_histogram))
                 .unwrap();
@@ -149,8 +150,7 @@ mod tests {
             .map(|r| r.unwrap())
             .for_each(|mut line| {
                 let hist_index = line.rfind("HISTF").unwrap();
-                let serialized =
-                    base64::decode_config(&line[hist_index..], base64::STANDARD).unwrap();
+                let serialized = B64STANDARD.decode(&line[hist_index..]).unwrap();
 
                 let decoded_hist: Histogram<u64> = deserializer
                     .deserialize(&mut io::Cursor::new(serialized))
@@ -163,7 +163,7 @@ mod tests {
 
                 // replace the deflate histogram with the predictable non-deflate one
                 line.truncate(hist_index);
-                line.push_str(&base64::encode_config(&serialize_buf, base64::STANDARD));
+                B64STANDARD.encode_string(&serialize_buf, &mut line);
 
                 log_without_headers.extend_from_slice(line.as_bytes());
                 log_without_headers.extend_from_slice("\n".as_bytes());
@@ -184,8 +184,7 @@ mod tests {
                     _ => None,
                 })
                 .for_each(|ilh| {
-                    let serialized_histogram =
-                        base64::decode_config(ilh.encoded_histogram(), base64::STANDARD).unwrap();
+                    let serialized_histogram = B64STANDARD.decode(ilh.encoded_histogram()).unwrap();
                     let decoded_hist: Histogram<u64> = deserializer
                         .deserialize(&mut io::Cursor::new(&serialized_histogram))
                         .unwrap();
@@ -280,8 +279,7 @@ mod tests {
 
         let mut deserializer = Deserializer::new();
         for (index, ilh) in parsed.iter().enumerate() {
-            let serialized_histogram =
-                base64::decode_config(ilh.encoded_histogram(), base64::STANDARD).unwrap();
+            let serialized_histogram = B64STANDARD.decode(ilh.encoded_histogram()).unwrap();
             let decoded_hist: Histogram<u64> = deserializer
                 .deserialize(&mut io::Cursor::new(&serialized_histogram))
                 .unwrap();

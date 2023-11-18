@@ -3,7 +3,7 @@ use std::fmt::Display;
 use std::io;
 use std::io::{BufRead, Write};
 
-use clap::{App, Arg};
+use clap::{Arg, Command};
 
 use hdrhistogram::serialization::{
     DeserializeError, Deserializer, Serializer, V2DeflateSerializeError, V2DeflateSerializer,
@@ -13,9 +13,9 @@ use hdrhistogram::{Histogram, RecordError};
 
 fn main() {
     let default_max = format!("{}", u64::max_value());
-    let matches = App::new("hdrhistogram cli")
+    let matches = Command::new("hdrhistogram cli")
         .subcommand(
-            App::new("serialize")
+            Command::new("serialize")
                 .about(
                     "Transform number-per-line input from stdin \
                      into a serialized histogram on stdout",
@@ -24,21 +24,21 @@ fn main() {
                     Arg::new("min")
                         .long("min")
                         .help("Minimum discernible value")
-                        .takes_value(true)
+                        .value_parser(clap::value_parser!(u64))
                         .default_value("1"),
                 )
                 .arg(
                     Arg::new("max")
                         .long("max")
                         .help("Maximum trackable value")
-                        .takes_value(true)
-                        .default_value(default_max.as_str()),
+                        .value_parser(clap::value_parser!(u64))
+                        .default_value(clap::builder::OsStr::from(default_max)),
                 )
                 .arg(
                     Arg::new("sigfig")
                         .long("sigfig")
                         .help("Number of significant digits")
-                        .takes_value(true)
+                        .value_parser(clap::value_parser!(u8))
                         .default_value("3"),
                 )
                 .arg(
@@ -55,20 +55,20 @@ fn main() {
                 ),
         )
         .subcommand(
-            App::new("iter-quantiles")
+            Command::new("iter-quantiles")
                 .about("Display quantiles to stdout from serialized histogram stdin")
                 .arg(
                     Arg::new("ticks")
                         .short('t')
                         .long("ticks-per-half")
-                        .takes_value(true)
                         .required(true)
+                        .value_parser(clap::value_parser!(u32))
                         .help("Ticks per half distance"),
                 )
                 .arg(
                     Arg::new("quantile-precision")
                         .long("quantile-precision")
-                        .takes_value(true)
+                        .value_parser(clap::value_parser!(usize))
                         .default_value("20"),
                 ),
         )
@@ -83,25 +83,24 @@ fn main() {
     match matches.subcommand_name() {
         Some("serialize") => {
             let sub_matches = matches.subcommand_matches("serialize").unwrap();
-            let min = sub_matches.value_of("min").unwrap().parse().unwrap();
-            let max = sub_matches.value_of("max").unwrap().parse().unwrap();
-            let sigfig = sub_matches.value_of("sigfig").unwrap().parse().unwrap();
+            let min = sub_matches.get_one::<u64>("min").cloned().unwrap();
+            let max = sub_matches.get_one::<u64>("max").cloned().unwrap();
+            let sigfig = sub_matches.get_one::<u8>("sigfig").cloned().unwrap();
 
             let mut h: Histogram<u64> = Histogram::new_with_bounds(min, max, sigfig).unwrap();
 
-            if sub_matches.is_present("resize") {
+            if sub_matches.contains_id("resize") {
                 h.auto(true);
             }
 
-            serialize(stdin, stdout, h, sub_matches.is_present("compression"))
+            serialize(stdin, stdout, h, sub_matches.contains_id("compression"))
         }
         Some("iter-quantiles") => {
             let sub_matches = matches.subcommand_matches("iter-quantiles").unwrap();
-            let ticks_per_half = sub_matches.value_of("ticks").unwrap().parse().unwrap();
+            let ticks_per_half = sub_matches.get_one::<u32>("ticks").cloned().unwrap();
             let quantile_precision = sub_matches
-                .value_of("quantile-precision")
-                .unwrap()
-                .parse()
+                .get_one::<usize>("quantile-precision")
+                .cloned()
                 .unwrap();
             quantiles(stdin, stdout, quantile_precision, ticks_per_half)
         }

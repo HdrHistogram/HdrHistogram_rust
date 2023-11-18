@@ -217,6 +217,7 @@ use std::fmt::Write;
 use std::str::FromStr;
 use std::{fmt, io, ops, str, time};
 
+use base64::Engine as _;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take, take_until, take_while1};
 use nom::character::complete::char;
@@ -486,7 +487,8 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> InternalLogWriter<'a, 'b, W,
             .serializer
             .serialize(h, &mut self.serialize_buf)
             .map_err(IntervalLogWriterError::SerializeError)?;
-        base64::encode_config_buf(&self.serialize_buf, base64::STANDARD, &mut self.text_buf);
+        base64::engine::general_purpose::STANDARD
+            .encode_string(&self.serialize_buf, &mut self.text_buf);
 
         self.writer.write_all(self.text_buf.as_bytes())?;
         self.writer.write_all(b"\n")?;
