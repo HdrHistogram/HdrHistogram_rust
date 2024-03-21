@@ -30,7 +30,7 @@ default = [ "serialization", "sync" ]
 num-traits = "0.2"
 byteorder = "1.0.0"
 flate2 = { version = "1.0.3", optional = true }
-winnow = { version = "0.4", optional = true }
+winnow = { version = "0.5", optional = true }
 base64 = { version = "0.21", optional = true }
 crossbeam-channel = { version = "0.5", optional = true }
 

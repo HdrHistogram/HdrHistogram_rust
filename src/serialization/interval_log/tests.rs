@@ -223,7 +223,7 @@ fn write_base_time() {
 
 #[test]
 fn parse_duration_full_ns() {
-    let (rest, dur) = fract_sec_duration(b"123456.789012345foo").unwrap();
+    let (rest, dur) = fract_sec_duration(&mut b"123456.789012345foo".as_slice()).unwrap();
 
     assert_eq!(time::Duration::new(123456, 789_012_345), dur);
     assert_eq!(b"foo", rest);
@@ -231,7 +231,7 @@ fn parse_duration_full_ns() {
 
 #[test]
 fn parse_duration_scale_ns() {
-    let (rest, dur) = fract_sec_duration(b"123456.789012foo").unwrap();
+    let (rest, dur) = fract_sec_duration(&mut b"123456.789012foo".as_slice()).unwrap();
 
     assert_eq!(time::Duration::new(123456, 789_012_000), dur);
     assert_eq!(b"foo", rest);
@@ -239,7 +239,7 @@ fn parse_duration_scale_ns() {
 
 #[test]
 fn parse_duration_too_many_ns() {
-    let (rest, dur) = fract_sec_duration(b"123456.7890123456foo").unwrap();
+    let (rest, dur) = fract_sec_duration(&mut b"123456.7890123456foo".as_slice()).unwrap();
 
     // consumes all the numbers, but only parses the first 9
     assert_eq!(time::Duration::new(123456, 789_012_345), dur);
@@ -265,7 +265,7 @@ fn duration_fp_roundtrip_accuracy() {
 
         write!(&mut buf, "{:.3}", fp_secs).unwrap();
 
-        let (_, dur2) = fract_sec_duration(buf.as_bytes()).unwrap();
+        let (_, dur2) = fract_sec_duration(&mut buf.as_bytes()).unwrap();
 
         if dur != dur2 {
             errors.push((dur, dur2));
@@ -284,7 +284,7 @@ fn duration_fp_roundtrip_accuracy() {
 #[test]
 fn parse_start_time_with_human_date() {
     let (rest, e) = start_time(
-        b"#[StartTime: 1441812279.474 (seconds since epoch), Wed Sep 09 08:24:39 PDT 2015]\nfoo",
+        &mut b"#[StartTime: 1441812279.474 (seconds since epoch), Wed Sep 09 08:24:39 PDT 2015]\nfoo".as_slice(),
     )
     .unwrap();
 
@@ -299,7 +299,9 @@ fn parse_start_time_without_human_date() {
     // Can't be bothered to format a timestamp for humans, so we don't write that data. It's just
     // another part that could be wrong -- what if it disagrees with the seconds since epoch?
     // Also, BaseTime doesn't have a human-formatted time.
-    let (rest, e) = start_time(b"#[StartTime: 1441812279.474 (seconds since epoch)]\nfoo").unwrap();
+    let (rest, e) =
+        start_time(&mut b"#[StartTime: 1441812279.474 (seconds since epoch)]\nfoo".as_slice())
+            .unwrap();
 
     let expected = LogEntry::StartTime(time::Duration::new(1441812279, 474_000_000));
 
@@ -309,7 +311,9 @@ fn parse_start_time_without_human_date() {
 
 #[test]
 fn parse_base_time() {
-    let (rest, e) = base_time(b"#[BaseTime: 1441812279.474 (seconds since epoch)]\nfoo").unwrap();
+    let (rest, e) =
+        base_time(&mut b"#[BaseTime: 1441812279.474 (seconds since epoch)]\nfoo".as_slice())
+            .unwrap();
 
     let expected = LogEntry::BaseTime(time::Duration::new(1441812279, 474_000_000));
 
@@ -321,21 +325,21 @@ fn parse_base_time() {
 fn parse_legend() {
     let input = b"\"StartTimestamp\",\"Interval_Length\",\"Interval_Max\",\
     \"Interval_Compressed_Histogram\"\nfoo";
-    let (rest, _) = legend(input).unwrap();
+    let (rest, _) = legend(&mut input.as_slice()).unwrap();
 
     assert_eq!(b"foo", rest);
 }
 
 #[test]
 fn parse_comment() {
-    let (rest, _) = comment_line(b"#SomeOtherComment\nfoo").unwrap();
+    let (rest, _) = comment_line(&mut b"#SomeOtherComment\nfoo".as_slice()).unwrap();
 
     assert_eq!(b"foo", rest);
 }
 
 #[test]
 fn parse_interval_hist_no_tag() {
-    let (rest, e) = interval_hist(b"0.127,1.007,2.769,couldBeBase64\nfoo").unwrap();
+    let (rest, e) = interval_hist(&mut b"0.127,1.007,2.769,couldBeBase64\nfoo".as_slice()).unwrap();
 
     let expected = LogEntry::Interval(IntervalLogHistogram {
         tag: None,
@@ -351,7 +355,8 @@ fn parse_interval_hist_no_tag() {
 
 #[test]
 fn parse_interval_hist_with_tag() {
-    let (rest, e) = interval_hist(b"Tag=t,0.127,1.007,2.769,couldBeBase64\nfoo").unwrap();
+    let (rest, e) =
+        interval_hist(&mut b"Tag=t,0.127,1.007,2.769,couldBeBase64\nfoo".as_slice()).unwrap();
 
     let expected = LogEntry::Interval(IntervalLogHistogram {
         tag: Some(Tag("t")),
