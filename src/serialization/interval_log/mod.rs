@@ -315,7 +315,7 @@ impl IntervalLogWriterBuilder {
         };
 
         for c in &self.comments {
-            internal_writer.write_comment(&c)?;
+            internal_writer.write_comment(c)?;
         }
 
         if let Some(st) = self.start_time {
