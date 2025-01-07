@@ -218,14 +218,12 @@ use std::str::FromStr;
 use std::{fmt, io, ops, str, time};
 
 use base64::Engine as _;
-use nom::branch::alt;
-use nom::bytes::complete::{tag, take, take_until, take_while1};
-use nom::character::complete::char;
-use nom::character::is_digit;
-use nom::combinator::{complete, map_res, opt, recognize};
-use nom::error::ErrorKind;
-use nom::number::complete::double;
-use nom::{Err, IResult};
+use winnow::ascii::{digit1, float};
+use winnow::combinator::{alt, opt};
+use winnow::error::{ErrMode, ErrorKind, ParserError as _};
+use winnow::prelude::*;
+use winnow::token::{take, take_until};
+use winnow::PResult;
 
 use super::super::{Counter, Histogram};
 use super::Serializer;
@@ -671,15 +669,13 @@ impl<'a> Iterator for IntervalLogIterator<'a> {
 
             // Look for magic comments first otherwise they will get matched by the simple comment
             // parser
-            if let Ok((rest, e)) = log_entry(self.input) {
-                self.input = rest;
+            if let Ok(Some(e)) = opt(log_entry).parse_next(&mut self.input) {
                 return Some(Ok(e));
             }
 
             // it wasn't a log entry; try parsing a comment
-            match ignored_line(self.input) {
-                Ok((rest, _)) => {
-                    self.input = rest;
+            match opt(ignored_line).parse_next(&mut self.input) {
+                Ok(Some(())) => {
                     continue;
                 }
                 _ => {
@@ -706,85 +702,84 @@ fn system_time_as_fp_seconds(time: time::SystemTime) -> f64 {
     }
 }
 
-fn start_time(input: &[u8]) -> IResult<&[u8], LogEntry> {
-    let (input, _) = tag("#[StartTime: ")(input)?;
-    let (input, duration) = fract_sec_duration(input)?;
-    let (input, _) = char(' ')(input)?;
-    let (input, _) = take_until("\n")(input)?;
-    let (input, _) = take(1_usize)(input)?;
-    Ok((input, LogEntry::StartTime(duration)))
+fn start_time<'i>(input: &mut &'i [u8]) -> PResult<LogEntry<'i>> {
+    let _ = "#[StartTime: ".parse_next(input)?;
+    let duration = fract_sec_duration.parse_next(input)?;
+    let _ = ' '.parse_next(input)?;
+    let _ = take_until(0.., "\n").parse_next(input)?;
+    let _ = take(1_usize).parse_next(input)?;
+    Ok(LogEntry::StartTime(duration))
 }
 
-fn base_time(input: &[u8]) -> IResult<&[u8], LogEntry> {
-    let (input, _) = tag("#[BaseTime: ")(input)?;
-    let (input, duration) = fract_sec_duration(input)?;
-    let (input, _) = char(' ')(input)?;
-    let (input, _) = take_until("\n")(input)?;
-    let (input, _) = take(1_usize)(input)?;
-    Ok((input, LogEntry::BaseTime(duration)))
+fn base_time<'i>(input: &mut &'i [u8]) -> PResult<LogEntry<'i>> {
+    let _ = "#[BaseTime: ".parse_next(input)?;
+    let duration = fract_sec_duration(input)?;
+    let _ = ' '.parse_next(input)?;
+    let _ = take_until(0.., "\n").parse_next(input)?;
+    let _ = take(1_usize).parse_next(input)?;
+    Ok(LogEntry::BaseTime(duration))
 }
 
-fn tag_bytes(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    let (input, _) = tag("Tag=")(input)?;
-    let (input, tag) = take_until(",")(input)?;
-    let (input, _) = take(1_usize)(input)?;
-    Ok((input, tag))
+fn tag_bytes<'i>(input: &mut &'i [u8]) -> PResult<&'i [u8]> {
+    let _ = "Tag=".parse_next(input)?;
+    let tag = take_until(0.., ",").parse_next(input)?;
+    let _ = take(1_usize).parse_next(input)?;
+    Ok(tag)
 }
 
-fn tag_parser(input: &[u8]) -> IResult<&[u8], Tag> {
-    let (input, tag) = map_res(tag_bytes, str::from_utf8)(input)?;
-    Ok((input, Tag(tag)))
+fn tag_parser<'i>(input: &mut &'i [u8]) -> PResult<Tag<'i>> {
+    let tag = tag_bytes.try_map(str::from_utf8).parse_next(input)?;
+    Ok(Tag(tag))
 }
 
-fn interval_hist(input: &[u8]) -> IResult<&[u8], LogEntry> {
-    let (input, tag) = opt(tag_parser)(input)?;
-    let (input, start_timestamp) = fract_sec_duration(input)?;
-    let (input, _) = char(',')(input)?;
-    let (input, duration) = fract_sec_duration(input)?;
-    let (input, _) = char(',')(input)?;
-    let (input, max) = double(input)?;
-    let (input, _) = char(',')(input)?;
-    let (input, encoded_histogram) = map_res(take_until("\n"), str::from_utf8)(input)?;
+fn interval_hist<'i>(input: &mut &'i [u8]) -> PResult<LogEntry<'i>> {
+    let tag = opt(tag_parser).parse_next(input)?;
+    let start_timestamp = fract_sec_duration(input)?;
+    let _ = ','.parse_next(input)?;
+    let duration = fract_sec_duration(input)?;
+    let _ = ','.parse_next(input)?;
+    let max = float(input)?;
+    let _ = ','.parse_next(input)?;
+    let encoded_histogram = take_until(0.., "\n")
+        .try_map(str::from_utf8)
+        .parse_next(input)?;
     // Be nice to Windows users:
     let encoded_histogram = encoded_histogram.trim_end_matches('\r');
-    let (input, _) = take(1_usize)(input)?;
+    let _ = take(1_usize).parse_next(input)?;
 
-    Ok((
-        input,
-        LogEntry::Interval(IntervalLogHistogram {
-            tag,
-            start_timestamp,
-            duration,
-            max,
-            encoded_histogram,
-        }),
-    ))
+    Ok(LogEntry::Interval(IntervalLogHistogram {
+        tag,
+        start_timestamp,
+        duration,
+        max,
+        encoded_histogram,
+    }))
 }
 
-fn log_entry(input: &[u8]) -> IResult<&[u8], LogEntry<'_>> {
-    complete(alt((start_time, base_time, interval_hist)))(input)
+fn log_entry<'i>(input: &mut &'i [u8]) -> PResult<LogEntry<'i>> {
+    alt((start_time, base_time, interval_hist)).parse_next(input)
 }
 
-fn comment_line(input: &[u8]) -> IResult<&[u8], ()> {
-    let (input, _) = tag("#")(input)?;
-    let (input, _) = take_until("\n")(input)?;
-    let (input, _) = take(1_usize)(input)?;
-    Ok((input, ()))
+fn comment_line(input: &mut &[u8]) -> PResult<()> {
+    let _ = "#".parse_next(input)?;
+    let _ = take_until(0.., "\n").parse_next(input)?;
+    let _ = take(1_usize).parse_next(input)?;
+    Ok(())
 }
 
-fn legend(input: &[u8]) -> IResult<&[u8], ()> {
-    let (input, _) = tag("\"StartTimestamp\"")(input)?;
-    let (input, _) = take_until("\n")(input)?;
-    let (input, _) = take(1_usize)(input)?;
-    Ok((input, ()))
+fn legend(input: &mut &[u8]) -> PResult<()> {
+    let _ = "\"StartTimestamp\"".parse_next(input)?;
+    let _ = take_until(0.., "\n").parse_next(input)?;
+    let _ = take(1_usize).parse_next(input)?;
+    Ok(())
 }
 
-fn ignored_line(input: &[u8]) -> IResult<&[u8], ()> {
-    alt((comment_line, legend))(input)
+fn ignored_line(input: &mut &[u8]) -> PResult<()> {
+    alt((comment_line, legend)).parse_next(input)
 }
 
-fn fract_sec_duration(input: &[u8]) -> IResult<&[u8], time::Duration> {
-    let (rest, data) = fract_sec_tuple(input)?;
+fn fract_sec_duration(input: &mut &[u8]) -> PResult<time::Duration> {
+    let data = fract_sec_tuple.parse_next(input)?;
     let (secs, nanos_str) = data;
 
     // only read up to 9 digits since we can only support nanos, not smaller precision
@@ -798,24 +793,24 @@ fn fract_sec_duration(input: &[u8]) -> IResult<&[u8], time::Duration> {
     };
 
     if let Ok(nanos) = nanos_parse_res {
-        return Ok((rest, time::Duration::new(secs, nanos)));
+        return Ok(time::Duration::new(secs, nanos));
     }
 
     // nanos were invalid utf8. We don't expose these errors, so don't bother defining a
     // custom error type.
-    Err(Err::Error(error_position!(input, ErrorKind::Alpha)))
+    Err(ErrMode::from_error_kind(input, ErrorKind::Slice))
 }
 
-type FResult<'a> = IResult<&'a [u8], (u64, &'a str)>;
+type FResult<'a> = PResult<(u64, &'a str)>;
 
-fn fract_sec_tuple(input: &[u8]) -> FResult {
-    let (input, secs) = map_res(
-        map_res(recognize(take_until(".")), str::from_utf8),
-        u64::from_str,
-    )(input)?;
-    let (input, _) = tag(".")(input)?;
-    let (input, nanos_str) = map_res(complete(take_while1(is_digit)), str::from_utf8)(input)?;
-    Ok((input, (secs, nanos_str)))
+fn fract_sec_tuple<'i>(input: &mut &'i [u8]) -> FResult<'i> {
+    let secs = take_until(0.., ".")
+        .try_map(str::from_utf8)
+        .try_map(u64::from_str)
+        .parse_next(input)?;
+    let _ = ".".parse_next(input)?;
+    let nanos_str = digit1.try_map(str::from_utf8).parse_next(input)?;
+    Ok((secs, nanos_str))
 }
 
 #[cfg(test)]

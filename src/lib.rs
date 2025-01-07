@@ -200,10 +200,6 @@
 #[cfg(all(test, feature = "bench_private"))]
 extern crate test;
 
-#[cfg(feature = "serialization")]
-#[macro_use]
-extern crate nom;
-
 use num_traits::ToPrimitive;
 use std::borrow::Borrow;
 use std::cmp;
