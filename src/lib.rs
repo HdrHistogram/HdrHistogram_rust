@@ -194,6 +194,7 @@
     unused_results,
     variant_size_differences
 )]
+#![forbid(unsafe_code)]
 // Enable feature(test) is enabled so that we can have benchmarks of private code
 #![cfg_attr(all(test, feature = "bench_private"), feature(test))]
 
