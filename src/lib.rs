@@ -1350,11 +1350,12 @@ impl<T: Counter> Histogram<T> {
             count_at_quantile = 1;
         }
 
+        // Iterate the slice directly so the element is handed to the loop without a
+        // per-element bounds check on the hot prefix-sum path.
+        // TODO overflow
         let mut total_to_current_index: u64 = 0;
-        for i in 0..self.counts.len() {
-            // Direct indexing is safe; indexes must reside in counts array.
-            // TODO overflow
-            total_to_current_index += self.counts[i].as_u64();
+        for (i, count) in self.counts.iter().enumerate() {
+            total_to_current_index += count.as_u64();
             if total_to_current_index >= count_at_quantile {
                 let value_at_index = self.value_for(i);
                 return if quantile == 0.0 {
