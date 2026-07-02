@@ -1369,6 +1369,84 @@ impl<T: Counter> Histogram<T> {
         0
     }
 
+    /// Get the values at several quantiles in a single pass over the histogram.
+    ///
+    /// Returns a `Vec<u64>` with one entry per input quantile, in the same order as `quantiles`
+    /// (input order is preserved even if `quantiles` is unsorted or contains duplicates). Each
+    /// entry is exactly what [`Histogram::value_at_quantile`] would return for that quantile, but
+    /// the `counts` array is scanned only once regardless of how many quantiles are requested,
+    /// which is faster than N separate calls for N > 1.
+    ///
+    /// Edge behavior matches [`Histogram::value_at_quantile`]: quantiles are capped at `1.0`, an
+    /// empty histogram yields all `0`s, and `quantile == 0.0` uses the lowest equivalent value.
+    #[must_use]
+    pub fn value_at_quantiles(&self, quantiles: &[f64]) -> Vec<u64> {
+        let n = quantiles.len();
+        let mut result = vec![0u64; n];
+        if n == 0 {
+            return result;
+        }
+
+        // Per-quantile target cumulative count (same rule as `value_at_quantile`).
+        let targets: Vec<u64> = quantiles
+            .iter()
+            .map(|&q| {
+                let q = if q > 1.0 { 1.0 } else { q };
+                let c = (q * self.total_count as f64).ceil() as u64;
+                if c == 0 {
+                    1
+                } else {
+                    c
+                }
+            })
+            .collect();
+
+        // Resolve quantiles in ascending target order so one scan satisfies all of them.
+        let mut order: Vec<usize> = (0..n).collect();
+        order.sort_by(|&a, &b| targets[a].cmp(&targets[b]));
+
+        // Hoist the next target into a local so the hot loop stays a tight
+        // `total += counts[i]; if total >= next_target` — the same shape as the
+        // singular scan, which the optimizer keeps very tight. The per-crossing
+        // bookkeeping runs only when a threshold is actually reached.
+        let mut total_to_current_index: u64 = 0;
+        let mut pos = 0usize;
+        let mut next_target = targets[order[0]];
+        for i in 0..self.counts.len() {
+            total_to_current_index += self.counts[i].as_u64();
+            if total_to_current_index >= next_target {
+                let value_at_index = self.value_for(i);
+                loop {
+                    let oi = order[pos];
+                    result[oi] = if quantiles[oi] == 0.0 {
+                        self.lowest_equivalent(value_at_index)
+                    } else {
+                        self.highest_equivalent(value_at_index)
+                    };
+                    pos += 1;
+                    if pos >= n {
+                        return result;
+                    }
+                    next_target = targets[order[pos]];
+                    if total_to_current_index < next_target {
+                        break;
+                    }
+                }
+            }
+        }
+        result
+    }
+
+    /// Get the values at several percentiles (each in `[0.0, 100.0]`) in a single pass.
+    ///
+    /// Convenience wrapper over [`Histogram::value_at_quantiles`]; returns one value per input
+    /// percentile, in input order.
+    #[must_use]
+    pub fn value_at_percentiles(&self, percentiles: &[f64]) -> Vec<u64> {
+        let quantiles: Vec<f64> = percentiles.iter().map(|&p| p / 100.0).collect();
+        self.value_at_quantiles(&quantiles)
+    }
+
     /// Get the percentile of samples at and below a given value.
     ///
     /// This is simply `quantile_below* multiplied by 100.0. For best floating-point precision, use
