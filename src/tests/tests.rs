@@ -8,6 +8,8 @@ mod index_calculation;
 mod init;
 #[path = "subtract.rs"]
 mod subtract;
+#[path = "value_at_quantile_scan.rs"]
+mod value_at_quantile_scan;
 #[path = "value_calculation.rs"]
 mod value_calculation;
 
