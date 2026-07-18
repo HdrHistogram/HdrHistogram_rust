@@ -93,11 +93,8 @@ impl Serializer for V2Serializer {
 
         debug_assert_eq!(V2_HEADER_SIZE, self.buf.len());
 
-        unsafe {
-            // want to treat the rest of the vec as a slice, and we've already reserved this
-            // space, so this way we don't have to resize() on a lot of dummy bytes.
-            self.buf.set_len(max_size);
-        }
+        // want to treat the rest of the vec as a slice
+        self.buf.resize(max_size, 0);
 
         let counts_len = encode_counts(h, &mut self.buf[V2_HEADER_SIZE..])?;
         // addition should be safe as max_size is already a usize
@@ -142,11 +139,11 @@ pub fn encode_counts<T: Counter>(
     let mut index = 0;
     let mut bytes_written = 0;
 
-    assert!(index_limit <= h.counts.len());
+    assert!(index_limit < h.counts.len());
 
     while index <= index_limit {
         // index is inside h.counts because of the assert above
-        let count = unsafe { *(h.counts.get_unchecked(index)) };
+        let count = h.counts[index];
         index += 1;
 
         // Non-negative values are counts for the respective value, negative values are skipping
@@ -157,9 +154,7 @@ pub fn encode_counts<T: Counter>(
             zero_count = 1;
 
             // index is inside h.counts because of the assert above
-            while (index <= index_limit)
-                && (unsafe { *(h.counts.get_unchecked(index)) } == T::zero())
-            {
+            while (index <= index_limit) && h.counts[index] == T::zero() {
                 zero_count += 1;
                 index += 1;
             }
