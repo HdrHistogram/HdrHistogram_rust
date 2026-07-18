@@ -1356,8 +1356,8 @@ impl<T: Counter> Histogram<T> {
             count_at_quantile = 1;
         }
 
-        // Sum bins in chunks with SIMD until we detect a chunk that passes the target;
-        // only then do we walk the chunk bin-by-bin.
+        // Sum bins in chunks (such that the operation can auto-vectorized by the compiler) until we
+        // detect a chunk that passes the target; only then do we walk the chunk bin-by-bin.
         const SCAN_CHUNK: usize = 8;
         let finish = |index: usize| -> u64 {
             let value_at_index = self.value_for(index);
