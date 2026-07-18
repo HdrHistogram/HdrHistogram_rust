@@ -316,7 +316,7 @@ impl IntervalLogWriterBuilder {
         };
 
         for c in &self.comments {
-            internal_writer.write_comment(&c)?;
+            internal_writer.write_comment(c)?;
         }
 
         if let Some(st) = self.start_time {
@@ -470,7 +470,7 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> InternalLogWriter<'a, 'b, W,
         self.text_buf.clear();
 
         if let Some(Tag(s)) = tag {
-            write!(self.text_buf, "Tag={},", &s).expect("Writes to a String can't fail");
+            write!(self.text_buf, "Tag={},", s).expect("Writes to a String can't fail");
         }
 
         write!(
@@ -702,7 +702,7 @@ fn system_time_as_fp_seconds(time: time::SystemTime) -> f64 {
         Ok(dur_after_epoch) => duration_as_fp_seconds(dur_after_epoch),
         // Doesn't seem possible to be before the epoch, but using a negative number seems like
         // a reasonable representation if it does occur
-        Err(t) => duration_as_fp_seconds(t.duration()) * -1_f64,
+        Err(t) => -duration_as_fp_seconds(t.duration()),
     }
 }
 

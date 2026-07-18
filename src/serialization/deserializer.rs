@@ -165,7 +165,7 @@ impl Deserializer {
         }
 
         let mut payload_slice = &mut self.payload_buf[0..payload_len];
-        reader.read_exact(&mut payload_slice)?;
+        reader.read_exact(payload_slice)?;
 
         let mut payload_index: usize = 0;
         let mut restat_state = RestatState::new();
