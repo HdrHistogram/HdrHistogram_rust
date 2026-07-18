@@ -1409,6 +1409,9 @@ impl<T: Counter> Histogram<T> {
 
             while total_to_current_index < target {
                 let Some((i, count)) = counts.next() else {
+                    // target is clamped to total_count, so last bin must make this false
+                    // _except_ in the case where the histogram is empty
+                    assert_eq!(self.total_count, 0);
                     return Some(0);
                 };
                 at_count_i = i;
