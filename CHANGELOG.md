@@ -5,7 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
-Note that `HdrHistogram::value_at_quantiles` bumps MSRV to 1.82!
+Note that this release bumps MSRV to 1.88 because it uses a few newer
+Rust features like `use<>` and `[]::as_chunks`.
 
 ### Added
 - `HdrHistogram::value_at_quantiles` and
