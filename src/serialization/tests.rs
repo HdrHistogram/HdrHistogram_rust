@@ -474,7 +474,7 @@ fn zig_zag_roundtrip_random() {
     let mut rng = rand::rngs::SmallRng::from_entropy();
 
     for _ in 0..1_000_000 {
-        let r: i64 = rng.gen();
+        let r: i64 = rng.r#gen();
         let encoded = zig_zag_encode(r);
         let decoded = zig_zag_decode(encoded);
 

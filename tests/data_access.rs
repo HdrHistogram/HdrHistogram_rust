@@ -3,7 +3,7 @@
 use hdrhistogram::Histogram;
 
 macro_rules! assert_near {
-    ($a:expr, $b:expr, $tolerance:expr) => {{
+    ($a:expr_2021, $b:expr_2021, $tolerance:expr_2021) => {{
         let a = $a as f64;
         let b = $b as f64;
         let tol = $tolerance as f64;

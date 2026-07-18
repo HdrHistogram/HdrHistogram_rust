@@ -7,7 +7,7 @@ use std::borrow::Borrow;
 use std::fmt;
 
 macro_rules! assert_near {
-    ($a:expr, $b:expr, $tolerance:expr) => {{
+    ($a:expr_2021, $b:expr_2021, $tolerance:expr_2021) => {{
         let a = $a as f64;
         let b = $b as f64;
         let tol = $tolerance as f64;
@@ -346,7 +346,7 @@ fn random_write_full_value_range_precision_5_no_panic() {
     let mut rng = rand::rngs::SmallRng::from_entropy();
 
     for _ in 0..1_000_000 {
-        let mut r: u64 = rng.gen();
+        let mut r: u64 = rng.r#gen();
         if r == 0 {
             r = 1;
         }
@@ -362,7 +362,7 @@ fn random_write_full_value_range_precision_0_no_panic() {
     let mut rng = rand::rngs::SmallRng::from_entropy();
 
     for _ in 0..1_000_000 {
-        let mut r: u64 = rng.gen();
+        let mut r: u64 = rng.r#gen();
         if r == 0 {
             r = 1;
         }

@@ -239,11 +239,11 @@ mod tests {
                 for _ in 0..100 {
                     // ensure no count above i64::max_value(), even when many large values are
                     // bucketed together
-                    h.record_n(rng.gen::<u64>() >> 32, rng.gen::<u64>() >> 32)
+                    h.record_n(rng.r#gen::<u64>() >> 32, rng.r#gen::<u64>() >> 32)
                         .unwrap();
                 }
 
-                if rng.gen() {
+                if rng.r#gen() {
                     tags.push(Some(format!("t{}", i)));
                 } else {
                     tags.push(None);
