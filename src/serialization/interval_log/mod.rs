@@ -222,11 +222,10 @@ use base64::Engine as _;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take, take_until, take_while1};
 use nom::character::complete::char;
-use nom::character::is_digit;
 use nom::combinator::{complete, map_res, opt, recognize};
 use nom::error::ErrorKind;
 use nom::number::complete::double;
-use nom::{Err, IResult};
+use nom::{Err, IResult, Parser as _};
 
 use super::super::{Counter, Histogram};
 use super::Serializer;
@@ -733,19 +732,19 @@ fn tag_bytes(input: &[u8]) -> IResult<&[u8], &[u8]> {
 }
 
 fn tag_parser(input: &[u8]) -> IResult<&[u8], Tag<'_>> {
-    let (input, tag) = map_res(tag_bytes, str::from_utf8)(input)?;
+    let (input, tag) = map_res(tag_bytes, str::from_utf8).parse(input)?;
     Ok((input, Tag(tag)))
 }
 
 fn interval_hist(input: &[u8]) -> IResult<&[u8], LogEntry<'_>> {
-    let (input, tag) = opt(tag_parser)(input)?;
+    let (input, tag) = opt(tag_parser).parse(input)?;
     let (input, start_timestamp) = fract_sec_duration(input)?;
     let (input, _) = char(',')(input)?;
     let (input, duration) = fract_sec_duration(input)?;
     let (input, _) = char(',')(input)?;
     let (input, max) = double(input)?;
     let (input, _) = char(',')(input)?;
-    let (input, encoded_histogram) = map_res(take_until("\n"), str::from_utf8)(input)?;
+    let (input, encoded_histogram) = map_res(take_until("\n"), str::from_utf8).parse(input)?;
     // Be nice to Windows users:
     let encoded_histogram = encoded_histogram.trim_end_matches('\r');
     let (input, _) = take(1_usize)(input)?;
@@ -763,7 +762,7 @@ fn interval_hist(input: &[u8]) -> IResult<&[u8], LogEntry<'_>> {
 }
 
 fn log_entry(input: &[u8]) -> IResult<&[u8], LogEntry<'_>> {
-    complete(alt((start_time, base_time, interval_hist)))(input)
+    complete(alt((start_time, base_time, interval_hist))).parse(input)
 }
 
 fn comment_line(input: &[u8]) -> IResult<&[u8], ()> {
@@ -781,7 +780,7 @@ fn legend(input: &[u8]) -> IResult<&[u8], ()> {
 }
 
 fn ignored_line(input: &[u8]) -> IResult<&[u8], ()> {
-    alt((comment_line, legend))(input)
+    alt((comment_line, legend)).parse(input)
 }
 
 fn fract_sec_duration(input: &[u8]) -> IResult<&[u8], time::Duration> {
@@ -813,9 +812,14 @@ fn fract_sec_tuple(input: &[u8]) -> FResult<'_> {
     let (input, secs) = map_res(
         map_res(recognize(take_until(".")), str::from_utf8),
         u64::from_str,
-    )(input)?;
+    )
+    .parse(input)?;
     let (input, _) = tag(".")(input)?;
-    let (input, nanos_str) = map_res(complete(take_while1(is_digit)), str::from_utf8)(input)?;
+    let (input, nanos_str) = map_res(
+        complete(take_while1(|c: u8| c.is_ascii_digit())),
+        str::from_utf8,
+    )
+    .parse(input)?;
     Ok((input, (secs, nanos_str)))
 }
 
