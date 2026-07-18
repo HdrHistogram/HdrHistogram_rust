@@ -9,9 +9,9 @@ use crate::tests::helpers::histo64;
 use crate::{Counter, Histogram};
 use byteorder::{BigEndian, ReadBytesExt};
 use num_traits::ToPrimitive;
-use rand::distributions::Distribution;
-use rand::distributions::uniform::{SampleUniform, Uniform};
-use rand::{Rng, SeedableRng};
+use rand::RngExt;
+use rand::distr::Distribution;
+use rand::distr::uniform::{SampleUniform, Uniform};
 use std::fmt::{Debug, Display};
 use std::io::Cursor;
 use std::iter::once;
@@ -471,10 +471,10 @@ fn zig_zag_decode_u64_max_penultimate_to_i64_max() {
 
 #[test]
 fn zig_zag_roundtrip_random() {
-    let mut rng = rand::rngs::SmallRng::from_entropy();
+    let mut rng = rand::make_rng::<rand::rngs::SmallRng>();
 
     for _ in 0..1_000_000 {
-        let r: i64 = rng.r#gen();
+        let r: i64 = rng.random();
         let encoded = zig_zag_encode(r);
         let decoded = zig_zag_decode(encoded);
 
@@ -490,7 +490,7 @@ fn do_varint_write_read_roundtrip_rand(byte_length: usize) {
 
     let mut buf = [0; 9];
     // Bunch of random numbers, plus the start and end of the range
-    let range = Uniform::new(smallest_in_range, largest_in_range);
+    let range = Uniform::new(smallest_in_range, largest_in_range).expect("range is non-empty");
     for i in RandomRangeIter::new(range)
         .take(100_000)
         .chain(once(smallest_in_range))
@@ -517,7 +517,7 @@ fn do_varint_write_read_slice_roundtrip_rand(byte_length: usize) {
     let mut buf = [0; 9];
 
     // Bunch of random numbers, plus the start and end of the range
-    let range = Uniform::new(smallest_in_range, largest_in_range);
+    let range = Uniform::new(smallest_in_range, largest_in_range).expect("range is non-empty");
     for i in RandomRangeIter::new(range)
         .take(100_000)
         .chain(once(smallest_in_range))
@@ -545,10 +545,10 @@ where
 {
     let mut d = Deserializer::new();
     let mut vec = Vec::new();
-    let mut count_rng = rand::rngs::SmallRng::from_entropy();
-    let mut varint_rng = rand::rngs::SmallRng::from_entropy();
+    let mut count_rng = rand::make_rng::<rand::rngs::SmallRng>();
+    let mut varint_rng = rand::make_rng::<rand::rngs::SmallRng>();
 
-    let range = Uniform::<T>::new(T::one(), max_count);
+    let range = Uniform::<T>::new(T::one(), max_count).expect("range is non-empty");
     for _ in 0..100 {
         vec.clear();
         let mut h = Histogram::<T>::new_with_bounds(1, u64::max_value(), 3).unwrap();
@@ -631,7 +631,7 @@ struct RandomRangeIter<T: SampleUniform> {
 impl<T: SampleUniform> RandomRangeIter<T> {
     fn new(range: Uniform<T>) -> RandomRangeIter<T> {
         RandomRangeIter {
-            rng: rand::rngs::SmallRng::from_entropy(),
+            rng: rand::make_rng::<rand::rngs::SmallRng>(),
             range,
         }
     }

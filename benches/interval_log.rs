@@ -7,7 +7,6 @@ use std::time;
 use hdrhistogram::serialization;
 use hdrhistogram::serialization::interval_log;
 use hdrhistogram::*;
-use rand::SeedableRng;
 use test::Bencher;
 
 use self::rand_varint::*;
@@ -19,7 +18,7 @@ mod rand_varint;
 fn write_interval_log_1k_hist_10k_value(b: &mut Bencher) {
     let mut log = Vec::new();
     let mut histograms = Vec::new();
-    let mut rng = rand::rngs::SmallRng::from_entropy();
+    let mut rng = rand::make_rng::<rand::rngs::SmallRng>();
 
     for _ in 0..1000 {
         let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
@@ -53,7 +52,7 @@ fn write_interval_log_1k_hist_10k_value(b: &mut Bencher) {
 fn parse_interval_log_1k_hist_10k_value(b: &mut Bencher) {
     let mut log = Vec::new();
     let mut histograms = Vec::new();
-    let mut rng = rand::rngs::SmallRng::from_entropy();
+    let mut rng = rand::make_rng::<rand::rngs::SmallRng>();
 
     for _ in 0..1000 {
         let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();

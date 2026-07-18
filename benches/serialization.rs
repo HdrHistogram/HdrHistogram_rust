@@ -4,7 +4,6 @@ extern crate test;
 
 use hdrhistogram::serialization::*;
 use hdrhistogram::*;
-use rand::SeedableRng;
 use std::io::Cursor;
 use test::Bencher;
 
@@ -175,7 +174,7 @@ fn do_serialize_bench<S>(
     let random_counts = (fraction_of_counts_len * h.distinct_values() as f64) as usize;
     let mut vec = Vec::with_capacity(random_counts);
 
-    let mut rng = rand::rngs::SmallRng::from_entropy();
+    let mut rng = rand::make_rng::<rand::rngs::SmallRng>();
     for v in RandomVarintEncodedLengthIter::new(&mut rng)
         .filter(|v| v >= &low && v <= &high)
         .take(random_counts)
@@ -204,7 +203,7 @@ fn do_deserialize_bench<S>(
     let random_counts = (fraction_of_counts_len * h.distinct_values() as f64) as usize;
     let mut vec = Vec::with_capacity(random_counts);
 
-    let mut rng = rand::rngs::SmallRng::from_entropy();
+    let mut rng = rand::make_rng::<rand::rngs::SmallRng>();
     for v in RandomVarintEncodedLengthIter::new(&mut rng)
         .filter(|v| v >= &low && v <= &high)
         .take(random_counts)

@@ -8,7 +8,7 @@ mod tests {
         LogIteratorError, Tag,
     };
     use hdrhistogram::serialization::{Deserializer, Serializer, V2Serializer};
-    use rand::Rng;
+    use rand::RngExt;
     use std::fs::File;
     use std::io::{BufRead, Read};
     use std::path::Path;
@@ -215,7 +215,7 @@ mod tests {
 
     #[test]
     fn write_random_histograms_to_interval_log_then_read() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let mut histograms = Vec::new();
         let mut tags = Vec::new();
@@ -239,11 +239,11 @@ mod tests {
                 for _ in 0..100 {
                     // ensure no count above i64::max_value(), even when many large values are
                     // bucketed together
-                    h.record_n(rng.r#gen::<u64>() >> 32, rng.r#gen::<u64>() >> 32)
+                    h.record_n(rng.random::<u64>() >> 32, rng.random::<u64>() >> 32)
                         .unwrap();
                 }
 
-                if rng.r#gen() {
+                if rng.random() {
                     tags.push(Some(format!("t{}", i)));
                 } else {
                     tags.push(None);

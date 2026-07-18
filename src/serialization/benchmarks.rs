@@ -1,58 +1,75 @@
 use super::deserializer::{varint_read, varint_read_slice};
 use super::v2_serializer::varint_write;
-use rand::SeedableRng;
-use rand::distributions::Distribution;
-use rand::distributions::uniform::Uniform;
+use rand::distr::Distribution;
+use rand::distr::uniform::Uniform;
 use std::io::Cursor;
 use test::Bencher;
 
 #[bench]
 fn varint_write_rand(b: &mut Bencher) {
-    do_varint_write_rand(b, Uniform::new(0, u64::max_value()))
+    do_varint_write_rand(
+        b,
+        Uniform::new(0, u64::max_value()).expect("range is non-empty"),
+    )
 }
 
 #[bench]
 fn varint_write_rand_1_byte(b: &mut Bencher) {
-    do_varint_write_rand(b, Uniform::new(0, 128))
+    do_varint_write_rand(b, Uniform::new(0, 128).expect("range is non-empty"))
 }
 
 #[bench]
 fn varint_write_rand_9_bytes(b: &mut Bencher) {
-    do_varint_write_rand(b, Uniform::new(1 << 56, u64::max_value()))
+    do_varint_write_rand(
+        b,
+        Uniform::new(1 << 56, u64::max_value()).expect("range is non-empty"),
+    )
 }
 
 #[bench]
 fn varint_read_rand(b: &mut Bencher) {
-    do_varint_read_rand(b, Uniform::new(0, u64::max_value()))
+    do_varint_read_rand(
+        b,
+        Uniform::new(0, u64::max_value()).expect("range is non-empty"),
+    )
 }
 
 #[bench]
 fn varint_read_rand_1_byte(b: &mut Bencher) {
-    do_varint_read_rand(b, Uniform::new(0, 128))
+    do_varint_read_rand(b, Uniform::new(0, 128).expect("range is non-empty"))
 }
 
 #[bench]
 fn varint_read_rand_9_byte(b: &mut Bencher) {
-    do_varint_read_rand(b, Uniform::new(1 << 56, u64::max_value()))
+    do_varint_read_rand(
+        b,
+        Uniform::new(1 << 56, u64::max_value()).expect("range is non-empty"),
+    )
 }
 
 #[bench]
 fn varint_read_slice_rand(b: &mut Bencher) {
-    do_varint_read_slice_rand(b, Uniform::new(0, u64::max_value()))
+    do_varint_read_slice_rand(
+        b,
+        Uniform::new(0, u64::max_value()).expect("range is non-empty"),
+    )
 }
 
 #[bench]
 fn varint_read_slice_rand_1_byte(b: &mut Bencher) {
-    do_varint_read_slice_rand(b, Uniform::new(0, 128))
+    do_varint_read_slice_rand(b, Uniform::new(0, 128).expect("range is non-empty"))
 }
 
 #[bench]
 fn varint_read_slice_rand_9_byte(b: &mut Bencher) {
-    do_varint_read_slice_rand(b, Uniform::new(1 << 56, u64::max_value()))
+    do_varint_read_slice_rand(
+        b,
+        Uniform::new(1 << 56, u64::max_value()).expect("range is non-empty"),
+    )
 }
 
 fn do_varint_write_rand(b: &mut Bencher, range: Uniform<u64>) {
-    let mut rng = rand::rngs::SmallRng::from_entropy();
+    let mut rng = rand::make_rng::<rand::rngs::SmallRng>();
     let num = 1000_000;
     let mut vec: Vec<u64> = Vec::new();
 
@@ -69,7 +86,7 @@ fn do_varint_write_rand(b: &mut Bencher, range: Uniform<u64>) {
 }
 
 fn do_varint_read_rand(b: &mut Bencher, range: Uniform<u64>) {
-    let mut rng = rand::rngs::SmallRng::from_entropy();
+    let mut rng = rand::make_rng::<rand::rngs::SmallRng>();
     let num = 1000_000;
     let mut vec = Vec::new();
     vec.resize(9 * num, 0);
@@ -88,7 +105,7 @@ fn do_varint_read_rand(b: &mut Bencher, range: Uniform<u64>) {
 }
 
 fn do_varint_read_slice_rand(b: &mut Bencher, range: Uniform<u64>) {
-    let mut rng = rand::rngs::SmallRng::from_entropy();
+    let mut rng = rand::make_rng::<rand::rngs::SmallRng>();
     let num = 1000_000;
     let mut vec = Vec::new();
 

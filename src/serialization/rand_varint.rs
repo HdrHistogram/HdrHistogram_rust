@@ -2,8 +2,8 @@
 //! of random numbers.
 
 use rand::Rng;
-use rand::distributions::Distribution;
-use rand::distributions::uniform::Uniform;
+use rand::distr::Distribution;
+use rand::distr::uniform::Uniform;
 
 /// Smallest number in our varint encoding that takes the given number of bytes
 pub fn smallest_number_in_n_byte_varint(byte_length: usize) -> u64 {
@@ -57,45 +57,23 @@ pub struct RandomVarintEncodedLengthIter<R: Rng> {
 impl<R: Rng> RandomVarintEncodedLengthIter<R> {
     pub fn new(rng: R) -> RandomVarintEncodedLengthIter<R> {
         RandomVarintEncodedLengthIter {
-            ranges: [
-                Uniform::new(
-                    smallest_number_in_n_byte_varint(1),
-                    largest_number_in_n_byte_varint(1) + 1,
-                ),
-                Uniform::new(
-                    smallest_number_in_n_byte_varint(2),
-                    largest_number_in_n_byte_varint(2) + 1,
-                ),
-                Uniform::new(
-                    smallest_number_in_n_byte_varint(3),
-                    largest_number_in_n_byte_varint(3) + 1,
-                ),
-                Uniform::new(
-                    smallest_number_in_n_byte_varint(4),
-                    largest_number_in_n_byte_varint(4) + 1,
-                ),
-                Uniform::new(
-                    smallest_number_in_n_byte_varint(5),
-                    largest_number_in_n_byte_varint(5) + 1,
-                ),
-                Uniform::new(
-                    smallest_number_in_n_byte_varint(6),
-                    largest_number_in_n_byte_varint(6) + 1,
-                ),
-                Uniform::new(
-                    smallest_number_in_n_byte_varint(7),
-                    largest_number_in_n_byte_varint(7) + 1,
-                ),
-                Uniform::new(
-                    smallest_number_in_n_byte_varint(8),
-                    largest_number_in_n_byte_varint(8) + 1,
-                ),
-                Uniform::new(
-                    smallest_number_in_n_byte_varint(9),
-                    largest_number_in_n_byte_varint(9),
-                ),
-            ],
-            range_for_picking_range: Uniform::new(0, 9),
+            // Each varint length has a nonempty value range, so `Uniform::new`
+            // (fallible as of rand 0.9) cannot fail here.
+            ranges: std::array::from_fn(|i| {
+                let byte_length = i + 1;
+                let smallest = smallest_number_in_n_byte_varint(byte_length);
+                let largest = largest_number_in_n_byte_varint(byte_length);
+                // The 9-byte range's upper bound is u64::MAX, so +1 would
+                // overflow; we keep the historical behavior of excluding
+                // u64::MAX itself rather than switching to new_inclusive.
+                let end = if byte_length == 9 {
+                    largest
+                } else {
+                    largest + 1
+                };
+                Uniform::new(smallest, end).expect("range is non-empty")
+            }),
+            range_for_picking_range: Uniform::new(0, 9).expect("range is non-empty"),
             rng,
         }
     }
