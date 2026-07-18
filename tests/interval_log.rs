@@ -1,13 +1,13 @@
 #[cfg(all(feature = "serialization", test))]
 mod tests {
-    use base64::engine::general_purpose::STANDARD as B64STANDARD;
     use base64::Engine as _;
+    use base64::engine::general_purpose::STANDARD as B64STANDARD;
+    use hdrhistogram::Histogram;
     use hdrhistogram::serialization::interval_log::{
         IntervalLogHistogram, IntervalLogIterator, IntervalLogWriterBuilder, LogEntry,
         LogIteratorError, Tag,
     };
     use hdrhistogram::serialization::{Deserializer, Serializer, V2Serializer};
-    use hdrhistogram::Histogram;
     use rand::Rng;
     use std::fs::File;
     use std::io::{BufRead, Read};

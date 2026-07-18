@@ -1,7 +1,7 @@
 #[cfg(all(feature = "serialization", test))]
 mod tests {
-    use hdrhistogram::serialization::{Deserializer, Serializer, V2Serializer};
     use hdrhistogram::Histogram;
+    use hdrhistogram::serialization::{Deserializer, Serializer, V2Serializer};
 
     use std::fs::File;
     use std::io::{BufRead, BufReader, Read};

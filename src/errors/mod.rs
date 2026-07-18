@@ -78,11 +78,26 @@ impl fmt::Display for CreationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             CreationError::LowIsZero => write!(f, "Lowest discernible value must be >= 1"),
-            CreationError::LowExceedsMax => write!(f, "Lowest discernible value must be <= `u64::max_value() / 2`"),
-            CreationError::HighLessThanTwiceLow => write!(f, "Highest trackable value must be >= 2 * lowest discernible value for some internal calculations"),
-            CreationError::SigFigExceedsMax => write!(f, "Number of significant digits must be in the range `[0, 5]`"),
-            CreationError::CannotRepresentSigFigBeyondLow => write!(f, "Cannot represent sigfig worth of values beyond the lowest discernible value"),
-            CreationError::UsizeTypeTooSmall =>  write!(f, "The `usize` type is too small to represent the desired configuration"),
+            CreationError::LowExceedsMax => write!(
+                f,
+                "Lowest discernible value must be <= `u64::max_value() / 2`"
+            ),
+            CreationError::HighLessThanTwiceLow => write!(
+                f,
+                "Highest trackable value must be >= 2 * lowest discernible value for some internal calculations"
+            ),
+            CreationError::SigFigExceedsMax => write!(
+                f,
+                "Number of significant digits must be in the range `[0, 5]`"
+            ),
+            CreationError::CannotRepresentSigFigBeyondLow => write!(
+                f,
+                "Cannot represent sigfig worth of values beyond the lowest discernible value"
+            ),
+            CreationError::UsizeTypeTooSmall => write!(
+                f,
+                "The `usize` type is too small to represent the desired configuration"
+            ),
         }
     }
 }
@@ -92,8 +107,14 @@ impl Error for CreationError {}
 impl fmt::Display for AdditionError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            AdditionError::OtherAddendValueExceedsRange => write!(f, "The other histogram includes values that do not fit in this histogram's range"),
-            AdditionError::ResizeFailedUsizeTypeTooSmall => write!(f, "The other histogram includes values that would map to indexes in this histogram that are not expressible for `usize`"),
+            AdditionError::OtherAddendValueExceedsRange => write!(
+                f,
+                "The other histogram includes values that do not fit in this histogram's range"
+            ),
+            AdditionError::ResizeFailedUsizeTypeTooSmall => write!(
+                f,
+                "The other histogram includes values that would map to indexes in this histogram that are not expressible for `usize`"
+            ),
         }
     }
 }
@@ -103,8 +124,14 @@ impl Error for AdditionError {}
 impl fmt::Display for SubtractionError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            SubtractionError::SubtrahendValueExceedsMinuendRange => write!(f, "The other histogram includes values that do not fit in this histogram's range"),
-            SubtractionError::SubtrahendCountExceedsMinuendCount => write!(f, "The other histogram includes counts that are higher than the current count for a value, and counts cannot go negative"),
+            SubtractionError::SubtrahendValueExceedsMinuendRange => write!(
+                f,
+                "The other histogram includes values that do not fit in this histogram's range"
+            ),
+            SubtractionError::SubtrahendCountExceedsMinuendCount => write!(
+                f,
+                "The other histogram includes counts that are higher than the current count for a value, and counts cannot go negative"
+            ),
         }
     }
 }
@@ -114,8 +141,14 @@ impl Error for SubtractionError {}
 impl fmt::Display for RecordError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            RecordError::ValueOutOfRangeResizeDisabled  => write!(f, "The value to record is not representable in this histogram and resizing is disabled"),
-            RecordError::ResizeFailedUsizeTypeTooSmall => write!(f, "Auto resizing is enabled and must be used to represent the provided value, but the histogram cannot be resized because `usize` cannot represent sufficient length"),
+            RecordError::ValueOutOfRangeResizeDisabled => write!(
+                f,
+                "The value to record is not representable in this histogram and resizing is disabled"
+            ),
+            RecordError::ResizeFailedUsizeTypeTooSmall => write!(
+                f,
+                "Auto resizing is enabled and must be used to represent the provided value, but the histogram cannot be resized because `usize` cannot represent sufficient length"
+            ),
         }
     }
 }

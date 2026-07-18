@@ -6,7 +6,7 @@ use std::borrow::Borrow;
 use std::borrow::BorrowMut;
 use std::marker::PhantomData;
 use std::ops::{AddAssign, Deref, DerefMut};
-use std::sync::{atomic, Arc, Mutex};
+use std::sync::{Arc, Mutex, atomic};
 use std::time;
 
 /// A write-only handle to a [`SyncHistogram`].

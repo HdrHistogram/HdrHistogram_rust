@@ -1,8 +1,8 @@
 use super::deserializer::{varint_read, varint_read_slice};
 use super::v2_serializer::varint_write;
-use rand::distributions::uniform::Uniform;
-use rand::distributions::Distribution;
 use rand::SeedableRng;
+use rand::distributions::Distribution;
+use rand::distributions::uniform::Uniform;
 use std::io::Cursor;
 use test::Bencher;
 

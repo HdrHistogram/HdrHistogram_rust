@@ -1,16 +1,16 @@
-use super::deserializer::{varint_read, varint_read_slice, zig_zag_decode, Deserializer};
+use super::deserializer::{Deserializer, varint_read, varint_read_slice, zig_zag_decode};
 use super::v2_serializer::{
     counts_array_max_encoded_size, encode_counts, varint_write, zig_zag_encode,
 };
 use super::{
-    Serializer, V2DeflateSerializer, V2SerializeError, V2Serializer, V2_COOKIE, V2_HEADER_SIZE,
+    Serializer, V2_COOKIE, V2_HEADER_SIZE, V2DeflateSerializer, V2SerializeError, V2Serializer,
 };
 use crate::tests::helpers::histo64;
 use crate::{Counter, Histogram};
 use byteorder::{BigEndian, ReadBytesExt};
 use num_traits::ToPrimitive;
-use rand::distributions::uniform::{SampleUniform, Uniform};
 use rand::distributions::Distribution;
+use rand::distributions::uniform::{SampleUniform, Uniform};
 use rand::{Rng, SeedableRng};
 use std::fmt::{Debug, Display};
 use std::io::Cursor;
