@@ -1356,18 +1356,41 @@ impl<T: Counter> Histogram<T> {
             count_at_quantile = 1;
         }
 
+        // Sum bins in chunks (such that the operation can auto-vectorized by the compiler) until we
+        // detect a chunk that passes the target; only then do we walk the chunk bin-by-bin.
+        const SCAN_CHUNK: usize = 8;
+        let finish = |index: usize| -> u64 {
+            let value_at_index = self.value_for(index);
+            if quantile == 0.0 {
+                self.lowest_equivalent(value_at_index)
+            } else {
+                self.highest_equivalent(value_at_index)
+            }
+        };
+
         let mut total_to_current_index: u64 = 0;
-        for i in 0..self.counts.len() {
-            // Direct indexing is safe; indexes must reside in counts array.
-            // TODO overflow
-            total_to_current_index += self.counts[i].as_u64();
+        let (chunks, tail) = self.counts.as_chunks::<SCAN_CHUNK>();
+        let mut base = 0usize;
+        for chunk in chunks {
+            let chunk_sum: u64 = chunk.iter().map(|c| c.as_u64()).sum();
+            if total_to_current_index + chunk_sum >= count_at_quantile {
+                for (j, count) in chunk.iter().enumerate() {
+                    total_to_current_index += count.as_u64();
+                    if total_to_current_index >= count_at_quantile {
+                        return finish(base + j);
+                    }
+                }
+                unreachable!("chunk subtotal reached the target but no element did");
+            } else {
+                total_to_current_index += chunk_sum;
+            }
+            base += SCAN_CHUNK;
+        }
+        // if SCAN_CHUNK does not perfectly divide the number of bins, handle the leftovers
+        for (j, count) in tail.iter().enumerate() {
+            total_to_current_index += count.as_u64();
             if total_to_current_index >= count_at_quantile {
-                let value_at_index = self.value_for(i);
-                return if quantile == 0.0 {
-                    self.lowest_equivalent(value_at_index)
-                } else {
-                    self.highest_equivalent(value_at_index)
-                };
+                return finish(base + j);
             }
         }
 
