@@ -4,7 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
+
+Note that `HdrHistogram::value_at_quantiles` bumps MSRV to 1.82!
+
 ### Added
+- `HdrHistogram::value_at_quantiles` and
+  `HdrHistogram::value_at_percentiles` for faster lookup of multiple
+  quantiles/percentiles (#138).
 
 ### Changed
  - All usages of `unsafe` are removed, causing serialization to be slightly slower, but safe.

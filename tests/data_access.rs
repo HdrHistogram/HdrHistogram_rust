@@ -561,3 +561,59 @@ fn total_count_exceeds_bucket_type() {
 
     assert_eq!(400, h.len());
 }
+
+// value_at_quantiles / value_at_percentiles must return exactly what the singular value_at_quantile
+// / value_at_percentile would, in input order, with the same handling of corner cases.
+#[test]
+fn batch_quantiles_match_singular() {
+    let mut h = Histogram::<u64>::new_with_bounds(1, 3_600_000_000, 3).unwrap();
+    for _ in 1..=1_000_000u64 {
+        h.record((rand::random::<u64>() % 1_000_000_000) + 1)
+            .unwrap();
+    }
+
+    let quantiles = [-0.5, 0.0, 0.5, 0.5, 0.99, 0.9999, 1.0, 1.5];
+    let batch = h.value_at_quantiles(quantiles).collect::<Vec<_>>();
+    assert_eq!(batch.len(), quantiles.len());
+    for (i, &q) in quantiles.iter().enumerate() {
+        assert_eq!(
+            batch[i],
+            h.value_at_quantile(q),
+            "quantile {} (idx {})",
+            q,
+            i
+        );
+    }
+
+    let percentiles = [-50.0, 0.0, 50.0, 50.0, 99.0, 99.99, 100.0, 150.0];
+    let pbatch = h.value_at_percentiles(percentiles).collect::<Vec<_>>();
+    for (i, &p) in percentiles.iter().enumerate() {
+        assert_eq!(
+            pbatch[i],
+            h.value_at_percentile(p),
+            "percentile {} (idx {})",
+            p,
+            i
+        );
+    }
+
+    // Empty slice -> empty result.
+    assert_eq!(h.value_at_quantiles([]).count(), 0);
+}
+
+#[test]
+fn batch_quantiles_empty_histogram() {
+    // unitMagnitude > 0 (lowest > 1) is the case where a naive scan could diverge.
+    let h = Histogram::<u64>::new_with_bounds(100, 10_000_000, 3).unwrap();
+    let quantiles = [0.0, 0.5, 0.9, 0.99, 1.0];
+    let batch = h.value_at_quantiles(quantiles).collect::<Vec<_>>();
+    for (i, &q) in quantiles.iter().enumerate() {
+        assert_eq!(batch[i], 0, "empty histogram, quantile {}", q);
+        assert_eq!(
+            batch[i],
+            h.value_at_quantile(q),
+            "empty vs singular, quantile {}",
+            q
+        );
+    }
+}
