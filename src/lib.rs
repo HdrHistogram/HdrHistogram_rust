@@ -606,7 +606,7 @@ impl<T: Counter> Histogram<T> {
         let old_max_lowest_equiv = self.lowest_equivalent(self.max());
 
         // If total_count is at the max value, it may have saturated, so we must restat
-        let mut needs_restat = self.total_count == u64::max_value();
+        let mut needs_restat = self.total_count == u64::MAX;
 
         for i in 0..subtrahend.distinct_values() {
             let other_count = subtrahend
@@ -739,7 +739,7 @@ impl<T: Counter> Histogram<T> {
         if low < 1 {
             return Err(CreationError::LowIsZero);
         }
-        if low > u64::max_value() / 2 {
+        if low > u64::MAX / 2 {
             // avoid overflow in 2 * low
             return Err(CreationError::LowExceedsMax);
         }
@@ -1105,7 +1105,10 @@ impl<T: Counter> Histogram<T> {
     /// );
     /// assert_eq!(perc.next(), None);
     /// ```
-    pub fn iter_linear(&self, step: u64) -> HistogramIterator<'_, T, iterators::linear::Iter<'_, T>> {
+    pub fn iter_linear(
+        &self,
+        step: u64,
+    ) -> HistogramIterator<'_, T, iterators::linear::Iter<'_, T>> {
         iterators::linear::Iter::new(self, step)
     }
 
@@ -1143,7 +1146,11 @@ impl<T: Counter> Histogram<T> {
     /// );
     /// assert_eq!(perc.next(), None);
     /// ```
-    pub fn iter_log(&self, start: u64, exp: f64) -> HistogramIterator<'_, T, iterators::log::Iter<'_, T>> {
+    pub fn iter_log(
+        &self,
+        start: u64,
+        exp: f64,
+    ) -> HistogramIterator<'_, T, iterators::log::Iter<'_, T>> {
         iterators::log::Iter::new(self, start, exp)
     }
 
@@ -1575,8 +1582,8 @@ impl<T: Counter> Histogram<T> {
     ///
     /// Note that the return value is capped at `u64::max_value()`.
     pub fn highest_equivalent(&self, value: u64) -> u64 {
-        if value == u64::max_value() {
-            u64::max_value()
+        if value == u64::MAX {
+            u64::MAX
         } else {
             self.next_non_equivalent(value) - 1
         }
@@ -1717,7 +1724,7 @@ impl<T: Counter> Histogram<T> {
         // always have at least 1 bucket
         let mut buckets_needed = 1;
         while smallest_untrackable_value <= value {
-            if smallest_untrackable_value > u64::max_value() / 2 {
+            if smallest_untrackable_value > u64::MAX / 2 {
                 // next shift will overflow, meaning that bucket could represent values up to ones
                 // greater than i64::max_value, so it's the last bucket
                 return buckets_needed + 1;
@@ -1807,11 +1814,7 @@ impl<T: Counter> Histogram<T> {
 
     fn reset_min(&mut self, min: u64) {
         let internal_value = min & !self.unit_magnitude_mask; // Min unit-equivalent value
-        self.min_non_zero_value = if min == u64::max_value() {
-            min
-        } else {
-            internal_value
-        };
+        self.min_non_zero_value = if min == u64::MAX { min } else { internal_value };
     }
 
     /// Recalculate min, max, total_count.
