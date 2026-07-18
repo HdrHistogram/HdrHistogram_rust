@@ -228,7 +228,7 @@ fn quantiles<R: BufRead, W: Write>(
 // Normally I frown on excessive use of From as it's too "magic", but in the limited confines of
 // subcommands, the convenience seems worth it.
 #[derive(Debug)]
-#[allow(dead_code)]
+#[expect(dead_code)]
 enum CliError {
     Io(io::Error),
     HistogramSerialize(V2SerializeError),
