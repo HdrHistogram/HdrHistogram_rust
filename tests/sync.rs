@@ -1,7 +1,7 @@
 #[cfg(all(feature = "sync", test))]
 mod sync {
-    use hdrhistogram::{sync::SyncHistogram, Histogram};
-    use std::sync::{atomic, Arc};
+    use hdrhistogram::{Histogram, sync::SyncHistogram};
+    use std::sync::{Arc, atomic};
     use std::{thread, time};
 
     const TRACKABLE_MAX: u64 = 3600 * 1000 * 1000;

@@ -1,10 +1,10 @@
 use super::v2_serializer::{V2SerializeError, V2Serializer};
 use super::{Serializer, V2_COMPRESSED_COOKIE};
-use crate::core::counter::Counter;
 use crate::Histogram;
+use crate::core::counter::Counter;
 use byteorder::{BigEndian, WriteBytesExt};
-use flate2::write::ZlibEncoder;
 use flate2::Compression;
+use flate2::write::ZlibEncoder;
 use std::io::{self, Write};
 use std::{self, error, fmt};
 

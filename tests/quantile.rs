@@ -4,7 +4,7 @@
 use hdrhistogram::{Counter, Histogram};
 
 use ieee754::Ieee754;
-use rand::Rng;
+use rand::{Rng, RngExt};
 use rug::{Integer, Rational};
 
 #[test]
@@ -25,7 +25,7 @@ fn value_at_quantile_internal_count_exceeds_bucket_type() {
 
 #[test]
 fn value_at_quantile_2_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
     h.record(1).unwrap();
     h.record(2).unwrap();
@@ -45,7 +45,7 @@ fn value_at_quantile_2_values() {
 
 #[test]
 fn value_at_quantile_5_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
     h.record(1).unwrap();
     h.record(2).unwrap();
@@ -59,7 +59,7 @@ fn value_at_quantile_5_values() {
 
 #[test]
 fn value_at_quantile_20k() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
     for i in 1..20_001 {
         h.record(i).unwrap();
@@ -86,7 +86,7 @@ fn value_at_quantile_large_numbers() {
 
 #[test]
 fn value_at_quantile_matches_quantile_iter_sequence_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000];
     let mut errors: u64 = 0;
@@ -140,11 +140,11 @@ fn value_at_quantile_matches_quantile_iter_sequence_values() {
 
 #[test]
 fn value_at_quantile_matches_quantile_iter_random_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000];
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut errors: u64 = 0;
 
     for length in lengths {
@@ -196,7 +196,7 @@ fn value_at_quantile_matches_quantile_iter_random_values() {
 
 #[test]
 fn value_at_quantile_matches_quantile_at_each_value_sequence_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000];
     let mut errors: u64 = 0;
@@ -211,7 +211,7 @@ fn value_at_quantile_matches_quantile_at_each_value_sequence_values() {
         assert_eq!(length, h.len());
 
         for v in 1..(length + 1) {
-            let quantile = Rational::from((v as u64, length as u64)).to_f64();
+            let quantile = Rational::from((v, length)).to_f64();
             let calculated_value = h.value_at_quantile(quantile);
             if !h.equivalent(v, calculated_value) {
                 println!(
@@ -235,12 +235,12 @@ fn value_at_quantile_matches_quantile_at_each_value_sequence_values() {
 
 #[test]
 fn value_at_quantile_matches_quantile_at_each_value_random_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
     let mut values = Vec::new();
 
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000];
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let mut errors: u64 = 0;
 
@@ -282,12 +282,12 @@ fn value_at_quantile_matches_quantile_at_each_value_random_values() {
 
 #[test]
 fn value_at_quantile_matches_random_quantile_random_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
     let mut values = Vec::new();
 
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000];
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let mut errors: u64 = 0;
 
@@ -305,7 +305,7 @@ fn value_at_quantile_matches_random_quantile_random_values() {
         assert_eq!(length as u64, h.len());
 
         for _ in 0..1_000 {
-            let quantile = rng.gen_range(0_f64..=1_f64);
+            let quantile = rng.random_range(0_f64..=1_f64);
             let index_at_quantile = Integer::from(
                 (Rational::from_f64(quantile).unwrap() * Rational::from(length as u64)).trunc_ref(),
             )
@@ -343,7 +343,7 @@ struct RandomMaxIter<'a, R: Rng + 'a> {
 }
 
 impl<'a, R: Rng + 'a> RandomMaxIter<'a, R> {
-    fn new(rng: &'a mut R) -> RandomMaxIter<R> {
+    fn new(rng: &'a mut R) -> RandomMaxIter<'a, R> {
         RandomMaxIter { rng }
     }
 }
@@ -352,13 +352,13 @@ impl<'a, R: Rng + 'a> Iterator for RandomMaxIter<'a, R> {
     type Item = u64;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let bit_length = self.rng.gen_range(0..=64);
+        let bit_length = self.rng.random_range(0..=64);
 
-        return Some(match bit_length {
+        Some(match bit_length {
             0 => 0,
-            64 => u64::max_value(),
-            x => self.rng.gen_range(0..1 << x),
-        });
+            64 => u64::MAX,
+            x => self.rng.random_range(0..1 << x),
+        })
     }
 }
 

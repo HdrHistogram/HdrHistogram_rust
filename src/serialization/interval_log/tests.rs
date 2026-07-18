@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::RngExt;
 
 use std::ops::Add;
 use std::{iter, time};
@@ -133,7 +133,7 @@ fn write_interval_histo_no_tag() {
     let mut buf = Vec::new();
     let mut serializer = V2Serializer::new();
 
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
     h.record(1000).unwrap();
 
     {
@@ -164,7 +164,7 @@ fn write_interval_histo_with_tag() {
     let mut buf = Vec::new();
     let mut serializer = V2Serializer::new();
 
-    let h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
     {
         let mut log_writer = IntervalLogWriterBuilder::new()
@@ -248,7 +248,7 @@ fn parse_duration_too_many_ns() {
 
 #[test]
 fn duration_fp_roundtrip_accuracy() {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let mut buf = String::new();
     let mut errors = Vec::new();
@@ -256,9 +256,9 @@ fn duration_fp_roundtrip_accuracy() {
         buf.clear();
 
         // pick seconds
-        let secs = rng.gen_range(0..2_000_000_000);
+        let secs = rng.random_range(0..2_000_000_000);
         // pick nsecs that only has ms accuracy
-        let nsecs = rng.gen_range(0..1000) * 1000_000;
+        let nsecs = rng.random_range(0..1000) * 1_000_000;
 
         let dur = time::Duration::new(secs, nsecs);
         let fp_secs = duration_as_fp_seconds(dur);

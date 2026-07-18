@@ -2,7 +2,7 @@ use hdrhistogram::Histogram;
 
 #[test]
 fn iter_recorded_non_saturated_total_count() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
     h.record(1).unwrap();
     h.record(1_000).unwrap();
@@ -19,11 +19,11 @@ fn iter_recorded_non_saturated_total_count() {
 
 #[test]
 fn iter_recorded_saturated_total_count() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
-    h.record_n(1, u64::max_value()).unwrap();
-    h.record_n(1_000, u64::max_value()).unwrap();
-    h.record_n(1_000_000, u64::max_value()).unwrap();
+    h.record_n(1, u64::MAX).unwrap();
+    h.record_n(1_000, u64::MAX).unwrap();
+    h.record_n(1_000_000, u64::MAX).unwrap();
 
     let expected = vec![1, 1_000, h.highest_equivalent(1_000_000)];
     assert_eq!(
@@ -36,22 +36,22 @@ fn iter_recorded_saturated_total_count() {
 
 #[test]
 fn iter_linear_count_since_last_iteration_saturates() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
-    h.record_n(1, u64::max_value()).unwrap();
-    h.record_n(4, u64::max_value() - 1).unwrap();
-    h.record_n(5, u64::max_value() - 1).unwrap();
+    h.record_n(1, u64::MAX).unwrap();
+    h.record_n(4, u64::MAX - 1).unwrap();
+    h.record_n(5, u64::MAX - 1).unwrap();
     h.record_n(6, 100).unwrap();
     h.record_n(7, 200).unwrap();
     h.record_n(10, 400).unwrap();
 
     let expected = vec![
         // 0-1 has 1's max value
-        (1, u64::max_value()),
+        (1, u64::MAX),
         // 2-3 has nothing
         (3, 0),
         // 4-5 has 2x (max - 1), should saturate
-        (5, u64::max_value()),
+        (5, u64::MAX),
         // 6-7 shouldn't be saturated from 4-5
         (7, 300),
         // 8-9 has nothing
@@ -71,7 +71,7 @@ fn iter_linear_count_since_last_iteration_saturates() {
 
 #[test]
 fn iter_linear_visits_buckets_wider_than_step_size_multiple_times() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
     h.record(1).unwrap();
     h.record(2047).unwrap();
@@ -120,7 +120,7 @@ fn iter_linear_visits_buckets_wider_than_step_size_multiple_times() {
 
 #[test]
 fn iter_linear_visits_buckets_once_when_step_size_equals_bucket_size() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
     h.record(1).unwrap();
     h.record(2047).unwrap();
@@ -191,7 +191,7 @@ fn iter_all_values_all_buckets() {
     let nonzero_count = iter_values
         .iter()
         .filter(|v| v.1 != 0)
-        .map(|&v| v)
+        .copied()
         .collect::<Vec<(u64, u64)>>();
 
     assert_eq!(expected, nonzero_count);
@@ -223,7 +223,7 @@ fn iter_all_values_all_buckets_unit_magnitude_2() {
     let nonzero_count = iter_values
         .iter()
         .filter(|v| v.1 != 0)
-        .map(|&v| v)
+        .copied()
         .collect::<Vec<(u64, u64)>>();
 
     assert_eq!(expected, nonzero_count);
@@ -550,8 +550,8 @@ fn iter_quantiles_iterates_to_end_skips_intermediate_at_final_value() {
     // iterate into that bucket (at quantile iteration 0.25), then skip to quantile iteration 1.0
     let expected = vec![
         (1, 1, 1, 0.000000999999000001, 0.0),
-        (1000, 1000_000, 1000_000, 1.0, 0.25),
-        (1000, 0, 1000_000, 1.0, 1.0),
+        (1000, 1_000_000, 1_000_000, 1.0, 0.25),
+        (1000, 0, 1_000_000, 1.0, 1.0),
     ];
 
     assert_eq!(expected, iter_values);
@@ -563,7 +563,7 @@ fn iter_quantiles_saturated_count_before_max_value() {
 
     for i in 0..1000 {
         // this will quickly saturate total count as well as count since last iteration
-        h.record_n(i, u64::max_value() / 100).unwrap();
+        h.record_n(i, u64::MAX / 100).unwrap();
     }
 
     let iter_values: Vec<(u64, u64, u64, f64, f64)> = h

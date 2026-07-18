@@ -17,7 +17,7 @@ fn assert_min_max_count<T: Counter, B: Borrow<Histogram<T>>>(hist: B) {
             continue;
         }
 
-        min = Some(cmp::min(min.unwrap_or(u64::max_value()), value));
+        min = Some(cmp::min(min.unwrap_or(u64::MAX), value));
         max = Some(cmp::max(max.unwrap_or(0), value));
         total = total.saturating_add(count.to_u64().unwrap());
     }
@@ -32,8 +32,8 @@ fn assert_min_max_count<T: Counter, B: Borrow<Histogram<T>>>(hist: B) {
 
 #[test]
 fn subtract_after_add() {
-    let mut h1 = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
-    let mut h2 = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
+    let mut h1 = Histogram::<u64>::new_with_max(u64::MAX, 3).unwrap();
+    let mut h2 = Histogram::<u64>::new_with_max(u64::MAX, 3).unwrap();
 
     h1 += TEST_VALUE_LEVEL;
     h1 += 1000 * TEST_VALUE_LEVEL;
@@ -61,7 +61,7 @@ fn subtract_after_add() {
 
 #[test]
 fn subtract_to_zero_counts() {
-    let mut h1 = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
+    let mut h1 = Histogram::<u64>::new_with_max(u64::MAX, 3).unwrap();
 
     h1 += TEST_VALUE_LEVEL;
     h1 += 1000 * TEST_VALUE_LEVEL;
@@ -81,8 +81,8 @@ fn subtract_to_zero_counts() {
 
 #[test]
 fn subtract_to_negative_counts_error() {
-    let mut h1 = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
-    let mut h2 = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
+    let mut h1 = Histogram::<u64>::new_with_max(u64::MAX, 3).unwrap();
+    let mut h2 = Histogram::<u64>::new_with_max(u64::MAX, 3).unwrap();
 
     h1 += TEST_VALUE_LEVEL;
     h1 += 1000 * TEST_VALUE_LEVEL;
@@ -100,7 +100,7 @@ fn subtract_to_negative_counts_error() {
 
 #[test]
 fn subtract_subtrahend_values_outside_minuend_range_error() {
-    let max = u64::max_value() / 2;
+    let max = u64::MAX / 2;
     let mut h1 = Histogram::<u64>::new_with_max(max, 3).unwrap();
 
     h1 += TEST_VALUE_LEVEL;
@@ -122,7 +122,7 @@ fn subtract_subtrahend_values_outside_minuend_range_error() {
 
 #[test]
 fn subtract_values_inside_minuend_range_works() {
-    let max = u64::max_value() / 2;
+    let max = u64::MAX / 2;
     let mut h1 = Histogram::<u64>::new_with_max(max, 3).unwrap();
 
     h1 += TEST_VALUE_LEVEL;
@@ -155,8 +155,8 @@ fn subtract_values_inside_minuend_range_works() {
 
 #[test]
 fn subtract_values_strictly_inside_minuend_range_yields_same_min_max_no_restat() {
-    let mut h1 = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
-    let mut h2 = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
+    let mut h1 = Histogram::<u64>::new_with_max(u64::MAX, 3).unwrap();
+    let mut h2 = Histogram::<u64>::new_with_max(u64::MAX, 3).unwrap();
 
     h1 += 1;
     h1 += 10;
@@ -179,8 +179,8 @@ fn subtract_values_strictly_inside_minuend_range_yields_same_min_max_no_restat()
 
 #[test]
 fn subtract_values_at_extent_of_minuend_zero_count_range_recalculates_min_max() {
-    let mut h1 = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
-    let mut h2 = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
+    let mut h1 = Histogram::<u64>::new_with_max(u64::MAX, 3).unwrap();
+    let mut h2 = Histogram::<u64>::new_with_max(u64::MAX, 3).unwrap();
 
     h1 += 1;
     h1 += 10;
@@ -202,8 +202,8 @@ fn subtract_values_at_extent_of_minuend_zero_count_range_recalculates_min_max() 
 
 #[test]
 fn subtract_values_at_extent_of_minuend_nonzero_count_range_recalculates_same_min_max() {
-    let mut h1 = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
-    let mut h2 = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
+    let mut h1 = Histogram::<u64>::new_with_max(u64::MAX, 3).unwrap();
+    let mut h2 = Histogram::<u64>::new_with_max(u64::MAX, 3).unwrap();
 
     h1.record_n(1, 2).unwrap();
     h1.record_n(10, 2).unwrap();
@@ -225,8 +225,8 @@ fn subtract_values_at_extent_of_minuend_nonzero_count_range_recalculates_same_mi
 
 #[test]
 fn subtract_values_within_bucket_precision_of_of_minuend_min_recalculates_min_max() {
-    let mut h1 = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
-    let mut h2 = Histogram::<u64>::new_with_max(u64::max_value(), 5).unwrap();
+    let mut h1 = Histogram::<u64>::new_with_max(u64::MAX, 3).unwrap();
+    let mut h2 = Histogram::<u64>::new_with_max(u64::MAX, 5).unwrap();
 
     // sub bucket size is 2 above 2048 with 3 sigfits
     h1.record(3000).unwrap();
@@ -249,8 +249,8 @@ fn subtract_values_within_bucket_precision_of_of_minuend_min_recalculates_min_ma
 
 #[test]
 fn subtract_values_at_minuend_min_recalculates_min_max() {
-    let mut h1 = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
-    let mut h2 = Histogram::<u64>::new_with_max(u64::max_value(), 5).unwrap();
+    let mut h1 = Histogram::<u64>::new_with_max(u64::MAX, 3).unwrap();
+    let mut h2 = Histogram::<u64>::new_with_max(u64::MAX, 5).unwrap();
 
     // sub bucket size is 2 above 2048 with 3 sigfits
     h1.record(3000).unwrap();
@@ -273,8 +273,8 @@ fn subtract_values_at_minuend_min_recalculates_min_max() {
 
 #[test]
 fn subtract_values_within_bucket_precision_of_of_minuend_max_recalculates_min_max() {
-    let mut h1 = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
-    let mut h2 = Histogram::<u64>::new_with_max(u64::max_value(), 5).unwrap();
+    let mut h1 = Histogram::<u64>::new_with_max(u64::MAX, 3).unwrap();
+    let mut h2 = Histogram::<u64>::new_with_max(u64::MAX, 5).unwrap();
 
     // sub bucket size is 2 above 2048 with 3 sigfits
     h1.record(3000).unwrap();
@@ -297,8 +297,8 @@ fn subtract_values_within_bucket_precision_of_of_minuend_max_recalculates_min_ma
 
 #[test]
 fn subtract_values_at_minuend_max_recalculates_min_max() {
-    let mut h1 = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
-    let mut h2 = Histogram::<u64>::new_with_max(u64::max_value(), 5).unwrap();
+    let mut h1 = Histogram::<u64>::new_with_max(u64::MAX, 3).unwrap();
+    let mut h2 = Histogram::<u64>::new_with_max(u64::MAX, 5).unwrap();
 
     // sub bucket size is 2 above 2048 with 3 sigfits
     h1.record(3000).unwrap();
@@ -321,13 +321,13 @@ fn subtract_values_at_minuend_max_recalculates_min_max() {
 
 #[test]
 fn subtract_values_minuend_saturated_total_recalculates_saturated() {
-    let mut h1 = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
-    let mut h2 = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
+    let mut h1 = Histogram::<u64>::new_with_max(u64::MAX, 3).unwrap();
+    let mut h2 = Histogram::<u64>::new_with_max(u64::MAX, 3).unwrap();
 
-    h1.record_n(1, u64::max_value()).unwrap();
-    h1.record_n(10, u64::max_value()).unwrap();
-    h1.record_n(100, u64::max_value()).unwrap();
-    h1.record_n(1000, u64::max_value()).unwrap();
+    h1.record_n(1, u64::MAX).unwrap();
+    h1.record_n(10, u64::MAX).unwrap();
+    h1.record_n(100, u64::MAX).unwrap();
+    h1.record_n(1000, u64::MAX).unwrap();
 
     h2.record(10).unwrap();
     h2.record(100).unwrap();
@@ -339,7 +339,7 @@ fn subtract_values_minuend_saturated_total_recalculates_saturated() {
     assert_eq!(1, h1.min());
     assert_eq!(1000, h1.max());
     // still saturated
-    assert_eq!(u64::max_value(), h1.len());
+    assert_eq!(u64::MAX, h1.len());
 
     assert_min_max_count(h1);
     assert_min_max_count(h2);
@@ -347,11 +347,11 @@ fn subtract_values_minuend_saturated_total_recalculates_saturated() {
 
 #[test]
 fn subtract_values_minuend_saturated_total_recalculates_not_saturated() {
-    let mut h1 = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
-    let mut h2 = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
+    let mut h1 = Histogram::<u64>::new_with_max(u64::MAX, 3).unwrap();
+    let mut h2 = Histogram::<u64>::new_with_max(u64::MAX, 3).unwrap();
 
-    // 3 of these is just under u64::max_value()
-    let chunk = (u64::max_value() / 16) * 5;
+    // 3 of these is just under u64::MAX
+    let chunk = (u64::MAX / 16) * 5;
 
     h1.record_n(1, chunk).unwrap();
     h1.record_n(10, chunk).unwrap();
@@ -367,7 +367,7 @@ fn subtract_values_minuend_saturated_total_recalculates_not_saturated() {
     assert_eq!(1, h1.min());
     assert_eq!(1000, h1.max());
     // not saturated
-    assert_eq!(u64::max_value() / 16 * 15, h1.len());
+    assert_eq!(u64::MAX / 16 * 15, h1.len());
 
     assert_min_max_count(h1);
     assert_min_max_count(h2);

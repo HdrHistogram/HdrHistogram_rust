@@ -6,7 +6,7 @@ use std::borrow::Borrow;
 use std::borrow::BorrowMut;
 use std::marker::PhantomData;
 use std::ops::{AddAssign, Deref, DerefMut};
-use std::sync::{atomic, Arc, Mutex};
+use std::sync::{Arc, Mutex, atomic};
 use std::time;
 
 /// A write-only handle to a [`SyncHistogram`].
@@ -208,7 +208,7 @@ impl<C: Counter> Recorder<C> {
     ///
     /// Until the returned guard is dropped, the associated [`SyncHistogram`] will not wait for
     /// this recorder on a phase shift.
-    pub fn idle(&mut self) -> IdleRecorderGuard<C> {
+    pub fn idle(&mut self) -> IdleRecorderGuard<'_, C> {
         self.deactivate();
         IdleRecorder {
             recorder: Some(self),

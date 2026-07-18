@@ -24,9 +24,9 @@ fn init_fields_smallest_possible_array() {
 
 #[test]
 fn init_fields_max_value_max_precision_largest_possible_array() {
-    let h = histo64(1, u64::max_value(), 5);
+    let h = histo64(1, u64::MAX, 5);
 
-    assert_eq!(u64::max_value(), h.highest_trackable_value);
+    assert_eq!(u64::MAX, h.highest_trackable_value);
     assert_eq!(1, h.lowest_discernible_value);
     assert_eq!(5, h.significant_value_digits);
 
@@ -50,9 +50,9 @@ fn init_fields_max_value_max_precision_largest_possible_array() {
 
 #[test]
 fn init_fields_max_value_medium_precision() {
-    let h = histo64(1, u64::max_value(), 3);
+    let h = histo64(1, u64::MAX, 3);
 
-    assert_eq!(u64::max_value(), h.highest_trackable_value);
+    assert_eq!(u64::MAX, h.highest_trackable_value);
     assert_eq!(1, h.lowest_discernible_value);
     assert_eq!(3, h.significant_value_digits);
 
@@ -100,9 +100,9 @@ fn init_fields_1_bucket_medium_precision() {
 
 #[test]
 fn init_fields_max_value_0_precision_most_buckets() {
-    let h = histo64(1, u64::max_value(), 0);
+    let h = histo64(1, u64::MAX, 0);
 
-    assert_eq!(u64::max_value(), h.highest_trackable_value);
+    assert_eq!(u64::MAX, h.highest_trackable_value);
     assert_eq!(1, h.lowest_discernible_value);
     assert_eq!(0, h.significant_value_digits);
 
@@ -124,9 +124,9 @@ fn init_fields_max_value_0_precision_most_buckets() {
 
 #[test]
 fn init_fields_max_value_0_precision_increased_min_value() {
-    let h = histo64(1000, u64::max_value(), 0);
+    let h = histo64(1000, u64::MAX, 0);
 
-    assert_eq!(u64::max_value(), h.highest_trackable_value);
+    assert_eq!(u64::MAX, h.highest_trackable_value);
     assert_eq!(1000, h.lowest_discernible_value);
     assert_eq!(0, h.significant_value_digits);
 
@@ -150,9 +150,9 @@ fn init_fields_max_value_0_precision_increased_min_value() {
 
 #[test]
 fn init_fields_max_value_max_precision_increased_min_value() {
-    let h = histo64(1000, u64::max_value(), 5);
+    let h = histo64(1000, u64::MAX, 5);
 
-    assert_eq!(u64::max_value(), h.highest_trackable_value);
+    assert_eq!(u64::MAX, h.highest_trackable_value);
     assert_eq!(1000, h.lowest_discernible_value);
     assert_eq!(5, h.significant_value_digits);
 
@@ -209,10 +209,10 @@ fn init_fields_10m_max_1k_min_middle_precision() {
 
 #[test]
 fn init_fields_max_value_max_unit_magnitude_0_precision() {
-    let h = histo64(u64::max_value() / 4, u64::max_value(), 0);
+    let h = histo64(u64::MAX / 4, u64::MAX, 0);
 
-    assert_eq!(u64::max_value(), h.highest_trackable_value);
-    assert_eq!(u64::max_value() / 4, h.lowest_discernible_value);
+    assert_eq!(u64::MAX, h.highest_trackable_value);
+    assert_eq!(u64::MAX / 4, h.lowest_discernible_value);
     assert_eq!(0, h.significant_value_digits);
 
     // sub bucket must hold 2 * 10^0
@@ -240,9 +240,9 @@ fn init_fields_max_value_max_unit_magnitude_0_precision() {
 
 #[test]
 fn init_fields_max_value_max_unit_magnitude_max_precision() {
-    let h = histo64(1 << 45, u64::max_value(), 5);
+    let h = histo64(1 << 45, u64::MAX, 5);
 
-    assert_eq!(u64::max_value(), h.highest_trackable_value);
+    assert_eq!(u64::MAX, h.highest_trackable_value);
     assert_eq!(1 << 45, h.lowest_discernible_value);
     assert_eq!(5, h.significant_value_digits);
 

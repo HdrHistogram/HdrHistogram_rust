@@ -1,17 +1,17 @@
-use super::deserializer::{varint_read, varint_read_slice, zig_zag_decode, Deserializer};
+use super::deserializer::{Deserializer, varint_read, varint_read_slice, zig_zag_decode};
 use super::v2_serializer::{
     counts_array_max_encoded_size, encode_counts, varint_write, zig_zag_encode,
 };
 use super::{
-    Serializer, V2DeflateSerializer, V2SerializeError, V2Serializer, V2_COOKIE, V2_HEADER_SIZE,
+    Serializer, V2_COOKIE, V2_HEADER_SIZE, V2DeflateSerializer, V2SerializeError, V2Serializer,
 };
 use crate::tests::helpers::histo64;
 use crate::{Counter, Histogram};
 use byteorder::{BigEndian, ReadBytesExt};
 use num_traits::ToPrimitive;
-use rand::distributions::uniform::{SampleUniform, Uniform};
-use rand::distributions::Distribution;
-use rand::{Rng, SeedableRng};
+use rand::RngExt;
+use rand::distr::Distribution;
+use rand::distr::uniform::{SampleUniform, Uniform};
 use std::fmt::{Debug, Display};
 use std::io::Cursor;
 use std::iter::once;
@@ -84,7 +84,7 @@ fn serialize_roundtrip_all_zeros() {
     assert_eq!(orig.highest_equivalent(orig.max_value), deser.max_value);
 
     // never saw a value, so min never gets set
-    assert_eq!(u64::max_value(), deser.min_non_zero_value);
+    assert_eq!(u64::MAX, deser.min_non_zero_value);
 
     assert_eq!(orig.total_count, deser.total_count);
     assert_eq!(orig.counts, deser.counts);
@@ -140,47 +140,47 @@ fn serialize_roundtrip_1_count_for_every_value_2_buckets() {
 
 #[test]
 fn serialize_roundtrip_random_v2_u64() {
-    do_serialize_roundtrip_random(V2Serializer::new(), i64::max_value() as u64);
+    do_serialize_roundtrip_random(V2Serializer::new(), i64::MAX as u64);
 }
 
 #[test]
 fn serialize_roundtrip_random_v2_u32() {
-    do_serialize_roundtrip_random(V2Serializer::new(), u32::max_value());
+    do_serialize_roundtrip_random(V2Serializer::new(), u32::MAX);
 }
 
 #[test]
 fn serialize_roundtrip_random_v2_u16() {
-    do_serialize_roundtrip_random(V2Serializer::new(), u16::max_value());
+    do_serialize_roundtrip_random(V2Serializer::new(), u16::MAX);
 }
 
 #[test]
 fn serialize_roundtrip_random_v2_u8() {
-    do_serialize_roundtrip_random(V2Serializer::new(), u8::max_value());
+    do_serialize_roundtrip_random(V2Serializer::new(), u8::MAX);
 }
 
 #[test]
 fn serialize_roundtrip_random_v2_deflate_u64() {
-    do_serialize_roundtrip_random(V2DeflateSerializer::new(), i64::max_value() as u64);
+    do_serialize_roundtrip_random(V2DeflateSerializer::new(), i64::MAX as u64);
 }
 
 #[test]
 fn serialize_roundtrip_random_v2_deflate_u32() {
-    do_serialize_roundtrip_random(V2DeflateSerializer::new(), u32::max_value());
+    do_serialize_roundtrip_random(V2DeflateSerializer::new(), u32::MAX);
 }
 
 #[test]
 fn serialize_roundtrip_random_v2_deflate_u16() {
-    do_serialize_roundtrip_random(V2DeflateSerializer::new(), u16::max_value());
+    do_serialize_roundtrip_random(V2DeflateSerializer::new(), u16::MAX);
 }
 
 #[test]
 fn serialize_roundtrip_random_v2_deflate_u8() {
-    do_serialize_roundtrip_random(V2DeflateSerializer::new(), u8::max_value());
+    do_serialize_roundtrip_random(V2DeflateSerializer::new(), u8::MAX);
 }
 
 #[test]
 fn encode_counts_all_zeros() {
-    let h = histo64(1, u64::max_value(), 3);
+    let h = histo64(1, u64::MAX, 3);
     let counts_len = h.counts.len();
     let mut vec = vec![0; counts_array_max_encoded_size(counts_len).unwrap()];
 
@@ -277,7 +277,7 @@ fn encode_counts_count_too_big() {
     let mut vec = vec![0; counts_array_max_encoded_size(h.counts.len()).unwrap()];
 
     // first position
-    h.record_n(0, i64::max_value() as u64 + 1).unwrap();
+    h.record_n(0, i64::MAX as u64 + 1).unwrap();
     assert_eq!(
         V2SerializeError::CountNotSerializable.to_string(),
         encode_counts(&h, &mut vec[..]).unwrap_err().to_string()
@@ -312,7 +312,7 @@ fn varint_write_9_bit_value() {
 #[test]
 fn varint_write_u64_max() {
     let mut buf = [0; 9];
-    let length = varint_write(u64::max_value(), &mut buf[..]);
+    let length = varint_write(u64::MAX, &mut buf[..]);
     assert_eq!(9, length);
     assert_eq!(vec![0xFF; 9].as_slice(), &buf[..]);
 }
@@ -320,7 +320,7 @@ fn varint_write_u64_max() {
 #[test]
 fn varint_read_u64_max() {
     let input = &mut Cursor::new(vec![0xFF; 9]);
-    assert_eq!(u64::max_value(), varint_read(input).unwrap());
+    assert_eq!(u64::MAX, varint_read(input).unwrap());
 }
 
 #[test]
@@ -451,30 +451,30 @@ fn zig_zag_decode_2() {
 
 #[test]
 fn zig_zag_encode_i64_max() {
-    assert_eq!(u64::max_value() - 1, zig_zag_encode(i64::max_value()));
+    assert_eq!(u64::MAX - 1, zig_zag_encode(i64::MAX));
 }
 
 #[test]
 fn zig_zag_encode_i64_min() {
-    assert_eq!(u64::max_value(), zig_zag_encode(i64::min_value()));
+    assert_eq!(u64::MAX, zig_zag_encode(i64::MIN));
 }
 
 #[test]
 fn zig_zag_decode_u64_max_to_i64_min() {
-    assert_eq!(i64::min_value(), zig_zag_decode(u64::max_value()))
+    assert_eq!(i64::MIN, zig_zag_decode(u64::MAX))
 }
 
 #[test]
 fn zig_zag_decode_u64_max_penultimate_to_i64_max() {
-    assert_eq!(i64::max_value(), zig_zag_decode(u64::max_value() - 1))
+    assert_eq!(i64::MAX, zig_zag_decode(u64::MAX - 1))
 }
 
 #[test]
 fn zig_zag_roundtrip_random() {
-    let mut rng = rand::rngs::SmallRng::from_entropy();
+    let mut rng = rand::make_rng::<rand::rngs::SmallRng>();
 
     for _ in 0..1_000_000 {
-        let r: i64 = rng.gen();
+        let r: i64 = rng.random();
         let encoded = zig_zag_encode(r);
         let decoded = zig_zag_decode(encoded);
 
@@ -483,22 +483,20 @@ fn zig_zag_roundtrip_random() {
 }
 
 fn do_varint_write_read_roundtrip_rand(byte_length: usize) {
-    assert!(byte_length <= 9 && byte_length >= 1);
+    assert!((1..=9).contains(&byte_length));
 
     let smallest_in_range = smallest_number_in_n_byte_varint(byte_length);
     let largest_in_range = largest_number_in_n_byte_varint(byte_length);
 
     let mut buf = [0; 9];
     // Bunch of random numbers, plus the start and end of the range
-    let range = Uniform::new(smallest_in_range, largest_in_range);
+    let range = Uniform::new(smallest_in_range, largest_in_range).expect("range is non-empty");
     for i in RandomRangeIter::new(range)
         .take(100_000)
         .chain(once(smallest_in_range))
         .chain(once(largest_in_range))
     {
-        for i in 0..(buf.len()) {
-            buf[i] = 0;
-        }
+        buf.fill(0);
         let bytes_written = varint_write(i, &mut buf);
         assert_eq!(byte_length, bytes_written);
         assert_eq!(i, varint_read(&mut &buf[..bytes_written]).unwrap());
@@ -509,7 +507,7 @@ fn do_varint_write_read_roundtrip_rand(byte_length: usize) {
 }
 
 fn do_varint_write_read_slice_roundtrip_rand(byte_length: usize) {
-    assert!(byte_length <= 9 && byte_length >= 1);
+    assert!((1..=9).contains(&byte_length));
 
     let smallest_in_range = smallest_number_in_n_byte_varint(byte_length);
     let largest_in_range = largest_number_in_n_byte_varint(byte_length);
@@ -517,21 +515,16 @@ fn do_varint_write_read_slice_roundtrip_rand(byte_length: usize) {
     let mut buf = [0; 9];
 
     // Bunch of random numbers, plus the start and end of the range
-    let range = Uniform::new(smallest_in_range, largest_in_range);
+    let range = Uniform::new(smallest_in_range, largest_in_range).expect("range is non-empty");
     for i in RandomRangeIter::new(range)
         .take(100_000)
         .chain(once(smallest_in_range))
         .chain(once(largest_in_range))
     {
-        for i in 0..(buf.len()) {
-            buf[i] = 0;
-        }
+        buf.fill(0);
         let bytes_written = varint_write(i, &mut buf);
         assert_eq!(byte_length, bytes_written);
-        assert_eq!(
-            (i, bytes_written),
-            varint_read_slice(&mut &buf[..bytes_written])
-        );
+        assert_eq!((i, bytes_written), varint_read_slice(&buf[..bytes_written]));
 
         // make sure the other bytes are all still 0
         assert_eq!(vec![0; 9 - bytes_written], &buf[bytes_written..]);
@@ -545,13 +538,13 @@ where
 {
     let mut d = Deserializer::new();
     let mut vec = Vec::new();
-    let mut count_rng = rand::rngs::SmallRng::from_entropy();
-    let mut varint_rng = rand::rngs::SmallRng::from_entropy();
+    let mut count_rng = rand::make_rng::<rand::rngs::SmallRng>();
+    let mut varint_rng = rand::make_rng::<rand::rngs::SmallRng>();
 
-    let range = Uniform::<T>::new(T::one(), max_count);
+    let range = Uniform::<T>::new(T::one(), max_count).expect("range is non-empty");
     for _ in 0..100 {
         vec.clear();
-        let mut h = Histogram::<T>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+        let mut h = Histogram::<T>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
         for value in RandomVarintEncodedLengthIter::new(&mut varint_rng).take(1000) {
             let count = range.sample(&mut count_rng);
@@ -631,7 +624,7 @@ struct RandomRangeIter<T: SampleUniform> {
 impl<T: SampleUniform> RandomRangeIter<T> {
     fn new(range: Uniform<T>) -> RandomRangeIter<T> {
         RandomRangeIter {
-            rng: rand::rngs::SmallRng::from_entropy(),
+            rng: rand::make_rng::<rand::rngs::SmallRng>(),
             range,
         }
     }

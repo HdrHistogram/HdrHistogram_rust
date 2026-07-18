@@ -1,14 +1,14 @@
 #[cfg(all(feature = "serialization", test))]
 mod tests {
-    use base64::engine::general_purpose::STANDARD as B64STANDARD;
     use base64::Engine as _;
+    use base64::engine::general_purpose::STANDARD as B64STANDARD;
+    use hdrhistogram::Histogram;
     use hdrhistogram::serialization::interval_log::{
         IntervalLogHistogram, IntervalLogIterator, IntervalLogWriterBuilder, LogEntry,
         LogIteratorError, Tag,
     };
     use hdrhistogram::serialization::{Deserializer, Serializer, V2Serializer};
-    use hdrhistogram::Histogram;
-    use rand::Rng;
+    use rand::RngExt;
     use std::fs::File;
     use std::io::{BufRead, Read};
     use std::path::Path;
@@ -215,7 +215,7 @@ mod tests {
 
     #[test]
     fn write_random_histograms_to_interval_log_then_read() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let mut histograms = Vec::new();
         let mut tags = Vec::new();
@@ -234,16 +234,16 @@ mod tests {
             writer.write_comment("start").unwrap();
 
             for i in 0_u32..100 {
-                let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+                let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
                 for _ in 0..100 {
-                    // ensure no count above i64::max_value(), even when many large values are
+                    // ensure no count above i64::MAX, even when many large values are
                     // bucketed together
-                    h.record_n(rng.gen::<u64>() >> 32, rng.gen::<u64>() >> 32)
+                    h.record_n(rng.random::<u64>() >> 32, rng.random::<u64>() >> 32)
                         .unwrap();
                 }
 
-                if rng.gen() {
+                if rng.random() {
                     tags.push(Some(format!("t{}", i)));
                 } else {
                     tags.push(None);
@@ -296,7 +296,7 @@ mod tests {
                 round(original_hist.max() as f64 / max_scaling_factor),
                 ilh.max()
             );
-            let tag_string: Option<String> = tags.get(index).unwrap().as_ref().map(|s| s.clone());
+            let tag_string: Option<String> = tags.get(index).unwrap().clone();
             assert_eq!(tag_string, ilh.tag().map(|t| t.as_str().to_owned()));
         }
     }
@@ -305,7 +305,7 @@ mod tests {
     fn parse_interval_log_syntax_error_then_returns_none() {
         let log = "#Foo\nBar\n".as_bytes();
 
-        let mut iter = IntervalLogIterator::new(&log);
+        let mut iter = IntervalLogIterator::new(log);
 
         assert_eq!(
             Some(Err(LogIteratorError::ParseError { offset: 5 })),
@@ -323,7 +323,7 @@ mod tests {
         d.as_secs() as f64 + d.subsec_nanos() as f64 / 1_000_000_000_f64
     }
 
-    fn load_iterator_from_file<'a>(path: &Path) -> IntervalLogBufHolder {
+    fn load_iterator_from_file(path: &Path) -> IntervalLogBufHolder {
         let mut buf = Vec::new();
         let _ = File::open(path).unwrap().read_to_end(&mut buf).unwrap();
 

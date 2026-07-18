@@ -91,20 +91,21 @@
 //! ends up setting its internal version of StartTime.
 //!
 //! - Neither StartTime nor BaseTime are present: interval timestamps are interpreted as seconds
-//! since the epoch. The first interval's timestamp is stored to the StartTime field.
+//!   since the epoch. The first interval's timestamp is stored to the StartTime field.
 //! - StartTime is present: StartTime is a number of seconds since epoch, and interval timestamps
-//! may be interpreted as deltas to be added to StartTime or as "absolute" Unix time depending on a
-//! heuristic. In other words, the heuristic chooses between setting the effective BaseTime to 0 or
-//! to StartTime. Specifically, the heuristic interprets interval timestamps as deltas if they are
-//! more than a year's worth of seconds smaller than StartTime and as absolute timestamps otherwise.
+//!   may be interpreted as deltas to be added to StartTime or as "absolute" Unix time depending on
+//!   a heuristic. In other words, the heuristic chooses between setting the effective BaseTime to 0
+//!   or to StartTime. Specifically, the heuristic interprets interval timestamps as deltas if they
+//!   are more than a year's worth of seconds smaller than StartTime and as absolute timestamps
+//!   otherwise.
 //! - BaseTime is present: BaseTime is a number of seconds since epoch, and interval timestamps are
-//! interpreted as deltas. The first interval's (delta) timestamp is stored to the StartTime field.
-//! This is likely a bug, since StartTime should be an absolute timestamp, and appears to cause
-//! erroneous behavior when filtering by offset timestamps.
+//!   interpreted as deltas. The first interval's (delta) timestamp is stored to the StartTime
+//!   field. This is likely a bug, since StartTime should be an absolute timestamp, and appears to
+//!   cause erroneous behavior when filtering by offset timestamps.
 //! - BaseTime and StartTime are present: The BaseTime is used like it is when it's the only one
-//! present: it's a number of seconds since epoch that serves as the starting point for the
-//! per-interval deltas to get a wall-clock time for each interval. No heuristics are applied to
-//! guess whether or not the intervals are absolute or deltas.
+//!   present: it's a number of seconds since epoch that serves as the starting point for the
+//!   per-interval deltas to get a wall-clock time for each interval. No heuristics are applied to
+//!   guess whether or not the intervals are absolute or deltas.
 //!
 //! The Java implementation also supports re-setting the StartTime and BaseTime if those entries
 //! exist more than once in the log. Suppose that you had an hour's worth of per-minute intervals,
@@ -182,7 +183,7 @@
 //! let mut serializer = serialization::V2Serializer::new();
 //!
 //! let mut h = hdrhistogram::Histogram::<u64>::new_with_bounds(
-//!     1, u64::max_value(), 3).unwrap();
+//!     1, u64::MAX, 3).unwrap();
 //! h.record(12345).unwrap();
 //!
 //! // limit scope of mutable borrow of `buf`
@@ -221,11 +222,10 @@ use base64::Engine as _;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take, take_until, take_while1};
 use nom::character::complete::char;
-use nom::character::is_digit;
 use nom::combinator::{complete, map_res, opt, recognize};
 use nom::error::ErrorKind;
 use nom::number::complete::double;
-use nom::{Err, IResult};
+use nom::{Err, IResult, Parser as _};
 
 use super::super::{Counter, Histogram};
 use super::Serializer;
@@ -316,7 +316,7 @@ impl IntervalLogWriterBuilder {
         };
 
         for c in &self.comments {
-            internal_writer.write_comment(&c)?;
+            internal_writer.write_comment(c)?;
         }
 
         if let Some(st) = self.start_time {
@@ -470,7 +470,7 @@ impl<'a, 'b, W: 'a + io::Write, S: 'b + Serializer> InternalLogWriter<'a, 'b, W,
         self.text_buf.clear();
 
         if let Some(Tag(s)) = tag {
-            write!(self.text_buf, "Tag={},", &s).expect("Writes to a String can't fail");
+            write!(self.text_buf, "Tag={},", s).expect("Writes to a String can't fail");
         }
 
         write!(
@@ -702,11 +702,11 @@ fn system_time_as_fp_seconds(time: time::SystemTime) -> f64 {
         Ok(dur_after_epoch) => duration_as_fp_seconds(dur_after_epoch),
         // Doesn't seem possible to be before the epoch, but using a negative number seems like
         // a reasonable representation if it does occur
-        Err(t) => duration_as_fp_seconds(t.duration()) * -1_f64,
+        Err(t) => -duration_as_fp_seconds(t.duration()),
     }
 }
 
-fn start_time(input: &[u8]) -> IResult<&[u8], LogEntry> {
+fn start_time(input: &[u8]) -> IResult<&[u8], LogEntry<'_>> {
     let (input, _) = tag("#[StartTime: ")(input)?;
     let (input, duration) = fract_sec_duration(input)?;
     let (input, _) = char(' ')(input)?;
@@ -715,7 +715,7 @@ fn start_time(input: &[u8]) -> IResult<&[u8], LogEntry> {
     Ok((input, LogEntry::StartTime(duration)))
 }
 
-fn base_time(input: &[u8]) -> IResult<&[u8], LogEntry> {
+fn base_time(input: &[u8]) -> IResult<&[u8], LogEntry<'_>> {
     let (input, _) = tag("#[BaseTime: ")(input)?;
     let (input, duration) = fract_sec_duration(input)?;
     let (input, _) = char(' ')(input)?;
@@ -731,20 +731,20 @@ fn tag_bytes(input: &[u8]) -> IResult<&[u8], &[u8]> {
     Ok((input, tag))
 }
 
-fn tag_parser(input: &[u8]) -> IResult<&[u8], Tag> {
-    let (input, tag) = map_res(tag_bytes, str::from_utf8)(input)?;
+fn tag_parser(input: &[u8]) -> IResult<&[u8], Tag<'_>> {
+    let (input, tag) = map_res(tag_bytes, str::from_utf8).parse(input)?;
     Ok((input, Tag(tag)))
 }
 
-fn interval_hist(input: &[u8]) -> IResult<&[u8], LogEntry> {
-    let (input, tag) = opt(tag_parser)(input)?;
+fn interval_hist(input: &[u8]) -> IResult<&[u8], LogEntry<'_>> {
+    let (input, tag) = opt(tag_parser).parse(input)?;
     let (input, start_timestamp) = fract_sec_duration(input)?;
     let (input, _) = char(',')(input)?;
     let (input, duration) = fract_sec_duration(input)?;
     let (input, _) = char(',')(input)?;
     let (input, max) = double(input)?;
     let (input, _) = char(',')(input)?;
-    let (input, encoded_histogram) = map_res(take_until("\n"), str::from_utf8)(input)?;
+    let (input, encoded_histogram) = map_res(take_until("\n"), str::from_utf8).parse(input)?;
     // Be nice to Windows users:
     let encoded_histogram = encoded_histogram.trim_end_matches('\r');
     let (input, _) = take(1_usize)(input)?;
@@ -762,7 +762,7 @@ fn interval_hist(input: &[u8]) -> IResult<&[u8], LogEntry> {
 }
 
 fn log_entry(input: &[u8]) -> IResult<&[u8], LogEntry<'_>> {
-    complete(alt((start_time, base_time, interval_hist)))(input)
+    complete(alt((start_time, base_time, interval_hist))).parse(input)
 }
 
 fn comment_line(input: &[u8]) -> IResult<&[u8], ()> {
@@ -780,7 +780,7 @@ fn legend(input: &[u8]) -> IResult<&[u8], ()> {
 }
 
 fn ignored_line(input: &[u8]) -> IResult<&[u8], ()> {
-    alt((comment_line, legend))(input)
+    alt((comment_line, legend)).parse(input)
 }
 
 fn fract_sec_duration(input: &[u8]) -> IResult<&[u8], time::Duration> {
@@ -808,13 +808,18 @@ fn fract_sec_duration(input: &[u8]) -> IResult<&[u8], time::Duration> {
 
 type FResult<'a> = IResult<&'a [u8], (u64, &'a str)>;
 
-fn fract_sec_tuple(input: &[u8]) -> FResult {
+fn fract_sec_tuple(input: &[u8]) -> FResult<'_> {
     let (input, secs) = map_res(
         map_res(recognize(take_until(".")), str::from_utf8),
         u64::from_str,
-    )(input)?;
+    )
+    .parse(input)?;
     let (input, _) = tag(".")(input)?;
-    let (input, nanos_str) = map_res(complete(take_while1(is_digit)), str::from_utf8)(input)?;
+    let (input, nanos_str) = map_res(
+        complete(take_while1(|c: u8| c.is_ascii_digit())),
+        str::from_utf8,
+    )
+    .parse(input)?;
     Ok((input, (secs, nanos_str)))
 }
 

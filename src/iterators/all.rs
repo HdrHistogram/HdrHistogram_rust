@@ -1,6 +1,6 @@
+use crate::Histogram;
 use crate::core::counter::Counter;
 use crate::iterators::{HistogramIterator, PickMetadata, PickyIterator};
-use crate::Histogram;
 
 /// An iterator that will yield every bin.
 pub struct Iter {
@@ -9,7 +9,7 @@ pub struct Iter {
 
 impl Iter {
     /// Construct a new full iterator. See `Histogram::iter_all` for details.
-    pub fn new<T: Counter>(hist: &Histogram<T>) -> HistogramIterator<T, Iter> {
+    pub fn new<T: Counter>(hist: &Histogram<T>) -> HistogramIterator<'_, T, Iter> {
         HistogramIterator::new(hist, Iter { visited: None })
     }
 }

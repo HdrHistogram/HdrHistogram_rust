@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Removed
+
+## [7.6.0] - 2026-07-18
+
 Note that this release bumps MSRV to 1.88 because it uses a few newer
 Rust features like `use<>` and `[]::as_chunks`.
 
@@ -19,8 +27,6 @@ Rust features like `use<>` and `[]::as_chunks`.
   that they should be significantly faster on larger histograms (#140).
 - All usages of `unsafe` are removed, causing serialization to be
   slightly slower, but safe.
-
-### Removed
 
 ## [7.5.4] - 2023-11-18
 ### Changed
@@ -87,7 +93,10 @@ Rust features like `use<>` and `[]::as_chunks`.
 - `DeserializeError` and `V2DeflateSerializeError` lost derived traits: `PartialEq`, `Eq`, `Clone`, `Copy`
 - Inner error type from `std::io::ErrorKind` to `std::io::Error` in types: `DeserializeError`, `V2DeflateSerializeError`, `V2SerializeError`, `IntervalLogWriterError` to support `Display`.
 
-[Unreleased]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.5.2...HEAD
+[Unreleased]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.6.0...HEAD
+[7.6.0]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.5.4...v7.6.0
+[7.5.4]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.5.3...v7.5.4
+[7.5.3]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.5.2...v7.5.3
 [7.5.2]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.5.1...v7.5.2
 [7.5.1]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.5.0...v7.5.1
 [7.5.0]: https://github.com/HdrHistogram/HdrHistogram_rust/compare/v7.4.0...v7.5.0
