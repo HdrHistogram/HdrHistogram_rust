@@ -50,13 +50,13 @@ mod tests {
 
     #[test]
     fn total_count_overflow_from_deserialize_saturates() {
-        let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+        let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
         // can't go bigger than i64 max because it will be serialized
-        h.record_n(1, i64::max_value() as u64).unwrap();
-        h.record_n(1000, i64::max_value() as u64).unwrap();
-        h.record_n(1000_000, i64::max_value() as u64).unwrap();
-        assert_eq!(u64::max_value(), h.len());
+        h.record_n(1, i64::MAX as u64).unwrap();
+        h.record_n(1000, i64::MAX as u64).unwrap();
+        h.record_n(1_000_000, i64::MAX as u64).unwrap();
+        assert_eq!(u64::MAX, h.len());
 
         let mut vec = Vec::new();
 
@@ -64,13 +64,12 @@ mod tests {
         let deser_h: Histogram<u64> = Deserializer::new()
             .deserialize(&mut vec.as_slice())
             .unwrap();
-        assert_eq!(u64::max_value(), deser_h.len());
+        assert_eq!(u64::MAX, deser_h.len());
     }
 
     fn load_histogram_from_num_per_line(path: &Path) -> Histogram<u64> {
         // max is Java's Long.MAX_VALUE
-        let mut h: Histogram<u64> =
-            Histogram::new_with_bounds(1, u64::max_value() >> 1, 3).unwrap();
+        let mut h: Histogram<u64> = Histogram::new_with_bounds(1, u64::MAX >> 1, 3).unwrap();
         for num in BufReader::new(File::open(path).unwrap())
             .lines()
             .map(|l| l.unwrap().parse().unwrap())

@@ -20,5 +20,5 @@ fn new_err_high_not_double_low() {
 #[test]
 fn correct_original_min() {
     // until we get const fns, make sure workaround is correct
-    assert_eq!(u64::max_value(), super::ORIGINAL_MIN);
+    assert_eq!(u64::MAX, super::ORIGINAL_MIN);
 }

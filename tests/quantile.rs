@@ -25,7 +25,7 @@ fn value_at_quantile_internal_count_exceeds_bucket_type() {
 
 #[test]
 fn value_at_quantile_2_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
     h.record(1).unwrap();
     h.record(2).unwrap();
@@ -45,7 +45,7 @@ fn value_at_quantile_2_values() {
 
 #[test]
 fn value_at_quantile_5_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
     h.record(1).unwrap();
     h.record(2).unwrap();
@@ -59,7 +59,7 @@ fn value_at_quantile_5_values() {
 
 #[test]
 fn value_at_quantile_20k() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
     for i in 1..20_001 {
         h.record(i).unwrap();
@@ -86,7 +86,7 @@ fn value_at_quantile_large_numbers() {
 
 #[test]
 fn value_at_quantile_matches_quantile_iter_sequence_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000];
     let mut errors: u64 = 0;
@@ -140,7 +140,7 @@ fn value_at_quantile_matches_quantile_iter_sequence_values() {
 
 #[test]
 fn value_at_quantile_matches_quantile_iter_random_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000];
 
@@ -196,7 +196,7 @@ fn value_at_quantile_matches_quantile_iter_random_values() {
 
 #[test]
 fn value_at_quantile_matches_quantile_at_each_value_sequence_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000];
     let mut errors: u64 = 0;
@@ -211,7 +211,7 @@ fn value_at_quantile_matches_quantile_at_each_value_sequence_values() {
         assert_eq!(length, h.len());
 
         for v in 1..(length + 1) {
-            let quantile = Rational::from((v as u64, length as u64)).to_f64();
+            let quantile = Rational::from((v, length)).to_f64();
             let calculated_value = h.value_at_quantile(quantile);
             if !h.equivalent(v, calculated_value) {
                 println!(
@@ -235,7 +235,7 @@ fn value_at_quantile_matches_quantile_at_each_value_sequence_values() {
 
 #[test]
 fn value_at_quantile_matches_quantile_at_each_value_random_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
     let mut values = Vec::new();
 
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000];
@@ -282,7 +282,7 @@ fn value_at_quantile_matches_quantile_at_each_value_random_values() {
 
 #[test]
 fn value_at_quantile_matches_random_quantile_random_values() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
     let mut values = Vec::new();
 
     let lengths = vec![1, 5, 10, 50, 100, 500, 1_000, 5_000, 10_000];
@@ -342,8 +342,8 @@ struct RandomMaxIter<'a, R: Rng + 'a> {
     rng: &'a mut R,
 }
 
-impl<'a, R: Rng + 'a> RandomMaxIter<'a, R> {
-    fn new(rng: &'a mut R) -> RandomMaxIter<R> {
+impl<R: Rng> RandomMaxIter<'_, R> {
+    fn new(rng: &mut R) -> RandomMaxIter<R> {
         RandomMaxIter { rng }
     }
 }
@@ -354,11 +354,11 @@ impl<'a, R: Rng + 'a> Iterator for RandomMaxIter<'a, R> {
     fn next(&mut self) -> Option<Self::Item> {
         let bit_length = self.rng.gen_range(0..=64);
 
-        return Some(match bit_length {
+        Some(match bit_length {
             0 => 0,
-            64 => u64::max_value(),
+            64 => u64::MAX,
             x => self.rng.gen_range(0..1 << x),
-        });
+        })
     }
 }
 

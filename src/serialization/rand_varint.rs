@@ -7,7 +7,7 @@ use rand::Rng;
 
 /// Smallest number in our varint encoding that takes the given number of bytes
 pub fn smallest_number_in_n_byte_varint(byte_length: usize) -> u64 {
-    assert!(byte_length <= 9 && byte_length >= 1);
+    assert!((1..=9).contains(&byte_length));
 
     match byte_length {
         1 => 0,
@@ -18,10 +18,10 @@ pub fn smallest_number_in_n_byte_varint(byte_length: usize) -> u64 {
 
 /// Largest number in our varint encoding that takes the given number of bytes
 pub fn largest_number_in_n_byte_varint(byte_length: usize) -> u64 {
-    assert!(byte_length <= 9 && byte_length >= 1);
+    assert!((1..=9).contains(&byte_length));
 
     match byte_length {
-        9 => u64::max_value(),
+        9 => u64::MAX,
         _ => largest_number_in_7_bit_chunk(byte_length - 1),
     }
 }

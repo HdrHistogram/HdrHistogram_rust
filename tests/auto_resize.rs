@@ -8,7 +8,7 @@ fn histogram_autosizing_edges() {
     histogram += (1_u64 << 62) - 1;
     assert_eq!(histogram.buckets(), 52);
     assert_eq!(histogram.distinct_values(), 54272);
-    histogram += u64::max_value();
+    histogram += u64::MAX;
     assert_eq!(histogram.buckets(), 54);
     // unit magnitude = floor(log_2 (1 / 2)) = 0
     // sub bucket count magnitude = floor(log_2 (2 * 10^3)) = 10

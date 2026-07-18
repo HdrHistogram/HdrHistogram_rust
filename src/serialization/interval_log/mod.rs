@@ -91,20 +91,20 @@
 //! ends up setting its internal version of StartTime.
 //!
 //! - Neither StartTime nor BaseTime are present: interval timestamps are interpreted as seconds
-//! since the epoch. The first interval's timestamp is stored to the StartTime field.
+//!   since the epoch. The first interval's timestamp is stored to the StartTime field.
 //! - StartTime is present: StartTime is a number of seconds since epoch, and interval timestamps
-//! may be interpreted as deltas to be added to StartTime or as "absolute" Unix time depending on a
-//! heuristic. In other words, the heuristic chooses between setting the effective BaseTime to 0 or
-//! to StartTime. Specifically, the heuristic interprets interval timestamps as deltas if they are
-//! more than a year's worth of seconds smaller than StartTime and as absolute timestamps otherwise.
+//!   may be interpreted as deltas to be added to StartTime or as "absolute" Unix time depending on a
+//!   heuristic. In other words, the heuristic chooses between setting the effective BaseTime to 0 or
+//!   to StartTime. Specifically, the heuristic interprets interval timestamps as deltas if they are
+//!   more than a year's worth of seconds smaller than StartTime and as absolute timestamps otherwise.
 //! - BaseTime is present: BaseTime is a number of seconds since epoch, and interval timestamps are
-//! interpreted as deltas. The first interval's (delta) timestamp is stored to the StartTime field.
-//! This is likely a bug, since StartTime should be an absolute timestamp, and appears to cause
-//! erroneous behavior when filtering by offset timestamps.
+//!   interpreted as deltas. The first interval's (delta) timestamp is stored to the StartTime field.
+//!   This is likely a bug, since StartTime should be an absolute timestamp, and appears to cause
+//!   erroneous behavior when filtering by offset timestamps.
 //! - BaseTime and StartTime are present: The BaseTime is used like it is when it's the only one
-//! present: it's a number of seconds since epoch that serves as the starting point for the
-//! per-interval deltas to get a wall-clock time for each interval. No heuristics are applied to
-//! guess whether or not the intervals are absolute or deltas.
+//!   present: it's a number of seconds since epoch that serves as the starting point for the
+//!   per-interval deltas to get a wall-clock time for each interval. No heuristics are applied to
+//!   guess whether or not the intervals are absolute or deltas.
 //!
 //! The Java implementation also supports re-setting the StartTime and BaseTime if those entries
 //! exist more than once in the log. Suppose that you had an hour's worth of per-minute intervals,
@@ -182,7 +182,7 @@
 //! let mut serializer = serialization::V2Serializer::new();
 //!
 //! let mut h = hdrhistogram::Histogram::<u64>::new_with_bounds(
-//!     1, u64::max_value(), 3).unwrap();
+//!     1, u64::MAX, 3).unwrap();
 //! h.record(12345).unwrap();
 //!
 //! // limit scope of mutable borrow of `buf`
@@ -316,7 +316,7 @@ impl IntervalLogWriterBuilder {
         };
 
         for c in &self.comments {
-            internal_writer.write_comment(&c)?;
+            internal_writer.write_comment(c)?;
         }
 
         if let Some(st) = self.start_time {
@@ -526,7 +526,7 @@ impl<'a> Tag<'a> {
     }
 }
 
-impl<'a> ops::Deref for Tag<'a> {
+impl ops::Deref for Tag<'_> {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {

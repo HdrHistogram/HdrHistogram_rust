@@ -20,13 +20,13 @@
 //! # Performance concerns
 //!
 //! Serialization is quite fast; serializing a histogram in V2 format that represents 1 to
-//! `u64::max_value()` with 3 digits of precision with tens of thousands of recorded counts takes
+//! \x60u64::MAX\x60 with 3 digits of precision with tens of thousands of recorded counts takes
 //! about 40 microseconds on an E5-1650v3 Xeon. Deserialization is about 3x slower, but that will
 //! improve as there are still some optimizations to perform.
 //!
 //! For the V2 format, the space used for a histogram will depend mainly on precision since higher
 //! precision will reduce the extent to which different values are grouped into the same bucket.
-//! Having a large value range (e.g. 1 to `u64::max_value()`) will not directly impact the size if
+//! Having a large value range (e.g. 1 to \x60u64::MAX\x60) will not directly impact the size if
 //! there are many zero counts as zeros are compressed away.
 //!
 //! V2 + DEFLATE is significantly slower to serialize (around 10x) but only a little bit slower to
@@ -143,7 +143,7 @@
 //!
 //! // Make some histograms
 //! for _ in 0..num_histograms {
-//!     let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+//!     let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 //!     h.record_n(42, 7).unwrap();
 //!     histograms.push(h);
 //! }
@@ -161,7 +161,7 @@
 //! let mut cursor = Cursor::new(&buf);
 //!
 //! let mut accumulator =
-//!     Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+//!     Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 //!
 //! for _ in 0..num_histograms {
 //!     let h: Histogram<u64> = deserializer.deserialize(&mut cursor).unwrap();

@@ -13,7 +13,7 @@ mod rand_varint;
 
 #[bench]
 fn record_precalc_random_values_with_1_count_u64(b: &mut Bencher) {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
     let mut indices = Vec::<u64>::new();
     let mut rng = rand::rngs::SmallRng::from_entropy();
 
@@ -34,7 +34,7 @@ fn record_precalc_random_values_with_1_count_u64(b: &mut Bencher) {
 
 #[bench]
 fn record_precalc_random_values_with_max_count_u64(b: &mut Bencher) {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
     let mut indices = Vec::<u64>::new();
     let mut rng = rand::rngs::SmallRng::from_entropy();
 
@@ -42,7 +42,7 @@ fn record_precalc_random_values_with_max_count_u64(b: &mut Bencher) {
 
     for v in RandomVarintEncodedLengthIter::new(&mut rng).take(1_000_000) {
         indices.push(v);
-        h.record_n(v, u64::max_value()).unwrap();
+        h.record_n(v, u64::MAX).unwrap();
     }
 
     b.iter(|| {
@@ -55,7 +55,7 @@ fn record_precalc_random_values_with_max_count_u64(b: &mut Bencher) {
 
 #[bench]
 fn record_correct_precalc_random_values_with_1_count_u64(b: &mut Bencher) {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
     let mut indices = Vec::<u64>::new();
     let mut rng = rand::rngs::SmallRng::from_entropy();
 
@@ -73,7 +73,7 @@ fn record_correct_precalc_random_values_with_1_count_u64(b: &mut Bencher) {
 
 #[bench]
 fn record_random_values_with_1_count_u64(b: &mut Bencher) {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
     let mut rng = rand::rngs::SmallRng::from_entropy();
 
     // This should be *slower* than the benchmarks above where we pre-calculate the values
@@ -89,35 +89,35 @@ fn record_random_values_with_1_count_u64(b: &mut Bencher) {
 #[bench]
 fn add_precalc_random_value_1_count_same_dimensions_u64(b: &mut Bencher) {
     do_add_benchmark(b, 1, || {
-        Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap()
+        Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap()
     })
 }
 
 #[bench]
 fn add_precalc_random_value_max_count_same_dimensions_u64(b: &mut Bencher) {
-    do_add_benchmark(b, u64::max_value(), || {
-        Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap()
+    do_add_benchmark(b, u64::MAX, || {
+        Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap()
     })
 }
 
 #[bench]
 fn add_precalc_random_value_1_count_different_precision_u64(b: &mut Bencher) {
     do_add_benchmark(b, 1, || {
-        Histogram::<u64>::new_with_bounds(1, u64::max_value(), 2).unwrap()
+        Histogram::<u64>::new_with_bounds(1, u64::MAX, 2).unwrap()
     })
 }
 
 #[bench]
 fn add_precalc_random_value_max_count_different_precision_u64(b: &mut Bencher) {
-    do_add_benchmark(b, u64::max_value(), || {
-        Histogram::<u64>::new_with_bounds(1, u64::max_value(), 2).unwrap()
+    do_add_benchmark(b, u64::MAX, || {
+        Histogram::<u64>::new_with_bounds(1, u64::MAX, 2).unwrap()
     })
 }
 
 #[bench]
 fn subtract_precalc_random_value_1_count_same_dimensions_u64(b: &mut Bencher) {
     do_subtract_benchmark(b, 1, || {
-        Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap()
+        Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap()
     })
 }
 
@@ -131,7 +131,7 @@ fn do_subtract_benchmark<F: Fn() -> Histogram<u64>>(
     count_at_each_addend_value: u64,
     addend_factory: F,
 ) {
-    let mut accum = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut accum = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
     let mut subtrahends = Vec::new();
     let mut rng = rand::rngs::SmallRng::from_entropy();
 
@@ -160,7 +160,7 @@ fn do_add_benchmark<F: Fn() -> Histogram<u64>>(
     count_at_each_addend_value: u64,
     addend_factory: F,
 ) {
-    let mut accum = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut accum = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
     let mut addends = Vec::new();
     let mut rng = rand::rngs::SmallRng::from_entropy();
 

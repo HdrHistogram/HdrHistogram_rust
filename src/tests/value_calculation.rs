@@ -58,7 +58,7 @@ fn equivalent_range_unit_magnitude_2() {
 
 #[test]
 fn equivalent_range_unit_magnitude_0_max_buckets() {
-    let h = histo64(1, u64::max_value(), 3);
+    let h = histo64(1, u64::MAX, 3);
 
     assert_eq!(1, h.equivalent_range(0));
     assert_eq!(1, h.equivalent_range(1));
@@ -73,12 +73,12 @@ fn equivalent_range_unit_magnitude_0_max_buckets() {
     // ...
 
     assert_eq!(1 << 53, h.equivalent_range(1 << 63));
-    assert_eq!(1 << 53, h.equivalent_range(u64::max_value()));
+    assert_eq!(1 << 53, h.equivalent_range(u64::MAX));
 }
 
 #[test]
 fn equivalent_range_unit_magnitude_0_min_precision_max_buckets() {
-    let h = histo64(1, u64::max_value(), 0);
+    let h = histo64(1, u64::MAX, 0);
 
     assert_eq!(1, h.equivalent_range(0));
     assert_eq!(1, h.equivalent_range(1));
@@ -89,12 +89,12 @@ fn equivalent_range_unit_magnitude_0_min_precision_max_buckets() {
     // ...
 
     assert_eq!(1 << 63, h.equivalent_range(1 << 63));
-    assert_eq!(1 << 63, h.equivalent_range(u64::max_value()));
+    assert_eq!(1 << 63, h.equivalent_range(u64::MAX));
 }
 
 #[test]
 fn equivalent_range_unit_magnitude_0_max_precision_max_buckets() {
-    let h = histo64(1, u64::max_value(), 5);
+    let h = histo64(1, u64::MAX, 5);
 
     assert_eq!(1, h.equivalent_range(0));
     assert_eq!(1, h.equivalent_range(1));
@@ -109,12 +109,12 @@ fn equivalent_range_unit_magnitude_0_max_precision_max_buckets() {
     // ...
 
     assert_eq!(1 << 46, h.equivalent_range(1 << 63));
-    assert_eq!(1 << 46, h.equivalent_range(u64::max_value()));
+    assert_eq!(1 << 46, h.equivalent_range(u64::MAX));
 }
 
 #[test]
 fn equivalent_range_unit_magnitude_2_max_buckets() {
-    let h = histo64(4, u64::max_value(), 3);
+    let h = histo64(4, u64::MAX, 3);
 
     assert_eq!(1 << 2, h.equivalent_range(0));
     assert_eq!(1 << 2, h.equivalent_range(1));
@@ -130,12 +130,12 @@ fn equivalent_range_unit_magnitude_2_max_buckets() {
     // ...
 
     assert_eq!(1 << 53, h.equivalent_range(1 << 63));
-    assert_eq!(1 << 53, h.equivalent_range(u64::max_value()));
+    assert_eq!(1 << 53, h.equivalent_range(u64::MAX));
 }
 
 #[test]
 fn equivalent_range_unit_magnitude_50_max_buckets() {
-    let h = histo64(1 << 50, u64::max_value(), 3);
+    let h = histo64(1 << 50, u64::MAX, 3);
 
     // 11-bit sub buckets
     assert_eq!(2048, h.sub_bucket_count);
@@ -150,7 +150,7 @@ fn equivalent_range_unit_magnitude_50_max_buckets() {
     // third
     assert_eq!(1 << 52, h.equivalent_range(1 << 62));
     assert_eq!(1 << 53, h.equivalent_range(1 << 63));
-    assert_eq!(1 << 53, h.equivalent_range(u64::max_value()));
+    assert_eq!(1 << 53, h.equivalent_range(u64::MAX));
 }
 
 #[test]
@@ -194,14 +194,14 @@ fn highest_equivalent_unit_magnitude_2() {
 
 #[test]
 fn highest_equivalent_u64_max_value_saturates() {
-    let h = histo64(1, u64::max_value(), 3);
+    let h = histo64(1, u64::MAX, 3);
 
     assert_eq!(
-        u64::max_value() - 1,
-        h.highest_equivalent(u64::max_value() - 1)
+        u64::MAX - 1,
+        h.highest_equivalent(u64::MAX - 1)
     );
 
-    assert_eq!(u64::max_value(), h.highest_equivalent(u64::max_value()));
+    assert_eq!(u64::MAX, h.highest_equivalent(u64::MAX));
 }
 
 #[test]
@@ -246,17 +246,17 @@ fn next_non_equivalent_unit_magnitude_2() {
 
 #[test]
 fn next_non_equivalent_u64_max_value_saturates() {
-    let h = histo64(1, u64::max_value(), 3);
+    let h = histo64(1, u64::MAX, 3);
 
     // the next number would be quite a lot higher...
-    assert_eq!(1_u64 << 53, h.equivalent_range(u64::max_value()));
+    assert_eq!(1_u64 << 53, h.equivalent_range(u64::MAX));
 
     // ... but it's capped.
     assert_eq!(
-        u64::max_value(),
-        h.next_non_equivalent(u64::max_value() - 1)
+        u64::MAX,
+        h.next_non_equivalent(u64::MAX - 1)
     );
-    assert_eq!(u64::max_value(), h.next_non_equivalent(u64::max_value()));
+    assert_eq!(u64::MAX, h.next_non_equivalent(u64::MAX));
 }
 
 #[test]
@@ -360,7 +360,7 @@ fn value_for_unit_magnitude_2() {
 
 #[test]
 fn value_for_at_each_index() {
-    let mut h = histo64(1, u64::max_value(), 3);
+    let mut h = histo64(1, u64::MAX, 3);
 
     let max = 1_000_000;
 
@@ -428,7 +428,7 @@ fn value_for_beyond_histogram_max_still_works() {
 #[test]
 fn value_for_impossible_index() {
     // this is unsupported behavior but it would be good to know if it changes.
-    let max = u64::max_value();
+    let max = u64::MAX;
     let h = histo64(1, max, 3);
 
     let max_index = h.index_for(max).unwrap();

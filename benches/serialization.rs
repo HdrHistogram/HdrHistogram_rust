@@ -40,25 +40,25 @@ fn serialize_small_sparse_v2(b: &mut Bencher) {
 #[bench]
 fn serialize_medium_dense_v2(b: &mut Bencher) {
     // 56320 counts
-    do_serialize_bench(b, &mut V2Serializer::new(), 1, u64::max_value(), 3, 1.5)
+    do_serialize_bench(b, &mut V2Serializer::new(), 1, u64::MAX, 3, 1.5)
 }
 
 #[bench]
 fn serialize_medium_sparse_v2(b: &mut Bencher) {
     // 56320 counts
-    do_serialize_bench(b, &mut V2Serializer::new(), 1, u64::max_value(), 3, 0.1)
+    do_serialize_bench(b, &mut V2Serializer::new(), 1, u64::MAX, 3, 0.1)
 }
 
 #[bench]
 fn serialize_large_dense_v2(b: &mut Bencher) {
     // 6291456 buckets
-    do_serialize_bench(b, &mut V2Serializer::new(), 1, u64::max_value(), 5, 1.5)
+    do_serialize_bench(b, &mut V2Serializer::new(), 1, u64::MAX, 5, 1.5)
 }
 
 #[bench]
 fn serialize_large_sparse_v2(b: &mut Bencher) {
     // 6291456 buckets
-    do_serialize_bench(b, &mut V2Serializer::new(), 1, u64::max_value(), 5, 0.1)
+    do_serialize_bench(b, &mut V2Serializer::new(), 1, u64::MAX, 5, 0.1)
 }
 
 #[bench]
@@ -68,7 +68,7 @@ fn serialize_large_dense_v2_deflate(b: &mut Bencher) {
         b,
         &mut V2DeflateSerializer::new(),
         1,
-        u64::max_value(),
+        u64::MAX,
         5,
         1.5,
     )
@@ -81,7 +81,7 @@ fn serialize_large_sparse_v2_deflate(b: &mut Bencher) {
         b,
         &mut V2DeflateSerializer::new(),
         1,
-        u64::max_value(),
+        u64::MAX,
         5,
         0.1,
     )
@@ -114,25 +114,25 @@ fn deserialize_small_sparse_v2(b: &mut Bencher) {
 #[bench]
 fn deserialize_medium_dense_v2(b: &mut Bencher) {
     // 56320 counts
-    do_deserialize_bench(b, &mut V2Serializer::new(), 1, u64::max_value(), 3, 1.5)
+    do_deserialize_bench(b, &mut V2Serializer::new(), 1, u64::MAX, 3, 1.5)
 }
 
 #[bench]
 fn deserialize_medium_sparse_v2(b: &mut Bencher) {
     // 56320 counts
-    do_deserialize_bench(b, &mut V2Serializer::new(), 1, u64::max_value(), 3, 0.1)
+    do_deserialize_bench(b, &mut V2Serializer::new(), 1, u64::MAX, 3, 0.1)
 }
 
 #[bench]
 fn deserialize_large_dense_v2(b: &mut Bencher) {
     // 6291456 buckets
-    do_deserialize_bench(b, &mut V2Serializer::new(), 1, u64::max_value(), 5, 1.5)
+    do_deserialize_bench(b, &mut V2Serializer::new(), 1, u64::MAX, 5, 1.5)
 }
 
 #[bench]
 fn deserialize_large_sparse_v2(b: &mut Bencher) {
     // 6291456 buckets
-    do_deserialize_bench(b, &mut V2Serializer::new(), 1, u64::max_value(), 5, 0.1)
+    do_deserialize_bench(b, &mut V2Serializer::new(), 1, u64::MAX, 5, 0.1)
 }
 
 #[bench]
@@ -142,7 +142,7 @@ fn deserialize_large_dense_v2_deflate(b: &mut Bencher) {
         b,
         &mut V2DeflateSerializer::new(),
         1,
-        u64::max_value(),
+        u64::MAX,
         5,
         1.5,
     )
@@ -155,7 +155,7 @@ fn deserialize_large_sparse_v2_deflate(b: &mut Bencher) {
         b,
         &mut V2DeflateSerializer::new(),
         1,
-        u64::max_value(),
+        u64::MAX,
         5,
         0.1,
     )

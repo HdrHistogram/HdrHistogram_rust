@@ -22,7 +22,7 @@ fn write_interval_log_1k_hist_10k_value(b: &mut Bencher) {
     let mut rng = rand::rngs::SmallRng::from_entropy();
 
     for _ in 0..1000 {
-        let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+        let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
         for v in RandomVarintEncodedLengthIter::new(&mut rng).take(10_000) {
             h.record(v).unwrap();
@@ -56,7 +56,7 @@ fn parse_interval_log_1k_hist_10k_value(b: &mut Bencher) {
     let mut rng = rand::rngs::SmallRng::from_entropy();
 
     for _ in 0..1000 {
-        let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+        let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
         for v in RandomVarintEncodedLengthIter::new(&mut rng).take(10_000) {
             h.record(v).unwrap();

@@ -12,7 +12,7 @@ use hdrhistogram::serialization::{
 use hdrhistogram::{Histogram, RecordError};
 
 fn main() {
-    let default_max = format!("{}", u64::max_value());
+    let default_max = format!("{}", u64::MAX);
     let matches = Command::new("hdrhistogram cli")
         .subcommand(
             Command::new("serialize")
@@ -228,7 +228,7 @@ fn quantiles<R: BufRead, W: Write>(
 // Normally I frown on excessive use of From as it's too "magic", but in the limited confines of
 // subcommands, the convenience seems worth it.
 #[derive(Debug)]
-enum CliError {
+pub enum CliError {
     Io(io::Error),
     HistogramSerialize(V2SerializeError),
     HistogramSerializeCompressed(V2DeflateSerializeError),

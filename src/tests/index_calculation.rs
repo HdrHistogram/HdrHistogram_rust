@@ -27,7 +27,7 @@ fn unit_magnitude_0_index_calculations() {
     // counting by 4s, starting at halfway through the bucket
     assert_eq!(1024 + 3, h.sub_bucket_for((2048 << 1) + 3 * 4, 2));
 
-    // past last bucket -- not near u64::max_value(), so should still calculate ok.
+    // past last bucket -- not near u64::MAX, so should still calculate ok.
     assert_eq!(23, h.bucket_for((2048_u64 << 22) + 3 * (1 << 23)));
     assert_eq!(
         1024 + 3,
@@ -76,7 +76,7 @@ fn unit_magnitude_4_index_calculations() {
         h.sub_bucket_for((unit << 12) + 3 * (unit << 2), 2)
     );
 
-    // past last bucket -- not near u64::max_value(), so should still calculate ok.
+    // past last bucket -- not near u64::MAX, so should still calculate ok.
     assert_eq!(11, h.bucket_for((unit << 21) + 3 * (unit << 11)));
     assert_eq!(
         1024 + 3,
@@ -87,7 +87,7 @@ fn unit_magnitude_4_index_calculations() {
 #[test]
 fn unit_magnitude_52_sub_bucket_magnitude_11_index_calculations() {
     // maximum unit magnitude for this precision
-    let h = histo64(1_u64 << 52, u64::max_value(), 3);
+    let h = histo64(1_u64 << 52, u64::MAX, 3);
     assert_eq!(2048, h.sub_bucket_count);
     assert_eq!(52, h.unit_magnitude);
     // sub_bucket_count = 2^11. With unit magnitude shift, it's 2^63. 1 more bucket to (almost)
@@ -123,8 +123,8 @@ fn unit_magnitude_52_sub_bucket_magnitude_11_index_calculations() {
     );
 
     // upper half of second bucket, last slot
-    assert_eq!(1, h.bucket_for(u64::max_value()));
-    assert_eq!(1024 + 1023, h.sub_bucket_for(u64::max_value(), 1));
+    assert_eq!(1, h.bucket_for(u64::MAX));
+    assert_eq!(1024 + 1023, h.sub_bucket_for(u64::MAX, 1));
 }
 
 #[test]
@@ -148,8 +148,8 @@ fn unit_magnitude_55_sub_bucket_magnitude_8_ok() {
     assert_eq!(0, h.sub_bucket_for(3, 0));
 
     // upper half of second bucket, last slot
-    assert_eq!(1, h.bucket_for(u64::max_value()));
-    assert_eq!(128 + 127, h.sub_bucket_for(u64::max_value(), 1));
+    assert_eq!(1, h.bucket_for(u64::MAX));
+    assert_eq!(128 + 127, h.sub_bucket_for(u64::MAX, 1));
 }
 
 #[test]
@@ -165,8 +165,8 @@ fn unit_magnitude_62_sub_bucket_magnitude_1_ok() {
     assert_eq!(0, h.sub_bucket_for(3, 0));
 
     // upper half of second bucket, last slot
-    assert_eq!(1, h.bucket_for(u64::max_value()));
-    assert_eq!(1, h.sub_bucket_for(u64::max_value(), 1));
+    assert_eq!(1, h.bucket_for(u64::MAX));
+    assert_eq!(1, h.sub_bucket_for(u64::MAX, 1));
 }
 
 #[test]

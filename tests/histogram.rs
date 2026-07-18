@@ -237,9 +237,9 @@ fn median_equivalent() {
 
 #[test]
 fn median_equivalent_doesnt_panic_at_extremes() {
-    let h = Histogram::<u64>::new_with_max(u64::max_value(), 3).unwrap();
-    let _ = h.median_equivalent(u64::max_value());
-    let _ = h.median_equivalent(u64::max_value() - 1);
+    let h = Histogram::<u64>::new_with_max(u64::MAX, 3).unwrap();
+    let _ = h.median_equivalent(u64::MAX);
+    let _ = h.median_equivalent(u64::MAX - 1);
     let _ = h.median_equivalent(0);
     let _ = h.median_equivalent(1);
 }
@@ -341,7 +341,7 @@ fn scaled_set_to() {
 
 #[test]
 fn random_write_full_value_range_precision_5_no_panic() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 5).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 5).unwrap();
 
     let mut rng = rand::rngs::SmallRng::from_entropy();
 
@@ -357,7 +357,7 @@ fn random_write_full_value_range_precision_5_no_panic() {
 
 #[test]
 fn random_write_full_value_range_precision_0_no_panic() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 0).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 0).unwrap();
 
     let mut rng = rand::rngs::SmallRng::from_entropy();
 
@@ -388,24 +388,24 @@ fn random_write_middle_of_value_range_precision_3_no_panic() {
 fn value_count_overflow_from_record_saturates_u16() {
     let mut h = Histogram::<u16>::new_with_max(TRACKABLE_MAX, 2).unwrap();
 
-    h.record_n(3, u16::max_value() - 1).unwrap();
-    h.record_n(3, u16::max_value() - 1).unwrap();
+    h.record_n(3, u16::MAX - 1).unwrap();
+    h.record_n(3, u16::MAX - 1).unwrap();
 
     // individual count has saturated
-    assert_eq!(u16::max_value(), h.count_at(3));
+    assert_eq!(u16::MAX, h.count_at(3));
     // total is a u64 though
-    assert_eq!(u64::from(u16::max_value() - 1) * 2, h.len());
+    assert_eq!(u64::from(u16::MAX - 1) * 2, h.len());
 }
 
 #[test]
 fn value_count_overflow_from_record_saturates_u64() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
-    h.record_n(1, u64::max_value() - 1).unwrap();
-    h.record_n(1, u64::max_value() - 1).unwrap();
+    h.record_n(1, u64::MAX - 1).unwrap();
+    h.record_n(1, u64::MAX - 1).unwrap();
 
-    assert_eq!(u64::max_value(), h.count_at(1));
-    assert_eq!(u64::max_value(), h.len());
+    assert_eq!(u64::MAX, h.count_at(1));
+    assert_eq!(u64::MAX, h.len());
 }
 
 #[test]
@@ -413,43 +413,43 @@ fn value_count_overflow_from_record_autoresize_doesnt_panic_saturates() {
     let mut h = Histogram::<u64>::new_with_bounds(1, 10_000, 3).unwrap();
     h.auto(true);
 
-    h.record_n(1, u64::max_value() - 1).unwrap();
-    h.record_n(1, u64::max_value() - 1).unwrap();
+    h.record_n(1, u64::MAX - 1).unwrap();
+    h.record_n(1, u64::MAX - 1).unwrap();
 
     // forces resize
-    h.record_n(1_000_000_000, u64::max_value() - 1).unwrap();
-    h.record_n(1_000_000_000, u64::max_value() - 1).unwrap();
+    h.record_n(1_000_000_000, u64::MAX - 1).unwrap();
+    h.record_n(1_000_000_000, u64::MAX - 1).unwrap();
 
-    assert_eq!(u64::max_value(), h.count_at(1));
-    assert_eq!(u64::max_value(), h.count_at(1_000_000_000));
-    assert_eq!(u64::max_value(), h.len());
+    assert_eq!(u64::MAX, h.count_at(1));
+    assert_eq!(u64::MAX, h.count_at(1_000_000_000));
+    assert_eq!(u64::MAX, h.len());
 }
 
 #[test]
 fn value_count_overflow_from_add_same_dimensions_saturates() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
-    let mut h2 = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
+    let mut h2 = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
-    h.record_n(1, u64::max_value() - 1).unwrap();
-    h2.record_n(1, u64::max_value() - 1).unwrap();
+    h.record_n(1, u64::MAX - 1).unwrap();
+    h2.record_n(1, u64::MAX - 1).unwrap();
 
     h.add(h2).unwrap();
-    assert_eq!(u64::max_value(), h.count_at(1));
-    assert_eq!(u64::max_value(), h.len());
+    assert_eq!(u64::MAX, h.count_at(1));
+    assert_eq!(u64::MAX, h.len());
 }
 
 #[test]
 fn value_count_overflow_from_add_different_precision_saturates() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
     // different precision
-    let mut h2 = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 4).unwrap();
+    let mut h2 = Histogram::<u64>::new_with_bounds(1, u64::MAX, 4).unwrap();
 
-    h.record_n(1, u64::max_value() - 1).unwrap();
-    h2.record_n(1, u64::max_value() - 1).unwrap();
+    h.record_n(1, u64::MAX - 1).unwrap();
+    h2.record_n(1, u64::MAX - 1).unwrap();
 
     h.add(h2).unwrap();
-    assert_eq!(u64::max_value(), h.count_at(1));
-    assert_eq!(u64::max_value(), h.len());
+    assert_eq!(u64::MAX, h.count_at(1));
+    assert_eq!(u64::MAX, h.len());
 }
 
 #[test]
@@ -458,78 +458,78 @@ fn value_count_overflow_from_add_with_resize_to_same_dimensions_saturates() {
     h.auto(true);
     let mut h2 = Histogram::<u64>::new_with_bounds(1, 10_000_000_000, 3).unwrap();
 
-    h.record_n(1, u64::max_value() - 1).unwrap();
-    h2.record_n(1, u64::max_value() - 1).unwrap();
+    h.record_n(1, u64::MAX - 1).unwrap();
+    h2.record_n(1, u64::MAX - 1).unwrap();
     // recording at value == h2 max should trigger h to resize to the same dimensions when added
-    h2.record_n(10_000_000_000, u64::max_value() - 1).unwrap();
+    h2.record_n(10_000_000_000, u64::MAX - 1).unwrap();
 
     h.add(h2).unwrap();
-    assert_eq!(u64::max_value(), h.count_at(1));
-    assert_eq!(u64::max_value(), h.len());
+    assert_eq!(u64::MAX, h.count_at(1));
+    assert_eq!(u64::MAX, h.len());
 }
 
 #[test]
 fn total_count_overflow_from_record_saturates() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
-    h.record_n(1, u64::max_value() - 1).unwrap();
-    h.record_n(10, u64::max_value() - 1).unwrap();
+    h.record_n(1, u64::MAX - 1).unwrap();
+    h.record_n(10, u64::MAX - 1).unwrap();
 
-    assert_eq!(u64::max_value() - 1, h.count_at(1));
-    assert_eq!(u64::max_value() - 1, h.count_at(10));
-    assert_eq!(u64::max_value(), h.len());
+    assert_eq!(u64::MAX - 1, h.count_at(1));
+    assert_eq!(u64::MAX - 1, h.count_at(10));
+    assert_eq!(u64::MAX, h.len());
 }
 
 #[test]
 fn total_count_overflow_from_add_same_dimensions_saturates_calculating_other_addend_total() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
-    let mut h2 = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
+    let mut h2 = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
-    h.record_n(1, u64::max_value() - 10).unwrap();
-    h2.record_n(10, u64::max_value() - 1).unwrap();
+    h.record_n(1, u64::MAX - 10).unwrap();
+    h2.record_n(10, u64::MAX - 1).unwrap();
     h2.record_n(20, 10).unwrap();
 
     // just h2's total would overflow
 
     h.add(h2).unwrap();
-    assert_eq!(u64::max_value() - 10, h.count_at(1));
+    assert_eq!(u64::MAX - 10, h.count_at(1));
     assert_eq!(10, h.count_at(20));
 
     // if accumulating total count for h2 had overflowed, we would see max_value - 1000 + 9 here
-    assert_eq!(u64::max_value(), h.len());
+    assert_eq!(u64::MAX, h.len());
 }
 
 #[test]
 fn total_count_overflow_from_add_same_dimensions_saturates_when_added_to_orig_total_count() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
-    let mut h2 = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
+    let mut h2 = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
-    h.record_n(1, u64::max_value() - 10).unwrap();
+    h.record_n(1, u64::MAX - 10).unwrap();
     h2.record_n(10, 9).unwrap();
     h2.record_n(20, 9).unwrap();
 
     // h2's total wouldn't overflow, but it would when added to h1
 
     h.add(h2).unwrap();
-    assert_eq!(u64::max_value() - 10, h.count_at(1));
+    assert_eq!(u64::MAX - 10, h.count_at(1));
     assert_eq!(9, h.count_at(20));
-    assert_eq!(u64::max_value(), h.len());
+    assert_eq!(u64::MAX, h.len());
 }
 
 #[test]
 fn total_count_overflow_from_add_different_precision_saturates() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
     // different precision
-    let mut h2 = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 4).unwrap();
+    let mut h2 = Histogram::<u64>::new_with_bounds(1, u64::MAX, 4).unwrap();
 
-    h.record_n(1, u64::max_value() - 1).unwrap();
+    h.record_n(1, u64::MAX - 1).unwrap();
 
-    h2.record_n(20, u64::max_value() - 1).unwrap();
+    h2.record_n(20, u64::MAX - 1).unwrap();
 
     h.add(h2).unwrap();
-    assert_eq!(u64::max_value() - 1, h.count_at(1));
-    assert_eq!(u64::max_value() - 1, h.count_at(20));
-    assert_eq!(u64::max_value(), h.len());
+    assert_eq!(u64::MAX - 1, h.count_at(1));
+    assert_eq!(u64::MAX - 1, h.count_at(20));
+    assert_eq!(u64::MAX, h.len());
 }
 
 #[test]
@@ -538,19 +538,19 @@ fn total_count_overflow_from_add_with_resize_saturates() {
     h.auto(true);
     let mut h2 = Histogram::<u64>::new_with_bounds(1, 10_000_000_000, 3).unwrap();
 
-    h.record_n(1, u64::max_value() - 1).unwrap();
-    h2.record_n(1, u64::max_value() - 1).unwrap();
-    h2.record_n(10_000_000_000, u64::max_value() - 1).unwrap();
+    h.record_n(1, u64::MAX - 1).unwrap();
+    h2.record_n(1, u64::MAX - 1).unwrap();
+    h2.record_n(10_000_000_000, u64::MAX - 1).unwrap();
 
     h.add(h2).unwrap();
-    assert_eq!(u64::max_value(), h.count_at(1));
-    assert_eq!(u64::max_value(), h.len());
+    assert_eq!(u64::MAX, h.count_at(1));
+    assert_eq!(u64::MAX, h.len());
 }
 
 #[test]
 fn subtract_underflow_guarded_by_per_value_count_check() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
-    let mut h2 = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
+    let mut h2 = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
     h.record_n(1, 1).unwrap();
     h2.record_n(1, 100).unwrap();

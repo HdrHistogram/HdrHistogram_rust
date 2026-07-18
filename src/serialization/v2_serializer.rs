@@ -7,7 +7,7 @@ use std::{error, fmt};
 /// Errors that occur during serialization.
 #[derive(Debug)]
 pub enum V2SerializeError {
-    /// A count above i64::max_value() cannot be zig-zag encoded, and therefore cannot be
+    /// A count above i64::MAX cannot be zig-zag encoded, and therefore cannot be
     /// serialized.
     CountNotSerializable,
     /// Internal calculations cannot be represented in `usize`. Use smaller histograms or beefier
@@ -28,7 +28,7 @@ impl fmt::Display for V2SerializeError {
         match self {
             V2SerializeError::CountNotSerializable => write!(
                 f,
-                "A count above i64::max_value() cannot be zig-zag encoded"
+                "A count above i64::MAX cannot be zig-zag encoded"
             ),
             V2SerializeError::UsizeTypeTooSmall => {
                 write!(f, "Internal calculations cannot be represented in `usize`")
@@ -166,7 +166,7 @@ pub fn encode_counts<T: Counter>(
             -zero_count
         } else {
             // TODO while writing tests that serialize random counts, this was annoying.
-            // Don't want to silently cap them at i64::max_value() for users that, say, aren't
+            // Don't want to silently cap them at i64::MAX for users that, say, aren't
             // serializing. Don't want to silently eat counts beyond i63 max when serializing.
             // Perhaps we should provide some sort of pluggability here -- choose whether you want
             // to truncate counts to i63 max, or report errors if you need maximum fidelity?
