@@ -208,7 +208,7 @@ impl<C: Counter> Recorder<C> {
     ///
     /// Until the returned guard is dropped, the associated [`SyncHistogram`] will not wait for
     /// this recorder on a phase shift.
-    pub fn idle(&mut self) -> IdleRecorderGuard<C> {
+    pub fn idle(&mut self) -> IdleRecorderGuard<'_, C> {
         self.deactivate();
         IdleRecorder {
             recorder: Some(self),

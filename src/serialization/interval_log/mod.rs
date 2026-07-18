@@ -706,7 +706,7 @@ fn system_time_as_fp_seconds(time: time::SystemTime) -> f64 {
     }
 }
 
-fn start_time(input: &[u8]) -> IResult<&[u8], LogEntry> {
+fn start_time(input: &[u8]) -> IResult<&[u8], LogEntry<'_>> {
     let (input, _) = tag("#[StartTime: ")(input)?;
     let (input, duration) = fract_sec_duration(input)?;
     let (input, _) = char(' ')(input)?;
@@ -715,7 +715,7 @@ fn start_time(input: &[u8]) -> IResult<&[u8], LogEntry> {
     Ok((input, LogEntry::StartTime(duration)))
 }
 
-fn base_time(input: &[u8]) -> IResult<&[u8], LogEntry> {
+fn base_time(input: &[u8]) -> IResult<&[u8], LogEntry<'_>> {
     let (input, _) = tag("#[BaseTime: ")(input)?;
     let (input, duration) = fract_sec_duration(input)?;
     let (input, _) = char(' ')(input)?;
@@ -731,12 +731,12 @@ fn tag_bytes(input: &[u8]) -> IResult<&[u8], &[u8]> {
     Ok((input, tag))
 }
 
-fn tag_parser(input: &[u8]) -> IResult<&[u8], Tag> {
+fn tag_parser(input: &[u8]) -> IResult<&[u8], Tag<'_>> {
     let (input, tag) = map_res(tag_bytes, str::from_utf8)(input)?;
     Ok((input, Tag(tag)))
 }
 
-fn interval_hist(input: &[u8]) -> IResult<&[u8], LogEntry> {
+fn interval_hist(input: &[u8]) -> IResult<&[u8], LogEntry<'_>> {
     let (input, tag) = opt(tag_parser)(input)?;
     let (input, start_timestamp) = fract_sec_duration(input)?;
     let (input, _) = char(',')(input)?;
@@ -808,7 +808,7 @@ fn fract_sec_duration(input: &[u8]) -> IResult<&[u8], time::Duration> {
 
 type FResult<'a> = IResult<&'a [u8], (u64, &'a str)>;
 
-fn fract_sec_tuple(input: &[u8]) -> FResult {
+fn fract_sec_tuple(input: &[u8]) -> FResult<'_> {
     let (input, secs) = map_res(
         map_res(recognize(take_until(".")), str::from_utf8),
         u64::from_str,

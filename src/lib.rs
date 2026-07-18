@@ -1045,7 +1045,7 @@ impl<T: Counter> Histogram<T> {
     pub fn iter_quantiles(
         &self,
         ticks_per_half_distance: u32,
-    ) -> HistogramIterator<T, iterators::quantile::Iter<T>> {
+    ) -> HistogramIterator<'_, T, iterators::quantile::Iter<'_, T>> {
         // TODO upper bound on ticks per half distance? 2^31 ticks is not useful
         iterators::quantile::Iter::new(self, ticks_per_half_distance)
     }
@@ -1105,7 +1105,7 @@ impl<T: Counter> Histogram<T> {
     /// );
     /// assert_eq!(perc.next(), None);
     /// ```
-    pub fn iter_linear(&self, step: u64) -> HistogramIterator<T, iterators::linear::Iter<T>> {
+    pub fn iter_linear(&self, step: u64) -> HistogramIterator<'_, T, iterators::linear::Iter<'_, T>> {
         iterators::linear::Iter::new(self, step)
     }
 
@@ -1143,7 +1143,7 @@ impl<T: Counter> Histogram<T> {
     /// );
     /// assert_eq!(perc.next(), None);
     /// ```
-    pub fn iter_log(&self, start: u64, exp: f64) -> HistogramIterator<T, iterators::log::Iter<T>> {
+    pub fn iter_log(&self, start: u64, exp: f64) -> HistogramIterator<'_, T, iterators::log::Iter<'_, T>> {
         iterators::log::Iter::new(self, start, exp)
     }
 
@@ -1181,7 +1181,7 @@ impl<T: Counter> Histogram<T> {
     /// );
     /// assert_eq!(perc.next(), None);
     /// ```
-    pub fn iter_recorded(&self) -> HistogramIterator<T, iterators::recorded::Iter> {
+    pub fn iter_recorded(&self) -> HistogramIterator<'_, T, iterators::recorded::Iter> {
         iterators::recorded::Iter::new(self)
     }
 
@@ -1240,7 +1240,7 @@ impl<T: Counter> Histogram<T> {
     /// );
     /// assert_eq!(perc.next(), Some(IterationValue::new(10, 1.0, 1.0, 0, 0)));
     /// ```
-    pub fn iter_all(&self) -> HistogramIterator<T, iterators::all::Iter> {
+    pub fn iter_all(&self) -> HistogramIterator<'_, T, iterators::all::Iter> {
         iterators::all::Iter::new(self)
     }
 
