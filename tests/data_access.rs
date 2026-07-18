@@ -467,6 +467,7 @@ fn iter_recorded() {
         num += 1;
     }
     assert_eq!(total_added_counts, 20000);
+    assert_eq!(num, 4228);
 }
 
 #[test]

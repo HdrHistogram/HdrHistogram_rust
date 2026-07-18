@@ -343,7 +343,7 @@ struct RandomMaxIter<'a, R: Rng + 'a> {
 }
 
 impl<'a, R: Rng + 'a> RandomMaxIter<'a, R> {
-    fn new(rng: &'a mut R) -> RandomMaxIter<R> {
+    fn new(rng: &'a mut R) -> RandomMaxIter<'a, R> {
         RandomMaxIter { rng }
     }
 }
