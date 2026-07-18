@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 ### Added
+- `HdrHistogram::value_at_quantiles` and
+  `HdrHistogram::value_at_percentiles` for faster lookup of multiple
+  quantiles/percentiles (#138).
 
 ### Changed
  - All usages of `unsafe` are removed, causing serialization to be slightly slower, but safe.
