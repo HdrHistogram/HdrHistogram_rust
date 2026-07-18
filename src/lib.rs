@@ -1350,13 +1350,8 @@ impl<T: Counter> Histogram<T> {
             count_at_quantile = 1;
         }
 
-        // Prefix-sum scan for the first index whose cumulative count reaches the
-        // target. Sum a fixed-size chunk at a time (a reduction with no early exit,
-        // which autovectorizes) and skip the whole chunk while its subtotal cannot
-        // reach the target; only the crossing chunk is walked element-by-element.
-        // Counts are non-negative, so a skipped chunk contains no crossing element —
-        // the result is identical to the plain linear scan for any input.
-        // TODO overflow
+        // Sum bins in chunks with SIMD until we detect a chunk that passes the target;
+        // only then do we walk the chunk bin-by-bin.
         const SCAN_CHUNK: usize = 8;
         let finish = |index: usize| -> u64 {
             let value_at_index = self.value_for(index);
@@ -1368,9 +1363,9 @@ impl<T: Counter> Histogram<T> {
         };
 
         let mut total_to_current_index: u64 = 0;
-        let mut chunks = self.counts.chunks_exact(SCAN_CHUNK);
+        let (chunks, tail) = self.counts.as_chunks::<SCAN_CHUNK>();
         let mut base = 0usize;
-        for chunk in chunks.by_ref() {
+        for chunk in chunks {
             let chunk_sum: u64 = chunk.iter().map(|c| c.as_u64()).sum();
             if total_to_current_index + chunk_sum >= count_at_quantile {
                 for (j, count) in chunk.iter().enumerate() {
@@ -1379,16 +1374,14 @@ impl<T: Counter> Histogram<T> {
                         return finish(base + j);
                     }
                 }
-                // chunk_sum >= the remaining-to-target amount guarantees one of the
-                // elements above crossed it, so this point is never reached.
                 unreachable!("chunk subtotal reached the target but no element did");
             } else {
                 total_to_current_index += chunk_sum;
             }
             base += SCAN_CHUNK;
         }
-        // Tail: fewer than SCAN_CHUNK counts remain.
-        for (j, count) in chunks.remainder().iter().enumerate() {
+        // if SCAN_CHUNK does not perfectly divide the number of bins, handle the leftovers
+        for (j, count) in tail.iter().enumerate() {
             total_to_current_index += count.as_u64();
             if total_to_current_index >= count_at_quantile {
                 return finish(base + j);
