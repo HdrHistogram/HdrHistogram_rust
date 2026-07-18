@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ### Added
 
 ### Changed
+- `HdrHistogram::value_at_quantile` and
+  `HdrHistogram::value_at_percentile` now use vectorized operations so
+  that they should be significantly faster on larger histograms (#140).
 
 ### Removed
 
