@@ -7,10 +7,7 @@ use test::Bencher;
 
 #[bench]
 fn varint_write_rand(b: &mut Bencher) {
-    do_varint_write_rand(
-        b,
-        Uniform::new(0, u64::max_value()).expect("range is non-empty"),
-    )
+    do_varint_write_rand(b, Uniform::new(0, u64::MAX).expect("range is non-empty"))
 }
 
 #[bench]
@@ -22,16 +19,13 @@ fn varint_write_rand_1_byte(b: &mut Bencher) {
 fn varint_write_rand_9_bytes(b: &mut Bencher) {
     do_varint_write_rand(
         b,
-        Uniform::new(1 << 56, u64::max_value()).expect("range is non-empty"),
+        Uniform::new(1 << 56, u64::MAX).expect("range is non-empty"),
     )
 }
 
 #[bench]
 fn varint_read_rand(b: &mut Bencher) {
-    do_varint_read_rand(
-        b,
-        Uniform::new(0, u64::max_value()).expect("range is non-empty"),
-    )
+    do_varint_read_rand(b, Uniform::new(0, u64::MAX).expect("range is non-empty"))
 }
 
 #[bench]
@@ -43,16 +37,13 @@ fn varint_read_rand_1_byte(b: &mut Bencher) {
 fn varint_read_rand_9_byte(b: &mut Bencher) {
     do_varint_read_rand(
         b,
-        Uniform::new(1 << 56, u64::max_value()).expect("range is non-empty"),
+        Uniform::new(1 << 56, u64::MAX).expect("range is non-empty"),
     )
 }
 
 #[bench]
 fn varint_read_slice_rand(b: &mut Bencher) {
-    do_varint_read_slice_rand(
-        b,
-        Uniform::new(0, u64::max_value()).expect("range is non-empty"),
-    )
+    do_varint_read_slice_rand(b, Uniform::new(0, u64::MAX).expect("range is non-empty"))
 }
 
 #[bench]
@@ -64,7 +55,7 @@ fn varint_read_slice_rand_1_byte(b: &mut Bencher) {
 fn varint_read_slice_rand_9_byte(b: &mut Bencher) {
     do_varint_read_slice_rand(
         b,
-        Uniform::new(1 << 56, u64::max_value()).expect("range is non-empty"),
+        Uniform::new(1 << 56, u64::MAX).expect("range is non-empty"),
     )
 }
 

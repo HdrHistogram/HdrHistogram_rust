@@ -7,7 +7,7 @@ use std::fmt;
 pub enum CreationError {
     /// Lowest discernible value must be >= 1.
     LowIsZero,
-    /// Lowest discernible value must be <= `u64::max_value() / 2` because the highest value is
+    /// Lowest discernible value must be <= `u64::MAX / 2` because the highest value is
     /// a `u64` and the lowest value must be no bigger than half the highest.
     LowExceedsMax,
     /// Highest trackable value must be >= 2 * lowest discernible value for some internal
@@ -78,10 +78,9 @@ impl fmt::Display for CreationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             CreationError::LowIsZero => write!(f, "Lowest discernible value must be >= 1"),
-            CreationError::LowExceedsMax => write!(
-                f,
-                "Lowest discernible value must be <= `u64::max_value() / 2`"
-            ),
+            CreationError::LowExceedsMax => {
+                write!(f, "Lowest discernible value must be <= `u64::MAX / 2`")
+            }
             CreationError::HighLessThanTwiceLow => write!(
                 f,
                 "Highest trackable value must be >= 2 * lowest discernible value for some internal calculations"

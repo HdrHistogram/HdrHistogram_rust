@@ -213,7 +213,7 @@ use std::ops::{Add, AddAssign, Sub, SubAssign};
 use iterators::HistogramIterator;
 
 /// Min value of a new histogram.
-/// Equivalent to `u64::max_value()`, but const functions aren't allowed (yet).
+/// Equivalent to `u64::MAX`, but const functions aren't allowed (yet).
 /// See <https://github.com/rust-lang/rust/issues/24111>
 const ORIGINAL_MIN: u64 = (-1_i64 >> 63) as u64;
 /// Max value of a new histogram.
@@ -690,7 +690,7 @@ impl<T: Counter> Histogram<T> {
 
     /// Construct an auto-resizing `Histogram` with a lowest discernible value of 1 and an
     /// auto-adjusting highest trackable value. Can auto-resize up to track values up to
-    /// `(i64::max_value() / 2)`.
+    /// `(i64::MAX / 2)`.
     ///
     /// See [`new_with_bounds`] for info on `sigfig`.
     ///
@@ -725,7 +725,7 @@ impl<T: Counter> Histogram<T> {
     /// use 1.
     ///
     /// `high` is the highest value to be tracked by the histogram, and must be a
-    /// positive integer that is `>= (2 * low)`. If you're not sure, use `u64::max_value()`.
+    /// positive integer that is `>= (2 * low)`. If you're not sure, use `u64::MAX`.
     ///
     /// `sigfig` Specifies the number of significant figures to maintain. This is the number of
     /// significant decimal digits to which the histogram will maintain value resolution and
@@ -1281,7 +1281,7 @@ impl<T: Counter> Histogram<T> {
     }
 
     /// Get the lowest recorded non-zero value level in the histogram.
-    /// If the histogram has no recorded values, the value returned is `u64::max_value()`.
+    /// If the histogram has no recorded values, the value returned is `u64::MAX`.
     pub fn min_nz(&self) -> u64 {
         if self.min_non_zero_value == ORIGINAL_MIN {
             ORIGINAL_MIN
@@ -1346,7 +1346,7 @@ impl<T: Counter> Histogram<T> {
     ///
     /// Two values are considered "equivalent" if `self.equivalent` would return true.
     ///
-    /// If the total count of the histogram has exceeded `u64::max_value()`, this will return
+    /// If the total count of the histogram has exceeded `u64::MAX`, this will return
     /// inaccurate results.
     ///
     /// If you are trying to compute multiple quantiles, prefer [`Histogram::value_at_quantiles`].
@@ -1495,7 +1495,7 @@ impl<T: Counter> Histogram<T> {
     /// If the value is larger than the maximum representable value, it will be clamped to the
     /// max representable value.
     ///
-    /// If the total count of the histogram has reached `u64::max_value()`, this will return
+    /// If the total count of the histogram has reached `u64::MAX`, this will return
     /// inaccurate results.
     pub fn quantile_below(&self, value: u64) -> f64 {
         if self.total_count == 0 {
@@ -1540,7 +1540,7 @@ impl<T: Counter> Histogram<T> {
     /// If either value is larger than the maximum representable value, it will be clamped to the
     /// max representable value.
     ///
-    /// The count will saturate at u64::max_value().
+    /// The count will saturate at u64::MAX.
     pub fn count_between(&self, low: u64, high: u64) -> u64 {
         let low_index = self.index_for_or_last(low);
         let high_index = self.index_for_or_last(high);
@@ -1580,7 +1580,7 @@ impl<T: Counter> Histogram<T> {
     /// resolution. Equivalent here means that value samples recorded for any two equivalent values
     /// are counted in a common total count.
     ///
-    /// Note that the return value is capped at `u64::max_value()`.
+    /// Note that the return value is capped at `u64::MAX`.
     pub fn highest_equivalent(&self, value: u64) -> u64 {
         if value == u64::MAX {
             u64::MAX
@@ -1593,7 +1593,7 @@ impl<T: Counter> Histogram<T> {
     /// given value. Equivalent here means that value samples recorded for any two equivalent
     /// values are counted in a common total count.
     ///
-    /// Note that the return value is capped at `u64::max_value()`.
+    /// Note that the return value is capped at `u64::MAX`.
     pub fn median_equivalent(&self, value: u64) -> u64 {
         // adding half of the range to the bottom of the range shouldn't overflow
         self.lowest_equivalent(value)
@@ -1605,7 +1605,7 @@ impl<T: Counter> Histogram<T> {
     /// resolution. Equivalent means that value samples recorded for any two equivalent values are
     /// counted in a common total count.
     ///
-    /// Note that the return value is capped at `u64::max_value()`.
+    /// Note that the return value is capped at `u64::MAX`.
     pub fn next_non_equivalent(&self, value: u64) -> u64 {
         self.lowest_equivalent(value)
             .saturating_add(self.equivalent_range(value))
@@ -1631,13 +1631,13 @@ impl<T: Counter> Histogram<T> {
 
     /// Computes the matching histogram value for the given histogram bin.
     ///
-    /// `index` must be no larger than `u32::max_value()`; no possible histogram uses that much
+    /// `index` must be no larger than `u32::MAX`; no possible histogram uses that much
     /// storage anyway. So, any index that comes from a valid histogram location will be safe.
     ///
     /// If the index is for a position beyond what this histogram is configured for, the correct
     /// corresponding value will be returned, but of course it won't have a corresponding count.
     ///
-    /// If the index maps to a value beyond `u64::max_value()`, the result will be garbage.
+    /// If the index maps to a value beyond `u64::MAX`, the result will be garbage.
     fn value_for(&self, index: usize) -> u64 {
         // Dividing by sub bucket half count will yield 1 in top half of first bucket, 2 in
         // in the top half (i.e., the only half that's used) of the 2nd bucket, etc, so subtract 1
@@ -1704,7 +1704,7 @@ impl<T: Counter> Histogram<T> {
 
     /// Compute the value corresponding to the provided bucket and sub bucket indices.
     /// The indices given must map to an actual u64; providing contrived indices that would map to
-    /// a value larger than u64::max_value() will yield garbage.
+    /// a value larger than u64::MAX will yield garbage.
     #[inline]
     fn value_from_loc(&self, bucket_index: u8, sub_bucket_index: u32) -> u64 {
         // Sum won't overflow; bucket_index and unit_magnitude are both <= 64.
@@ -1754,7 +1754,7 @@ impl<T: Counter> Histogram<T> {
     /// Returns an error if the new size cannot be represented as a `usize`.
     fn resize(&mut self, high: u64) -> Result<(), UsizeTypeTooSmall> {
         // will not overflow because lowest_discernible_value must be at least as small as
-        // u64::max_value() / 2 to have passed initial validation
+        // u64::MAX / 2 to have passed initial validation
         assert!(
             high >= 2 * self.lowest_discernible_value,
             "highest trackable value must be >= (2 * lowest discernible value)"

@@ -228,13 +228,13 @@ fn quantile_atorbelow() {
 
 #[test]
 fn quantile_below_saturates() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
     for i in 0..1024 {
-        h.record_n(i, u64::max_value() - 1).unwrap();
+        h.record_n(i, u64::MAX - 1).unwrap();
     }
 
-    // really it should be 0.5 but it saturates at u64::max_value()
+    // really it should be 0.5 but it saturates at u64::MAX
     assert_eq!(1.0, h.quantile_below(512));
 }
 
@@ -251,7 +251,7 @@ fn quantile_below_value_beyond_max() {
         h.record(100_000).unwrap();
     }
 
-    assert_eq!(1.0, h.quantile_below(u64::max_value()));
+    assert_eq!(1.0, h.quantile_below(u64::MAX));
 }
 
 #[test]
@@ -282,13 +282,13 @@ fn count_between_low_and_high_beyond_max() {
 
 #[test]
 fn count_between_saturates() {
-    let mut h = Histogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap();
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
 
     for i in 0..1024 {
-        h.record_n(i, u64::max_value() - 1).unwrap();
+        h.record_n(i, u64::MAX - 1).unwrap();
     }
 
-    assert_eq!(u64::max_value(), h.count_between(100, 200));
+    assert_eq!(u64::MAX, h.count_between(100, 200));
 }
 
 #[test]
@@ -306,7 +306,7 @@ fn count_at_beyond_max_value() {
     // largest expressible value will land in last index
     h.record((1 << 17) - 1).unwrap();
 
-    assert_eq!(1, h.count_at(u64::max_value()));
+    assert_eq!(1, h.count_at(u64::MAX));
 }
 
 #[test]

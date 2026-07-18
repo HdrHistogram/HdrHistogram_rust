@@ -183,7 +183,7 @@
 //! let mut serializer = serialization::V2Serializer::new();
 //!
 //! let mut h = hdrhistogram::Histogram::<u64>::new_with_bounds(
-//!     1, u64::max_value(), 3).unwrap();
+//!     1, u64::MAX, 3).unwrap();
 //! h.record(12345).unwrap();
 //!
 //! // limit scope of mutable borrow of `buf`
