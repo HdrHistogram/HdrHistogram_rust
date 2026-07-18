@@ -2,6 +2,7 @@
 name = "hdrhistogram"
 version = "7.5.4"
 edition = "2018"
+rust-version = "1.88"
 
 description = "A port of HdrHistogram to Rust"
 readme = "README.md"
