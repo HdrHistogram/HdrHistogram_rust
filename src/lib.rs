@@ -1424,12 +1424,10 @@ impl<T: Counter> Histogram<T> {
         I: IntoIterator<Item = f64>,
     {
         let mut total_to_current_index: u64 = 0;
-        let mut quantiles = quantiles.into_iter();
         let mut counts = self.counts.iter().enumerate();
         let mut at_count_i = 0;
         let mut previous_quantile = None;
-        std::iter::from_fn(move || {
-            let quantile = quantiles.next()?;
+        quantiles.into_iter().filter_map(move |quantile| {
             if previous_quantile.is_some_and(|pq| pq > quantile) {
                 // not in sorted order, so stop iterating
                 return None;
