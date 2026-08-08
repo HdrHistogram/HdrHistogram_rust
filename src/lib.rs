@@ -1423,15 +1423,19 @@ impl<T: Counter> Histogram<T> {
     where
         I: IntoIterator<Item = f64>,
     {
+        // Construct an iterator over all quantiles that stops early on the first quantile that not
+        // in ascending order.
+        let mut previous_quantile = None;
+        let ascending_quantiles = quantiles.into_iter().take_while(move |&quantile| {
+            previous_quantile
+                .replace(quantile)
+                .is_none_or(|pq| pq < quantile)
+        });
+
         let mut total_to_current_index: u64 = 0;
         let mut counts = self.counts.iter().enumerate();
         let mut at_count_i = 0;
-        let mut previous_quantile = None;
-        quantiles.into_iter().filter_map(move |quantile| {
-            if previous_quantile.is_some_and(|pq| pq > quantile) {
-                // not in sorted order, so stop iterating
-                return None;
-            }
+        ascending_quantiles.map(move |quantile| {
             // clamps to 0.0 .. 1.0, with a minimum count of 1
             let target = ((quantile.clamp(0., 1.) * self.total_count as f64).ceil() as u64).max(1);
 
@@ -1440,20 +1444,18 @@ impl<T: Counter> Histogram<T> {
                     // target is clamped to total_count, so last bin must make this false
                     // _except_ in the case where the histogram is empty
                     assert_eq!(self.total_count, 0);
-                    return Some(0);
+                    return 0;
                 };
                 at_count_i = i;
                 total_to_current_index += count.as_u64();
             }
 
             let value_at_index = self.value_for(at_count_i);
-            let result = if quantile == 0.0 {
+            if quantile == 0.0 {
                 self.lowest_equivalent(value_at_index)
             } else {
                 self.highest_equivalent(value_at_index)
-            };
-            previous_quantile = Some(quantile);
-            Some(result)
+            }
         })
     }
 
