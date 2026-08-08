@@ -39,18 +39,35 @@ mod sync {
         let mut h: SyncHistogram<_> = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG)
             .unwrap()
             .into();
+
+        // the writer has to keep writing until the phase shift is through: a fixed number of
+        // writes that all landed before refresh() bumped the phase would block refresh() forever.
+        let done = Arc::new(atomic::AtomicBool::new(false));
         let barrier = Arc::new(std::sync::Barrier::new(2));
         let mut r = h.recorder();
+        let d = Arc::clone(&done);
         let b = Arc::clone(&barrier);
         let jh = thread::spawn(move || {
-            r += TEST_VALUE_LEVEL;
+            let mut n = 0;
+            while !d.load(atomic::Ordering::Acquire) {
+                r += TEST_VALUE_LEVEL;
+                n += 1;
+            }
+            // hold the recorder alive so what the reader saw provably came from a write, not Drop
             b.wait();
+            n
         });
+
         h.refresh();
-        assert_eq!(h.count_at(TEST_VALUE_LEVEL), 1);
-        assert_eq!(h.len(), 1);
+        done.store(true, atomic::Ordering::Release);
+
+        let seen = h.len();
+        assert!(seen >= 1);
+        assert_eq!(h.count_at(TEST_VALUE_LEVEL), seen);
+
         barrier.wait();
-        jh.join().unwrap();
+        let n = jh.join().unwrap();
+        assert!(seen <= n);
     }
 
     #[test]
@@ -75,25 +92,31 @@ mod sync {
             .unwrap()
             .into();
 
+        let done = Arc::new(atomic::AtomicBool::new(false));
         let barrier = Arc::new(std::sync::Barrier::new(2));
         let mut r = h.recorder();
+        let d = Arc::clone(&done);
         let b = Arc::clone(&barrier);
         let jh = thread::spawn(move || {
-            let n = 10_000;
-            for _ in 0..n {
+            // one of these writes unblocks the reader's first phase; see record_nodrop for why
+            // the writer cannot just do a fixed number of them
+            let mut n = 0;
+            while !d.load(atomic::Ordering::Acquire) {
                 r += TEST_VALUE_LEVEL;
+                n += 1;
             }
-            // one of the writes above will unblock the reader's first phase
             // the 1st barrier below ensures that the reader's second phase isn't passed by a write too
             // the 2nd barrier below ensures that there is at least one write to send on drop,
             // and that that write doesn't wake up the 2nd phase
             b.wait();
             r += TEST_VALUE_LEVEL;
+            n += 1;
             b.wait();
             drop(r);
-            n + 1
+            n
         });
         h.refresh(); // this should be unblocked by one of the writes
+        done.store(true, atomic::Ordering::Release);
         barrier.wait();
         barrier.wait();
         h.refresh(); // this will be unblocked by the recorder drop
