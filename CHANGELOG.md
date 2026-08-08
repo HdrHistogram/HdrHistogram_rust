@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ### Added
 
 ### Changed
+- The `cli` example's `-c/--compression` and `-r/--resize` switches are
+  once again real boolean flags. The clap 4 migration in 7.5.4 left them
+  taking a value, so `-c` on its own was rejected, `-c false` enabled
+  compression, and `-cr` was read as `--compression=r` with resize
+  silently disabled.
 
 ### Removed
 

@@ -3,7 +3,7 @@ use std::fmt::Display;
 use std::io;
 use std::io::{BufRead, Write};
 
-use clap::{Arg, Command};
+use clap::{Arg, ArgAction, Command};
 
 use hdrhistogram::serialization::{
     DeserializeError, Deserializer, Serializer, V2DeflateSerializeError, V2DeflateSerializer,
@@ -45,12 +45,14 @@ fn main() {
                     Arg::new("compression")
                         .short('c')
                         .long("compression")
+                        .action(ArgAction::SetTrue)
                         .help("Enable compression"),
                 )
                 .arg(
                     Arg::new("resize")
                         .short('r')
                         .long("resize")
+                        .action(ArgAction::SetTrue)
                         .help("Enable auto resize"),
                 ),
         )
@@ -89,11 +91,11 @@ fn main() {
 
             let mut h: Histogram<u64> = Histogram::new_with_bounds(min, max, sigfig).unwrap();
 
-            if sub_matches.contains_id("resize") {
+            if sub_matches.get_flag("resize") {
                 h.auto(true);
             }
 
-            serialize(stdin, stdout, h, sub_matches.contains_id("compression"))
+            serialize(stdin, stdout, h, sub_matches.get_flag("compression"))
         }
         Some("iter-quantiles") => {
             let sub_matches = matches.subcommand_matches("iter-quantiles").unwrap();
