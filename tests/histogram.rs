@@ -2,7 +2,7 @@
 
 use rand::RngExt;
 
-use hdrhistogram::{Counter, Histogram, SubtractionError};
+use hdrhistogram::{Counter, Histogram, RecordError, SubtractionError};
 use std::borrow::Borrow;
 use std::fmt;
 
@@ -78,9 +78,77 @@ fn record() {
 }
 
 #[test]
+fn unrecord() {
+    let mut h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
+    h.record(0).unwrap();
+    h.record_n(1, 2).unwrap();
+    h.record_n(10, 3).unwrap();
+    h.record_n(100, 4).unwrap();
+
+    h.unrecord(10).unwrap();
+    assert_eq!(h.count_at(10), 2);
+    assert_eq!(h.len(), 9);
+    assert_eq!(h.min(), 0);
+    assert_eq!(h.min_nz(), 1);
+    assert_eq!(h.max(), 100);
+
+    h.unrecord_n(1, u64::MAX).unwrap();
+    assert_eq!(h.count_at(1), 0);
+    assert_eq!(h.len(), 7);
+    assert_eq!(h.min(), 0);
+    assert_eq!(h.min_nz(), 10);
+    assert_eq!(h.max(), 100);
+
+    h.unrecord_n(100, u64::MAX).unwrap();
+    assert_eq!(h.count_at(100), 0);
+    assert_eq!(h.len(), 3);
+    assert_eq!(h.min(), 0);
+    assert_eq!(h.min_nz(), 10);
+    assert_eq!(h.max(), 10);
+
+    h.unrecord_n(10, u64::MAX).unwrap();
+    assert_eq!(h.len(), 1);
+    assert_eq!(h.min(), 0);
+    assert_eq!(h.min_nz(), u64::MAX);
+    assert_eq!(h.max(), 0);
+
+    h.unrecord(0).unwrap();
+    assert!(h.is_empty());
+    assert_eq!(h.min(), 0);
+    assert_eq!(h.min_nz(), u64::MAX);
+    assert_eq!(h.max(), 0);
+    assert!(verify_max(h));
+}
+
+#[test]
 fn record_past_trackable_max() {
     let mut h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
     assert!(h.record(3 * TRACKABLE_MAX).is_err());
+}
+
+#[test]
+fn unrecord_out_of_range() {
+    let mut h = Histogram::<u64>::new_with_max(TRACKABLE_MAX, SIGFIG).unwrap();
+    h.record(TEST_VALUE_LEVEL).unwrap();
+    let value = 3 * TRACKABLE_MAX;
+
+    assert_eq!(
+        RecordError::ValueOutOfRangeResizeDisabled,
+        h.unrecord(value).unwrap_err()
+    );
+    assert_eq!(h.count_at(TEST_VALUE_LEVEL), 1);
+    assert_eq!(h.len(), 1);
+
+    let high = h.high();
+    h.auto(true);
+    h.record(high).unwrap();
+
+    h.unrecord(value).unwrap();
+
+    assert_eq!(h.high(), high);
+    assert_eq!(h.count_at(high), 1);
+    assert_eq!(h.count_at(TEST_VALUE_LEVEL), 1);
+    assert_eq!(h.len(), 2);
 }
 
 #[test]
@@ -395,6 +463,35 @@ fn value_count_overflow_from_record_saturates_u16() {
     assert_eq!(u16::MAX, h.count_at(3));
     // total is a u64 though
     assert_eq!(u64::from(u16::MAX - 1) * 2, h.len());
+}
+
+#[test]
+fn unrecord_saturated_counts() {
+    let mut h = Histogram::<u16>::new_with_max(TRACKABLE_MAX, 2).unwrap();
+
+    h.record_n(10, u16::MAX - 1).unwrap();
+    h.record_n(10, u16::MAX - 1).unwrap();
+    h.record(100).unwrap();
+
+    h.unrecord_n(10, u16::MAX).unwrap();
+
+    assert_eq!(h.count_at(10), 0);
+    assert_eq!(h.len(), u64::from(u16::MAX - 1));
+    assert_eq!(h.min(), 100);
+    assert_eq!(h.max(), 100);
+
+    let mut h = Histogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap();
+    let chunk = (u64::MAX / 16) * 5;
+
+    h.record_n(1, chunk).unwrap();
+    h.record_n(10, chunk).unwrap();
+    h.record_n(100, chunk).unwrap();
+    h.record_n(1000, chunk).unwrap();
+    assert_eq!(h.len(), u64::MAX);
+
+    h.unrecord_n(10, chunk).unwrap();
+
+    assert_eq!(h.len(), 3 * chunk);
 }
 
 #[test]
