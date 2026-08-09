@@ -219,6 +219,11 @@ const ORIGINAL_MIN: u64 = (-1_i64 >> 63) as u64;
 /// Max value of a new histogram.
 const ORIGINAL_MAX: u64 = 0;
 
+enum Op {
+    Add,
+    Sub,
+}
+
 /// `Histogram` is the core data structure in HdrSample. It records values, and performs analytics.
 ///
 /// At its heart, it keeps the count for recorded samples in "buckets" of values. The resolution
@@ -851,6 +856,17 @@ impl<T: Counter> Histogram<T> {
         self.record_n(value, T::one())
     }
 
+    /// Remove one occurrence of `value` from the histogram.
+    ///
+    /// If the count for `value` is zero, it remains zero. Unrecording a value outside the current
+    /// range does not resize the histogram.
+    ///
+    /// Returns an error if `value` exceeds the highest trackable value and auto-resize is
+    /// disabled.
+    pub fn unrecord(&mut self, value: u64) -> Result<(), RecordError> {
+        self.unrecord_n(value, T::one())
+    }
+
     /// Record `value` in the histogram, clamped to the range of the histogram.
     ///
     /// This method cannot fail, as any values that are too small or too large to be tracked will
@@ -867,7 +883,19 @@ impl<T: Counter> Histogram<T> {
     ///
     /// Returns an error if `value` cannot be recorded; see `RecordError`.
     pub fn record_n(&mut self, value: u64, count: T) -> Result<(), RecordError> {
-        self.record_n_inner(value, count, false)
+        self.record_n_inner(Op::Add, value, count, false)
+    }
+
+    /// Remove up to `count` occurrences of `value` from the histogram.
+    ///
+    /// Only occurrences represented by the stored bucket count can be removed. If the count for
+    /// `value` is less than `count`, it saturates at zero. Unrecording a value outside the current
+    /// range does not resize the histogram.
+    ///
+    /// Returns an error if `value` exceeds the highest trackable value and auto-resize is
+    /// disabled.
+    pub fn unrecord_n(&mut self, value: u64, count: T) -> Result<(), RecordError> {
+        self.record_n_inner(Op::Sub, value, count, false)
     }
 
     /// Record multiple samples for a value in the histogram, each one clamped to the histogram's
@@ -880,10 +908,58 @@ impl<T: Counter> Histogram<T> {
     /// from the resulting histogram without warning. Since the values are clamped, the histogram
     /// will also not be resized to accomodate the value, even if auto-resize is enabled.
     pub fn saturating_record_n(&mut self, value: u64, count: T) {
-        self.record_n_inner(value, count, true).unwrap()
+        self.record_n_inner(Op::Add, value, count, true).unwrap()
     }
 
-    fn record_n_inner(&mut self, mut value: u64, count: T, clamp: bool) -> Result<(), RecordError> {
+    #[inline]
+    fn record_n_inner(
+        &mut self,
+        op: Op,
+        mut value: u64,
+        count: T,
+        clamp: bool,
+    ) -> Result<(), RecordError> {
+        match op {
+            Op::Add => {}
+            Op::Sub => {
+                let (removed_count, emptied_bucket) = if let Some(c) = self.mut_at(value) {
+                    let previous_count = *c;
+                    *c = (*c).saturating_sub(count);
+                    (previous_count - *c, *c == T::zero())
+                } else if self.auto_resize {
+                    return Ok(());
+                } else {
+                    return Err(RecordError::ValueOutOfRangeResizeDisabled);
+                };
+
+                if removed_count == T::zero() {
+                    return Ok(());
+                }
+
+                let total_count_was_saturated = self.total_count == u64::MAX;
+                if !total_count_was_saturated {
+                    self.total_count = self.total_count.saturating_sub(removed_count.as_u64());
+                }
+
+                if total_count_was_saturated
+                    || (emptied_bucket
+                        && (self.equivalent(value, self.min_nz())
+                            || self.equivalent(value, self.max())))
+                {
+                    let total_count = self.total_count;
+                    self.restat(self.distinct_values());
+
+                    if !total_count_was_saturated {
+                        // `restat` also recalculates the total from bucket counts that may have
+                        // saturated, so keep the total we already adjusted above.
+                        self.total_count = total_count;
+                    }
+                }
+
+                return Ok(());
+            }
+        }
+
         let recorded_without_resize = if let Some(c) = self.mut_at(value) {
             *c = (*c).saturating_add(count);
             true
@@ -964,7 +1040,7 @@ impl<T: Counter> Histogram<T> {
             // only enter loop when calculations will stay non-negative
             let mut missing_value = value - interval;
             while missing_value >= interval {
-                self.record_n_inner(missing_value, count, false)?;
+                self.record_n_inner(Op::Add, missing_value, count, false)?;
                 missing_value -= interval;
             }
         }

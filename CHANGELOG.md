@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ## [Unreleased]
 
 ### Added
+- `Histogram::unrecord` and `Histogram::unrecord_n` for removing recorded values.
 
 ### Changed
 - The `cli` example's `-c/--compression` and `-r/--resize` switches are
