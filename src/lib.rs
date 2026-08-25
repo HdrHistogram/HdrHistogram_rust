@@ -356,7 +356,7 @@ impl<T: Counter> Histogram<T> {
 
     /// Find the bucket the given value should be placed in.
     /// Returns `None` if the corresponding index cannot be represented in `usize`.
-    fn index_for(&self, value: u64) -> Option<usize> {
+    pub(crate) fn index_for(&self, value: u64) -> Option<usize> {
         let bucket_index = self.bucket_for(value);
         let sub_bucket_index = self.sub_bucket_for(value, bucket_index);
 
@@ -1629,6 +1629,18 @@ impl<T: Counter> Histogram<T> {
     // Internal helpers
     // ********************************************************************************************
 
+    /// Empty the counts vector, retaining only the geometry (used to build a
+    /// lightweight `PackedHistogram` oracle). The geometry lookup methods
+    /// (index_for/value_for/*_equivalent) never index counts, so this is safe.
+    pub(crate) fn clear_counts_for_oracle(&mut self) {
+        self.counts = Vec::new();
+    }
+
+    #[cfg(test)]
+    pub(crate) fn value_for_test(&self, index: usize) -> u64 {
+        self.value_for(index)
+    }
+
     /// Computes the matching histogram value for the given histogram bin.
     ///
     /// `index` must be no larger than `u32::MAX`; no possible histogram uses that much
@@ -1638,7 +1650,7 @@ impl<T: Counter> Histogram<T> {
     /// corresponding value will be returned, but of course it won't have a corresponding count.
     ///
     /// If the index maps to a value beyond `u64::MAX`, the result will be garbage.
-    fn value_for(&self, index: usize) -> u64 {
+    pub(crate) fn value_for(&self, index: usize) -> u64 {
         // Dividing by sub bucket half count will yield 1 in top half of first bucket, 2 in
         // in the top half (i.e., the only half that's used) of the 2nd bucket, etc, so subtract 1
         // to get 0-indexed bucket indexes. This will be -1 for the bottom half of the first bucket.
@@ -2012,6 +2024,8 @@ where
 
 // TODO: shift
 // TODO: hash
+
+pub mod packed;
 
 #[path = "tests/tests.rs"]
 #[cfg(test)]

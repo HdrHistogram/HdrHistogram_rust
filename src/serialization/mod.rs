@@ -196,16 +196,18 @@ pub use self::v2_deflate_serializer::{V2DeflateSerializeError, V2DeflateSerializ
 
 mod deserializer;
 pub use self::deserializer::{DeserializeError, Deserializer};
+pub(crate) use self::deserializer::{varint_read_slice, zig_zag_decode};
+pub(crate) use self::v2_serializer::{varint_write, zig_zag_encode};
 
 pub mod interval_log;
 
-const V2_COOKIE_BASE: u32 = 0x1c84_9303;
-const V2_COMPRESSED_COOKIE_BASE: u32 = 0x1c84_9304;
+pub(crate) const V2_COOKIE_BASE: u32 = 0x1c84_9303;
+pub(crate) const V2_COMPRESSED_COOKIE_BASE: u32 = 0x1c84_9304;
 
-const V2_COOKIE: u32 = V2_COOKIE_BASE | 0x10;
-const V2_COMPRESSED_COOKIE: u32 = V2_COMPRESSED_COOKIE_BASE | 0x10;
+pub(crate) const V2_COOKIE: u32 = V2_COOKIE_BASE | 0x10;
+pub(crate) const V2_COMPRESSED_COOKIE: u32 = V2_COMPRESSED_COOKIE_BASE | 0x10;
 
-const V2_HEADER_SIZE: usize = 40;
+pub(crate) const V2_HEADER_SIZE: usize = 40;
 
 /// Histogram serializer.
 ///
