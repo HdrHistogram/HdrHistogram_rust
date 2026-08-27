@@ -165,9 +165,15 @@ mod sync {
             .collect();
 
         barrier.wait();
+        // Join every recording thread FIRST: a Recorder's samples are only guaranteed
+        // visible to the NEXT refresh() after the Recorder is dropped (when the thread's
+        // closure ends). Refreshing before the joins races those drops and undercounts by
+        // whole per-recorder histograms. Establish the happens-before (all recorders
+        // dropped), then refresh + read.
+        let expected: u64 = jhs.into_iter().map(|r| r.join().unwrap()).sum();
         h.refresh();
 
-        assert_eq!(h.len(), jhs.into_iter().map(|r| r.join().unwrap()).sum());
+        assert_eq!(h.len(), expected);
     }
 
     #[test]
