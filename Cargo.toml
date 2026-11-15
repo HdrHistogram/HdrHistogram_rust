@@ -41,7 +41,7 @@ ieee754 = "0.2.2"
 clap = { version = "4", features = ["string"] }
 
 [target.'cfg(unix)'.dev-dependencies]
-rug = "1.2"
+rug = "1.29"
 
 [lib]
 path = "src/lib.rs"
